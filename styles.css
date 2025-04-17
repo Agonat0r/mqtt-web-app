@@ -1,0 +1,39 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f3f3;
+    padding: 20px;
+  }
+  .container {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.1);
+  }
+  input {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0;
+  }
+  button {
+    margin: 5px;
+    padding: 10px;
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  }
+  button:hover {
+    background: #1976d2;
+  }
+  #log {
+    background: #eee;
+    padding: 10px;
+    height: 200px;
+    overflow-y: scroll;
+    white-space: pre-line;
+    border-radius: 5px;
+    margin-top: 10px;
+  }
+  

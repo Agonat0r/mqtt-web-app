@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MQTT Web Client</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>MQTT Web Client</h2>
+
+    <label>Broker (WebSocket URL):</label>
+    <input type="text" id="broker" value="wss://test.mosquitto.org:8081/mqtt"><br>
+
+    <label>Topic:</label>
+    <input type="text" id="topic" value="test/topic"><br>
+
+    <label>Message:</label>
+    <input type="text" id="message"><br>
+
+    <div class="buttons">
+      <button onclick="connect()">Connect</button>
+      <button onclick="subscribe()">Subscribe</button>
+      <button onclick="publish()">Publish</button>
+      <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <h3>Console</h3>
+    <div id="log"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

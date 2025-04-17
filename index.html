@@ -1,38 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>MQTT Web Client</title>
-  <link rel="stylesheet" href="styles.css">
-
-  <!-- ✅ Load the Paho MQTT library FIRST -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" defer></script>
-
-  <!-- ✅ Your custom script loads AFTER everything else -->
-  <script src="script.js" defer></script>
+  <title>USF Harmar MQTT Dashboard</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 40px;
+    }
+    input, button {
+      margin: 5px;
+      padding: 8px;
+    }
+    #log {
+      height: 200px;
+      overflow-y: scroll;
+      background: #f0f0f0;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h2>MQTT Web Client</h2>
+  <h1>📡 USF Harmar MQTT Dashboard</h1>
 
-    <label>Broker (WebSocket URL):</label>
-    <input type="text" id="broker" value="wss://broker.hivemq.com:8884/mqtt"><br>
+  <label for="topic">Topic:</label>
+  <input type="text" id="topic" value="usf/messages"><br>
 
-    <label>Topic:</label>
-    <input type="text" id="topic" value="/esp32/hmi"><br>
+  <label for="message">Message:</label>
+  <input type="text" id="message" value="Hello from Netlify!"><br>
 
-    <label>Message:</label>
-    <input type="text" id="message"><br>
+  <button onclick="sendMessage()">Send Message</button>
 
-    <div class="buttons">
-      <button onclick="connect()">Connect</button>
-      <button onclick="subscribe()">Subscribe</button>
-      <button onclick="publish()">Publish</button>
-      <button onclick="disconnect()">Disconnect</button>
-    </div>
+  <h3>📋 Log</h3>
+  <pre id="log">Connecting...</pre>
 
-    <h3>Console</h3>
-    <div id="log"></div>
-  </div>
+  <script>
+    const brokerUrl = 'wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt';
+    const options = {
+      username: 'Carlos',     // Replace with actual EMQX username
+      password: 'Pena'        // Replace with actual EMQX password
+    };
+
+    const client = mqtt.connect(brokerUrl, options);
+
+    client.on('connect', () => {
+      log('✅ Connected to EMQX Cloud!');
+      const defaultTopic = document.getElementById('topic').value;
+      client.subscribe(defaultTopic);
+      log(`🔔 Subscribed to ${defaultTopic}`);
+    });
+
+    client.on('message', (topic, message) => {
+      log(`📩 ${topic}: ${message.toString()}`);
+    });
+
+    function sendMessage() {
+      const topic = document.getElementById('topic').value;
+      const messageText = document.getElementById('message').value;
+      client.publish(topic, messageText);
+      log(`📤 Sent to ${topic}: ${messageText}`);
+    }
+
+    function log(msg) {
+      const logDiv = document.getElementById('log');
+      logDiv.textContent += msg + '\n';
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+  </script>
 </body>
 </html>

@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <title>MQTT Web Client</title>
   <link rel="stylesheet" href="styles.css">
+
+  <!-- ✅ Load the Paho MQTT library FIRST -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" defer></script>
+
+  <!-- ✅ Your custom script loads AFTER everything else -->
+  <script src="script.js" defer></script>
 </head>
 <body>
   <div class="container">
@@ -28,9 +34,5 @@
     <h3>Console</h3>
     <div id="log"></div>
   </div>
-
-  <!-- ✅ Correct loading order -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"></script>
-  <script src="script.js"></script>
 </body>
 </html>

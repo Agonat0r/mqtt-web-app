@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>MQTT Web Client</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"></script>
 </head>
 <body>
   <div class="container">
@@ -14,7 +13,7 @@
     <input type="text" id="broker" value="wss://test.mosquitto.org:8081/mqtt"><br>
 
     <label>Topic:</label>
-    <input type="text" id="topic" value="test/topic"><br>
+    <input type="text" id="topic" value="/esp32/hmi"><br>
 
     <label>Message:</label>
     <input type="text" id="message"><br>
@@ -30,6 +29,8 @@
     <div id="log"></div>
   </div>
 
+  <!-- ✅ Correct loading order -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

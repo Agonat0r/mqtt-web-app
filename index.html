@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/paho-mqtt@1.1.0/paho-mqtt.min.js"></script>
 </head>
 <body>
-  <!-- 🔐 Login Screen -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
@@ -17,7 +15,6 @@
     <button onclick="handleLogin()">Login</button>
   </div>
 
-  <!-- 📡 Main App -->
   <div id="main-app" class="hidden">
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
@@ -28,7 +25,6 @@
       </div>
     </div>
 
-    <!-- 🪪 Hidden broker credentials -->
     <input type="hidden" id="broker-user" value="admin" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
@@ -47,7 +43,6 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- 🛠️ Controls -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -65,7 +60,6 @@
     </div>
   </div>
 
-  <!-- 📧 Hidden EmailJS Form -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -74,7 +68,6 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- ✅ Your Script -->
   <script src="script.js"></script>
 </body>
 </html>

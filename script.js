@@ -7,6 +7,8 @@ let brokerPath = "/mqtt";
 let brokerUser = 'admin';
 let brokerPass = 'mqtt2025';
 let loggedIn = false;
+let topic = "/esp32/hmi";
+let client;
 
 function handleLogin() {
   const userInput = document.getElementById('login-username').value;
@@ -16,32 +18,25 @@ function handleLogin() {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     loggedIn = true;
-    // Connect to MQTT *after* successful login
-    connectToMQTTCredentials(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+    connectToMQTT();
   } else {
     alert('❌ Invalid credentials');
   }
 }
 
 // -----------------------------
-// 🌐 MQTT Setup (WSS Config)
+// 🌐 MQTT Setup
 // -----------------------------
-let client;
-let topic = "/esp32/hmi";
-
-function connectToMQTTCredentials(host, port, path, username, password) {
-    connectToMQTT(host,port,path,username,password);
-}
-
-function connectToMQTT(host, port, path, username, password) {
+function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  const fullUrl = `wss://${host}:${port}${path}`;
 
-  console.log("Connecting to MQTT with URL:", fullUrl, "and clientId:", clientId);
+  const fullUrl = `wss://${brokerHost}:${brokerPort}${brokerPath}`;
+  console.log("Connecting to MQTT with URL:", fullUrl, "ClientID:", clientId);
+
   try {
-    client = new Paho.MQTT.Client(fullUrl, clientId);
-  } catch (error) {
-    console.error("Error creating MQTT client:", error);
+    client = new Paho.MQTT.Client(brokerHost, brokerPort, brokerPath, clientId);
+  } catch (err) {
+    console.error("❌ Failed to create MQTT client:", err);
     return;
   }
 
@@ -50,8 +45,8 @@ function connectToMQTT(host, port, path, username, password) {
 
   client.connect({
     useSSL: true,
-    userName: username,
-    password: password,
+    userName: brokerUser,
+    password: brokerPass,
     onSuccess: () => {
       logToAll("✅ Connected to MQTT broker");
       client.subscribe(topic);
@@ -70,7 +65,7 @@ function onMessageArrived(message) {
   } else if (msg.toLowerCase().includes("alert")) {
     log("alert-log", "🚨 " + msg);
   } else {
-    log("general-log", "🛉 " + msg);
+    log("general-log", "📩 " + msg);
   }
 }
 
@@ -95,7 +90,7 @@ function switchTab(tabId) {
 }
 
 // -----------------------------
-// 📂 Export Logs (.txt / .csv)
+// 📂 Export Logs
 // -----------------------------
 function exportLogs() {
   const format = document.getElementById('file-format').value;
@@ -205,20 +200,17 @@ function switchLanguage() {
 }
 
 // -----------------------------
-// 📧 EmailJS Init and MQTT Connection
+// ✅ Init
 // -----------------------------
-window.onload = () => {
-  // Initialize EmailJS
+window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
-    console.log("EmailJS initialized");
+    console.log("📧 EmailJS initialized");
+  }
+
+  if (typeof Paho !== "undefined") {
+    console.log("📡 Paho MQTT loaded");
   } else {
-    console.error("❌ EmailJS SDK not loaded.");
+    console.error("❌ Paho MQTT not loaded. Make sure <script> is correct.");
   }
-
-  // Check if logged in.
-  if(loggedIn){
-    connectToMQTTCredentials(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
-  }
-
-};
+});

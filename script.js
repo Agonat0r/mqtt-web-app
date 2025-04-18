@@ -25,7 +25,8 @@ const topic = "usf/messages";
 
 function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  client = new Paho.MQTT.Client(host, Number(port), path, clientId);
+  const fullUrl = `wss://${host}:${port}${path}`;
+  client = new Paho.MQTT.Client(fullUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -170,11 +171,11 @@ function switchLanguage() {
 }
 
 // -----------------------------
-// 📧 EmailJS Init on DOM Ready
+// 📧 EmailJS Init (when DOM is ready)
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt");
+    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Replace with your actual public key
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

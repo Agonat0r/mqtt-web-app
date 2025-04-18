@@ -11,7 +11,7 @@
   <!-- 📡 MQTT via WebSocket -->
   <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
 
-  <!-- 📧 EmailJS -->
+  <!-- 📧 EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 </head>
 <body>
@@ -51,7 +51,7 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- 🔧 Language + Report + Export Tools -->
+    <!-- 🔧 Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -69,7 +69,7 @@
     </div>
   </div>
 
-
+  <!-- 📜 Main Logic -->
   <script src="script.js"></script>
 </body>
 </html>

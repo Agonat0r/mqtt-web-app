@@ -5,7 +5,7 @@ function handleLogin() {
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
 
-  if (username === 'admin' && password === 'pena') {
+  if (username === 'admin' && password === 'mqtt2025') {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     connectToMQTT();
@@ -34,7 +34,7 @@ function connectToMQTT() {
   client.connect({
     useSSL: true,
     userName: "admin",
-    password: "Pena",
+    password: "mqtt2025",
     onSuccess: () => {
       logToAll("✅ Connected to MQTT broker");
       client.subscribe(topic);

@@ -28,7 +28,7 @@ function handleLogin() {
 // 🌐 MQTT Setup (WSS Config)
 // -----------------------------
 function connectToMQTT(host, port, path, username, password) {
-  const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
+  const clientId = "webClient_" + Math.random().toString(16).slice(2, 10);
   console.log("🌐 Connecting to MQTT at:", host, port, path, clientId);
 
   try {

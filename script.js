@@ -63,17 +63,15 @@ function connectToMQTT(host, port, path, username, password) {
 function onMessageArrived(message) {
   const msg = message.payloadString;
 
-  // ✅ Always log to General first
+  // ✅ Always log to Terminal and General first
+  log("terminal-log", `[RECV] ${msg}`);
   log("general-log", "📩 " + msg);
 
   // ✅ Then optionally log to Command or Alert
-  if (msg.startsWith("E")) {
-    log("command-log", "🧠 " + msg);
-  }
-  if (msg.toLowerCase().includes("alert")) {
-    log("alert-log", "🚨 " + msg);
-  }
+  if (msg.startsWith("E")) log("command-log", "🧠 " + msg);
+  if (msg.toLowerCase().includes("alert")) log("alert-log", "🚨 " + msg);
 }
+
 function log(id, text) {
   const el = document.getElementById(id);
   el.textContent += text + "\n";

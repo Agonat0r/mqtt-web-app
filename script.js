@@ -1,22 +1,30 @@
 // -----------------------------
 // 🔐 Login System
 // -----------------------------
+let brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
+let brokerPort = 8084;
+let brokerPath = "/mqtt";
+let brokerUser = 'admin';  // Default
+let brokerPass = 'mqtt2025';  // Default
+let loggedIn = false;
+
 function handleLogin() {
   const userInput = document.getElementById('login-username').value;
   const passInput = document.getElementById('login-password').value;
 
-  const brokerUser = 'admin';
-  const brokerPass = 'mqtt2025';
+  //  const brokerUser = 'admin';  // No longer hardcoded here
+  //  const brokerPass = 'mqtt2025';  // No longer hardcoded here
 
   if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
+    loggedIn = true; //set to true
     //  Call connectToMQTT *AFTER* the page has loaded.  We'll do this,
     //  in the window.onload function
     // const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
     // const brokerPort = 8084;
     // const brokerPath = "/mqtt";
-    // connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+    // connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);  <-- REMOVED
   } else {
     alert('❌ Invalid credentials');
   }

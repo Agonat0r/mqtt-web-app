@@ -37,7 +37,7 @@ function connectToMQTT(host, port, path, username, password) {
       return;
     }
 
-    client = new Paho.MQTT.Client("lb88002c.ala.us-east-1.emqxsl.com",8084, "/mqtt", clientId);
+    client = new Paho.MQTT.Client("lb88002c.ala.us-east-1.emqxsl.com", 8084, "/mqtt", clientId);
 
     client.onConnectionLost = () => logToAll("🔌 Connection lost");
     client.onMessageArrived = onMessageArrived;

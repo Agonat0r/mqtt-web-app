@@ -1,72 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>USF Harmar MQTT Dashboard</title>
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 40px;
-    }
-    input, button {
-      margin: 5px;
-      padding: 8px;
-    }
-    #log {
-      height: 200px;
-      overflow-y: scroll;
-      background: #f0f0f0;
-      padding: 10px;
-      border: 1px solid #ccc;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>USF Harmar MQTT Console</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
 </head>
 <body>
-  <h1>📡 USF Harmar MQTT Dashboard</h1>
+  <!-- 🔐 Login Screen -->
+  <div id="login-screen">
+    <h1>🔐 USF Harmar MQTT Login</h1>
+    <input type="text" id="login-username" placeholder="Username" />
+    <input type="password" id="login-password" placeholder="Password" />
+    <button onclick="handleLogin()">Login</button>
+  </div>
 
-  <label for="topic">Topic:</label>
-  <input type="text" id="topic" value="usf/messages"><br>
+  <!-- 📡 Main App -->
+  <div id="main-app" class="hidden">
+    <!-- 🚀 Top Navigation Bar -->
+    <div class="navbar">
+      <div class="nav-title">USF Harmar Dashboard</div>
+      <div class="nav-tabs">
+        <button onclick="switchTab('general')">General</button>
+        <button onclick="switchTab('commands')">Commands</button>
+        <button onclick="switchTab('alerts')">Alerts</button>
+      </div>
+    </div>
 
-  <label for="message">Message:</label>
-  <input type="text" id="message" value="Hello from Netlify!"><br>
+    <!-- 💬 Console Tabs -->
+    <div class="tab-content" id="general-tab">
+      <h2>📋 General Console</h2>
+      <pre id="general-log">Waiting for general messages...</pre>
+    </div>
 
-  <button onclick="sendMessage()">Send Message</button>
+    <div class="tab-content hidden" id="commands-tab">
+      <h2>🧠 Command Console</h2>
+      <pre id="command-log">Waiting for commands...</pre>
+    </div>
 
-  <h3>📋 Log</h3>
-  <pre id="log">Connecting...</pre>
+    <div class="tab-content hidden" id="alerts-tab">
+      <h2>🚨 Alert Console</h2>
+      <pre id="alert-log">Waiting for alerts...</pre>
+    </div>
+  </div>
 
-  <script>
-    const brokerUrl = 'wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt';
-    const options = {
-      username: 'Carlos',     // Replace with actual EMQX username
-      password: 'Pena'        // Replace with actual EMQX password
-    };
-
-    const client = mqtt.connect(brokerUrl, options);
-
-    client.on('connect', () => {
-      log('✅ Connected to EMQX Cloud!');
-      const defaultTopic = document.getElementById('topic').value;
-      client.subscribe(defaultTopic);
-      log(`🔔 Subscribed to ${defaultTopic}`);
-    });
-
-    client.on('message', (topic, message) => {
-      log(`📩 ${topic}: ${message.toString()}`);
-    });
-
-    function sendMessage() {
-      const topic = document.getElementById('topic').value;
-      const messageText = document.getElementById('message').value;
-      client.publish(topic, messageText);
-      log(`📤 Sent to ${topic}: ${messageText}`);
-    }
-
-    function log(msg) {
-      const logDiv = document.getElementById('log');
-      logDiv.textContent += msg + '\n';
-      logDiv.scrollTop = logDiv.scrollHeight;
-    }
-  </script>
+  <!-- JS -->
+  <script src="script.js"></script>
 </body>
 </html>

@@ -1,61 +1,69 @@
-let client;
+// --- Login System ---
+function handleLogin() {
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
 
-function log(message) {
-  const logDiv = document.getElementById("log");
-  logDiv.innerText += message + "\n";
-  logDiv.scrollTop = logDiv.scrollHeight;
+  if (username === 'admin' && password === 'mqtt2025') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    connectToMQTT();
+  } else {
+    alert('❌ Invalid credentials');
+  }
 }
 
-function connect() {
-  const broker = document.getElementById("broker").value;
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-  const clientId = "client_" + Math.random().toString(16).substr(2, 8);
+// --- MQTT Setup ---
+let client;
+const host = "lb88002c.ala.us-east-1.emqxsl.com";
+const port = 8084;
+const topic = "usf/messages";
 
-  // Strip protocol and port from broker URL for Paho format
-  let host, port;
-  try {
-    const url = new URL(broker);
-    host = url.hostname;
-    port = url.port || (url.protocol === "wss:" ? 8084 : 1883); // fallback
-  } catch (e) {
-    log("❌ Invalid broker URL");
-    return;
-  }
+function connectToMQTT() {
+  const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
+  client = new Paho.MQTT.Client(host, port, clientId);
 
-  client = new Paho.MQTT.Client(host, Number(port), clientId);
-
-  client.onConnectionLost = () => log("🔌 Connection lost");
-  client.onMessageArrived = (msg) => log(`📩 ${msg.destinationName}: ${msg.payloadString}`);
+  client.onMessageArrived = onMessageArrived;
+  client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
-    useSSL: broker.startsWith("wss"),
-    userName: username,
-    password: password,
-    onSuccess: () => log(`✅ Connected to ${broker} as ${clientId}`),
-    onFailure: (err) => log("❌ Failed to connect: " + err.errorMessage)
+    useSSL: true,
+    userName: "Carlos",
+    password: "Pena",
+    onSuccess: () => {
+      logToAll("✅ Connected to MQTT broker");
+      client.subscribe(topic);
+    },
+    onFailure: (err) => {
+      logToAll("❌ MQTT connect failed: " + err.errorMessage);
+    }
   });
 }
 
-function subscribe() {
-  const topic = document.getElementById("topic").value;
-  if (client && client.isConnected()) {
-    client.subscribe(topic);
-    log("🔔 Subscribed to " + topic);
+function onMessageArrived(message) {
+  const msg = message.payloadString;
+
+  if (msg.startsWith("E")) {
+    log("command-log", "🧠 " + msg);
+  } else if (msg.toLowerCase().includes("alert")) {
+    log("alert-log", "🚨 " + msg);
+  } else {
+    log("general-log", "📩 " + msg);
   }
 }
 
-function publish() {
-  const topic = document.getElementById("topic").value;
-  const message = new Paho.MQTT.Message(document.getElementById("message").value);
-  message.destinationName = topic;
-  client.send(message);
-  log("📤 Message sent to " + topic);
+function log(id, text) {
+  const el = document.getElementById(id);
+  el.textContent += text + "\n";
+  el.scrollTop = el.scrollHeight;
 }
 
-function disconnect() {
-  if (client && client.isConnected()) {
-    client.disconnect();
-    log("🛑 Disconnected");
-  }
+function logToAll(text) {
+  log("general-log", text);
+  log("command-log", text);
+  log("alert-log", text);
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById(tabId + '-tab').classList.remove('hidden');
 }

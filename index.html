@@ -4,18 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
-
-  <!-- ✅ Styles -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- ✅ Paho MQTT for JavaScript (NOT Java) -->
-  <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
+  <!-- ✅ Load Local Paho MQTT -->
+  <script src="paho-mqtt.js"></script>
 
-  <!-- ✅ EmailJS SDK -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <!-- 📧 EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
-  <!-- 🔐 Login Screen -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
@@ -23,7 +20,6 @@
     <button onclick="handleLogin()">Login</button>
   </div>
 
-  <!-- 📡 Main App -->
   <div id="main-app" class="hidden">
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
@@ -34,11 +30,9 @@
       </div>
     </div>
 
-    <!-- 🕵️ Hidden Credentials -->
     <input type="hidden" id="broker-user" value="admin" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
-    <!-- 🧠 Consoles -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <pre id="general-log">Waiting for general messages...</pre>
@@ -54,7 +48,6 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- 🛠️ Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -72,7 +65,6 @@
     </div>
   </div>
 
-  <!-- 📧 Hidden Email Form for EmailJS -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -81,7 +73,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 🧠 Your App Logic -->
+  <!-- Your logic -->
   <script src="script.js"></script>
 </body>
 </html>

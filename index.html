@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  
   <title>USF Harmar MQTT Console</title>
   <link rel="stylesheet" href="styles.css" />
 
@@ -33,7 +32,7 @@
       </div>
     </div>
 
-    <!-- Hidden Credentials -->
+    <!-- Hidden MQTT Credentials -->
     <input type="hidden" id="broker-user" value="admin" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
@@ -41,8 +40,10 @@
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <pre id="general-log">Waiting for general messages...</pre>
+
       <h3>🖥️ Terminal</h3>
       <pre id="terminal-log">[Terminal Initialized...]</pre>
+      <input type="text" id="terminal-input" placeholder="Type a message and press Enter..." onkeydown="handleTerminalInput(event)" />
     </div>
 
     <div class="tab-content hidden" id="commands-tab">

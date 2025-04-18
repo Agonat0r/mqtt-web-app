@@ -185,6 +185,22 @@ function switchLanguage() {
   document.querySelector("button[onclick='exportLogs()']").textContent = "📂 " + langMap[lang].exportLogs;
 }
 
+function handleTerminalInput(event) {
+  if (event.key === "Enter") {
+    const inputField = document.getElementById("terminal-input");
+    const text = inputField.value.trim();
+    if (text && client && client.isConnected()) {
+      const message = new Paho.MQTT.Message(text);
+      message.destinationName = topic;
+      client.send(message);
+      log("terminal-log", `[SEND] ${text}`);
+      inputField.value = "";
+    } else {
+      log("terminal-log", "[WARN] Cannot send, MQTT not connected.");
+    }
+  }
+}
+
 // -----------------------------
 // ✅ Init Check
 // -----------------------------

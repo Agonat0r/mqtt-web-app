@@ -107,33 +107,52 @@ function exportLogs() {
 }
 
 // -----------------------------
-// 📧 Send Report via EmailJS
+// 📧 Send Report via EmailJS (Gmail-Compatible)
 // -----------------------------
 function sendEmail() {
   const userEmail = document.getElementById('user-email').value;
-
-  const fullLog =
-    "=== General Logs ===\n" + document.getElementById('general-log').textContent.trim() + "\n\n" +
-    "=== Command Logs ===\n" + document.getElementById('command-log').textContent.trim() + "\n\n" +
-    "=== Alert Logs ===\n" + document.getElementById('alert-log').textContent.trim();
 
   if (!userEmail) {
     alert("❗ Please enter your email address.");
     return;
   }
 
-  emailjs.send('service_lsa1r4i', 'template_vnrbr1d', {
-    message: fullLog,
-    to_email: userEmail,
+  const fullLog =
+    "=== General Logs ===\n" + document.getElementById('general-log').textContent.trim() + "\n\n" +
+    "=== Command Logs ===\n" + document.getElementById('command-log').textContent.trim() + "\n\n" +
+    "=== Alert Logs ===\n" + document.getElementById('alert-log').textContent.trim();
+
+  const form = document.createElement("form");
+  form.setAttribute("id", "email-form");
+
+  const fields = {
     title: "MQTT Report",
     name: "USF Harmar Dashboard",
-    time: new Date().toLocaleString()
-  }).then(() => {
-    alert("✅ Report sent!");
-  }).catch(err => {
-    console.error("EmailJS Error:", err);
-    alert("❌ Failed to send email.");
-  });
+    time: new Date().toLocaleString(),
+    message: fullLog,
+    to_email: userEmail
+  };
+
+  for (const key in fields) {
+    const input = document.createElement("input");
+    input.setAttribute("type", "hidden");
+    input.setAttribute("name", key);
+    input.setAttribute("value", fields[key]);
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+
+  emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
+    .then(() => {
+      alert("✅ Report sent!");
+      form.remove();
+    })
+    .catch(err => {
+      console.error("EmailJS Error:", err);
+      alert("❌ Failed to send email.");
+      form.remove();
+    });
 }
 
 // -----------------------------
@@ -175,7 +194,7 @@ function switchLanguage() {
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Your Public Key (Gmail EmailJS service)
+    emailjs.init("7osg1XmfdRC2z68Xt"); // Your EmailJS public key
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

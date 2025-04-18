@@ -30,7 +30,7 @@ function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
 
   const fullUrl = `wss://${host}:${port}${path}`;
-  client = new Paho.MQTT.Client(fullUrl, clientId);  // ✅ fixed line
+  client = new Paho.MQTT.Client(fullUrl, clientId); // ✅ fixed line
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");

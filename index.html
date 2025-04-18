@@ -4,8 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
+
+  <!-- 🌐 Styles -->
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- 📡 MQTT via WebSocket -->
   <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
+
+  <!-- 📧 EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 </head>
 <body>
   <!-- 🔐 Login Screen -->
@@ -43,9 +50,33 @@
       <h2>🚨 Alert Console</h2>
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
+
+    <!-- 🔧 Language + Report + Export Tools -->
+    <div class="tools-panel">
+      <select id="language-selector" onchange="switchLanguage()">
+        <option value="en">🌐 English</option>
+        <option value="es">🌐 Español</option>
+      </select>
+
+      <input type="email" id="user-email" placeholder="Enter your email" />
+      <button onclick="sendEmail()">📤 Send Report</button>
+
+      <select id="file-format">
+        <option value="txt">.txt</option>
+        <option value="csv">.csv</option>
+      </select>
+      <button onclick="exportLogs()">💾 Export Logs</button>
+    </div>
   </div>
 
-  <!-- JS -->
+  <!-- 📜 Main JavaScript -->
+  <script>
+    // Initialize EmailJS after DOM is loaded
+    document.addEventListener("DOMContentLoaded", () => {
+      emailjs.init("Zef-nSPeSMWDSxVfmByILA"); // ✅ Your EmailJS public key
+    });
+  </script>
+
   <script src="script.js"></script>
 </body>
 </html>

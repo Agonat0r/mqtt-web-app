@@ -1,86 +1,83 @@
-// -----------------------------
-// 🔐 Login System
-// -----------------------------
-let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
+let brokerHost = "wss://broker.emqx.io:8084/mqtt";
 let topic = "usf/messages";
-let mqttClient;
+let client;
 let loggedIn = false;
 
 function handleLogin() {
   const userInput = document.getElementById("login-username").value;
   const passInput = document.getElementById("login-password").value;
 
-  const storedUser = document.getElementById("broker-user").value;
-  const storedPass = document.getElementById("broker-pass").value;
-
-  if (userInput === storedUser && passInput === storedPass) {
+  if (userInput === "Carlos" && passInput === "mqtt2025") {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-app").classList.remove("hidden");
     loggedIn = true;
-    connectToMQTT(userInput, passInput);
+    connectToMQTT();
   } else {
     alert("❌ Invalid credentials");
   }
 }
 
-// -----------------------------
-// 🌐 MQTT Setup (mqtt.js)
-// -----------------------------
-function connectToMQTT(username, password) {
-  const clientId = "webClient_" + Math.random().toString(16).substring(2, 10);
-  logToAll(`🔌 Connecting as ${clientId}...`);
-
-  mqttClient = mqtt.connect(brokerHost, {
+function connectToMQTT() {
+  const clientId = "mqttjs_" + Math.random().toString(16).substr(2, 8);
+  const options = {
     clientId,
-    username,
-    password,
+    username: "Carlos",
+    password: "mqtt2025",
+    keepalive: 60,
     clean: true,
-    connectTimeout: 5000,
-    reconnectPeriod: 2000
-  });
+    reconnectPeriod: 1000,
+    connectTimeout: 30 * 1000
+  };
 
-  mqttClient.on("connect", () => {
+  console.log("🔌 Connecting to:", brokerHost);
+  client = mqtt.connect(brokerHost, options);
+
+  client.on("connect", () => {
     logToAll("✅ Connected to MQTT broker");
-    mqttClient.subscribe(topic, (err) => {
-      if (err) {
-        logToAll("❌ Subscription error: " + err.message);
-      } else {
-        logToAll("🔔 Subscribed to topic: " + topic);
-      }
+    client.subscribe(topic, { qos: 0 }, () => {
+      logToAll("🔔 Subscribed to topic: " + topic);
     });
   });
 
-  mqttClient.on("message", (t, payload) => {
-    const msg = payload.toString();
+  client.on("error", (err) => {
+    logToAll("❌ MQTT connection error: " + err.message);
+    client.end();
+  });
+
+  client.on("reconnect", () => {
+    logToAll("🔁 Reconnecting to broker...");
+  });
+
+  client.on("message", (topic, message) => {
+    const msg = message.toString();
     log("terminal-log", `[RECV] ${msg}`);
     log("general-log", "📩 " + msg);
-
     if (msg.startsWith("E")) log("command-log", "🧠 " + msg);
     if (msg.toLowerCase().includes("alert")) log("alert-log", "🚨 " + msg);
   });
-
-  mqttClient.on("error", (err) => {
-    logToAll("❌ MQTT Error: " + err.message);
-  });
-
-  mqttClient.on("reconnect", () => {
-    logToAll("🔄 Reconnecting...");
-  });
-
-  mqttClient.on("close", () => {
-    logToAll("🔌 Disconnected");
-  });
 }
 
-// -----------------------------
-// 🖥️ Terminal Input
-// -----------------------------
+function switchTab(tabId) {
+  document.querySelectorAll(".tab-content").forEach((el) => el.classList.add("hidden"));
+  document.getElementById(`${tabId}-tab`).classList.remove("hidden");
+}
+
+function log(id, text) {
+  const el = document.getElementById(id);
+  el.textContent += text + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+function logToAll(text) {
+  ["general-log", "command-log", "alert-log"].forEach((id) => log(id, text));
+}
+
 function handleTerminalInput(event) {
   if (event.key === "Enter") {
     const inputField = document.getElementById("terminal-input");
     const text = inputField.value.trim();
-    if (text && mqttClient && mqttClient.connected) {
-      mqttClient.publish(topic, text);
+    if (text && client && client.connected) {
+      client.publish(topic, text);
       log("terminal-log", `[SEND] ${text}`);
       inputField.value = "";
     } else {
@@ -89,17 +86,6 @@ function handleTerminalInput(event) {
   }
 }
 
-// -----------------------------
-// 🗂️ Tab Switching
-// -----------------------------
-function switchTab(tabId) {
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
-  document.getElementById(`${tabId}-tab`).classList.remove("hidden");
-}
-
-// -----------------------------
-// 📂 Export Logs
-// -----------------------------
 function exportLogs() {
   const format = document.getElementById("file-format").value;
   const logs = {
@@ -125,22 +111,17 @@ function exportLogs() {
   link.click();
 }
 
-// -----------------------------
-// 📧 Send Report via EmailJS
-// -----------------------------
 function sendEmail() {
   const userEmail = document.getElementById("user-email").value;
   if (!userEmail) return alert("❗ Please enter your email.");
 
   const fullLog = `
-=== General Logs ===
-${document.getElementById('general-log').textContent.trim()}
-
-=== Command Logs ===
-${document.getElementById('command-log').textContent.trim()}
-
-=== Alert Logs ===
-${document.getElementById('alert-log').textContent.trim()}
+    === General Logs ===
+    ${document.getElementById('general-log').textContent.trim()}
+    === Command Logs ===
+    ${document.getElementById('command-log').textContent.trim()}
+    === Alert Logs ===
+    ${document.getElementById('alert-log').textContent.trim()}
   `;
 
   const form = document.getElementById('email-form');
@@ -152,19 +133,15 @@ ${document.getElementById('alert-log').textContent.trim()}
 
   emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
     .then(() => alert("✅ Report sent!"))
-    .catch(() => alert("❌ Failed to send email."));
+    .catch(err => alert("❌ Failed to send email."));
 }
 
-// -----------------------------
-// 🌐 Language Switcher
-// -----------------------------
 const langMap = {
   en: {
     dashboardTitle: "USF Harmar MQTT Dashboard",
     general: "General Console",
     commands: "Command Console",
     alerts: "Alert Console",
-    login: "Login",
     sendReport: "Send Report",
     exportLogs: "Export Logs"
   },
@@ -173,7 +150,6 @@ const langMap = {
     general: "Consola General",
     commands: "Consola de Comandos",
     alerts: "Consola de Alertas",
-    login: "Iniciar sesión",
     sendReport: "Enviar Informe",
     exportLogs: "Exportar Registros"
   }
@@ -189,22 +165,6 @@ function switchLanguage() {
   document.querySelector("button[onclick='exportLogs()']").textContent = "💾 " + langMap[lang].exportLogs;
 }
 
-// -----------------------------
-// 🧾 Logging Utilities
-// -----------------------------
-function log(id, text) {
-  const el = document.getElementById(id);
-  el.textContent += text + "\n";
-  el.scrollTop = el.scrollHeight;
-}
-
-function logToAll(text) {
-  ["general-log", "command-log", "alert-log"].forEach(id => log(id, text));
-}
-
-// -----------------------------
-// ✅ Init Check
-// -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
@@ -212,8 +172,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   if (typeof mqtt !== "undefined") {
-    console.log("✅ mqtt.js loaded from CDN");
-  } else {
-    console.error("🚨 mqtt.js NOT loaded. Check CDN link.");
+    console.log("✅ mqtt.js loaded");
   }
 });

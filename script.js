@@ -5,9 +5,9 @@ function handleLogin() {
   const userInput = document.getElementById('login-username').value;
   const passInput = document.getElementById('login-password').value;
 
-  const brokerUrl = document.getElementById('broker-url').value;
-  const brokerUser = document.getElementById('broker-user').value;
-  const brokerPass = document.getElementById('broker-pass').value;
+  const brokerUrl = 'wss://10.226.176.234:8084/mqtt';
+  const brokerUser = 'admin';
+  const brokerPass = 'mqtt2025';
 
   if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
@@ -19,22 +19,21 @@ function handleLogin() {
 }
 
 // -----------------------------
-// 🌐 MQTT Setup (Dynamic Config)
+// 🌐 MQTT Setup (Static WSS Config)
 // -----------------------------
 let client;
 let topic = "usf/messages";
 
 function connectToMQTT(brokerUrl, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-
-  // ✅ FIXED LINE
-  client = new Paho.Client(brokerUrl, clientId);
+  const ws = new Paho.MQTT.Client(brokerUrl, clientId);
+  client = ws;
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
-    useSSL: brokerUrl.startsWith("wss://"),
+    useSSL: true,
     userName: username,
     password: password,
     onSuccess: () => {

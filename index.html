@@ -4,26 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
+
+  <!-- 🌐 Styles -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- Load Paho MQTT -->
+  <!-- 📡 MQTT via WebSocket -->
   <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
 
-  <!-- EmailJS -->
+  <!-- 📧 EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 </head>
 <body>
-  <!-- 🔐 Login -->
+  <!-- 🔐 Login Screen -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
     <input type="password" id="login-password" placeholder="Password" />
     <button onclick="handleLogin()">Login</button>
-
-    <!-- Hidden MQTT Broker Credentials -->
-    <input type="hidden" id="broker-url" value="ws://10.226.176.234:8083/mqtt" />
-    <input type="hidden" id="broker-user" value="admin" />
-    <input type="hidden" id="broker-pass" value="mqtt2025" />
   </div>
 
   <!-- 📡 Main App -->
@@ -52,7 +49,6 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -70,8 +66,8 @@
     </div>
   </div>
 
-  <!-- 📧 Hidden EmailJS Form -->
-  <form id="email-form" style="display:none;">
+  <!-- 📧 Hidden Form for EmailJS -->
+  <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
     <input type="text" name="time" />
@@ -79,7 +75,12 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- Load JavaScript -->
+  <!-- 🔒 Hidden MQTT Config -->
+  <input type="hidden" id="broker-url" value="wss://10.226.176.234:8084/mqtt" />
+  <input type="hidden" id="broker-user" value="admin" />
+  <input type="hidden" id="broker-pass" value="mqtt2025" />
+
+  <!-- 📜 Main JavaScript -->
   <script defer src="script.js"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 // -----------------------------
-// 🌐 MQTT + Login Configuration
+// 🔐 Login System
 // -----------------------------
 let brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
-let brokerPort = 8084; // WSS port
+let brokerPort = 8084;
 let brokerPath = "/mqtt";
 let brokerUser = "Carlos";
 let brokerPass = "mqtt2025";
@@ -10,9 +10,6 @@ let topic = "usf/messages";
 let client;
 let loggedIn = false;
 
-// -----------------------------
-// 🔐 Login Handling
-// -----------------------------
 function handleLogin() {
   const userInput = document.getElementById("login-username").value;
   const passInput = document.getElementById("login-password").value;
@@ -28,60 +25,56 @@ function handleLogin() {
 }
 
 // -----------------------------
-// 🌐 MQTT Connection Logic
+// 🌐 MQTT Setup (WSS Config)
 // -----------------------------
 function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).slice(2, 10);
   console.log("🌐 Connecting to MQTT at:", host, port, path, clientId);
 
-  if (typeof Paho === "undefined" || typeof Paho.MQTT === "undefined" || typeof Paho.MQTT.Client === "undefined") {
-    console.error("❌ Paho MQTT not loaded properly.");
-    return;
-  }
-
-
-
-  client.onConnectionLost = () => logToAll("🔌 Connection lost");
-  client.onMessageArrived = onMessageArrived;
-
-  client.connect({
-    useSSL: true,
-    userName: username,
-    password: password,
-    onSuccess: () => {
-      logToAll("✅ Connected to MQTT broker");
-      client.subscribe(topic);
-      logToAll("🔔 Subscribed to topic: " + topic);
-
-      // Send ping every 5 seconds
-      setInterval(() => {
-        const ping = new Paho.MQTT.Message("🌐 Web Client Ping");
-        ping.destinationName = topic;
-        client.send(ping);
-        log("general-log", "📤 Sent: Web Client Ping");
-      }, 5000);
-    },
-    onFailure: (err) => {
-      logToAll("❌ MQTT connect failed: " + err.errorMessage);
+  try {
+    if (typeof Paho === "undefined" || typeof Paho.MQTT === "undefined" || typeof Paho.MQTT.Client === "undefined") {
+      
+      return;
     }
-  });
+
+    client = new Paho.MQTT.Client("lb88002c.ala.us-east-1.emqxsl.com",8084, "/mqtt", clientId);
+
+    client.onConnectionLost = () => logToAll("🔌 Connection lost");
+    client.onMessageArrived = onMessageArrived;
+
+    client.connect({
+      useSSL: true,
+      userName: username,
+      password: password,
+      onSuccess: () => {
+        logToAll("✅ Connected to MQTT broker");
+        client.subscribe(topic);
+        logToAll("🔔 Subscribed to topic: " + topic);
+      },
+      onFailure: (err) => {
+        logToAll("❌ MQTT connect failed: " + err.errorMessage);
+      }
+    });
+  } catch (error) {
+    console.error("🚨 MQTT Client Init Error:", error);
+  }
 }
 
-// -----------------------------
-// 📩 Handle Incoming Messages
-// -----------------------------
 function onMessageArrived(message) {
   const msg = message.payloadString;
 
+  // ✅ Always log to General first
   log("general-log", "📩 " + msg);
 
-  if (msg.startsWith("E")) log("command-log", "🧠 " + msg);
-  if (msg.toLowerCase().includes("alert")) log("alert-log", "🚨 " + msg);
+  // ✅ Then optionally log to Command or Alert
+  if (msg.startsWith("E")) {
+    log("command-log", "🧠 " + msg);
+  }
+  if (msg.toLowerCase().includes("alert")) {
+    log("alert-log", "🚨 " + msg);
+  }
 }
 
-// -----------------------------
-// 🧾 Logging to UI Panels
-// -----------------------------
 function log(id, text) {
   const el = document.getElementById(id);
   el.textContent += text + "\n";
@@ -96,12 +89,12 @@ function logToAll(text) {
 // 🗂️ Tab Switching
 // -----------------------------
 function switchTab(tabId) {
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+  document.querySelectorAll(".tab-content").forEach((el) => el.classList.add("hidden"));
   document.getElementById(`${tabId}-tab`).classList.remove("hidden");
 }
 
 // -----------------------------
-// 💾 Export Logs
+// 📂 Export Logs
 // -----------------------------
 function exportLogs() {
   const format = document.getElementById("file-format").value;
@@ -114,9 +107,9 @@ function exportLogs() {
   let content = "";
   if (format === "csv") {
     content = "Type,Message\n";
-    content += logs.general.split("\n").map(l => `General,"${l}"`).join("\n") + "\n";
-    content += logs.command.split("\n").map(l => `Command,"${l}"`).join("\n") + "\n";
-    content += logs.alert.split("\n").map(l => `Alert,"${l}"`).join("\n");
+    content += logs.general.split('\n').map(l => `General,"${l}"`).join('\n') + '\n';
+    content += logs.command.split('\n').map(l => `Command,"${l}"`).join('\n') + '\n';
+    content += logs.alert.split('\n').map(l => `Alert,"${l}"`).join('\n');
   } else {
     content = `=== General ===\n${logs.general}\n\n=== Commands ===\n${logs.command}\n\n=== Alerts ===\n${logs.alert}`;
   }
@@ -129,7 +122,7 @@ function exportLogs() {
 }
 
 // -----------------------------
-// 📧 EmailJS Report
+// 📧 Send Report via EmailJS
 // -----------------------------
 function sendEmail() {
   const userEmail = document.getElementById("user-email").value;
@@ -137,16 +130,16 @@ function sendEmail() {
 
   const fullLog = `
     === General Logs ===
-    ${document.getElementById("general-log").textContent.trim()}
+    ${document.getElementById('general-log').textContent.trim()}
 
     === Command Logs ===
-    ${document.getElementById("command-log").textContent.trim()}
+    ${document.getElementById('command-log').textContent.trim()}
 
     === Alert Logs ===
-    ${document.getElementById("alert-log").textContent.trim()}
+    ${document.getElementById('alert-log').textContent.trim()}
   `;
 
-  const form = document.getElementById("email-form");
+  const form = document.getElementById('email-form');
   form.title.value = "MQTT Report";
   form.name.value = "USF Harmar Dashboard";
   form.time.value = new Date().toLocaleString();
@@ -156,7 +149,7 @@ function sendEmail() {
   emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
     .then(() => alert("✅ Report sent!"))
     .catch(err => {
-      console.error("❌ EmailJS error:", err);
+      
       alert("❌ Failed to send email.");
     });
 }
@@ -207,6 +200,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof Paho !== "undefined" && typeof Paho.MQTT !== "undefined") {
     console.log("✅ Paho MQTT loaded from local libs/paho-mqtt.js");
   } else {
-    console.error("❌ Paho MQTT not loaded.");
+
   }
 });

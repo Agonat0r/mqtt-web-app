@@ -5,7 +5,7 @@ function handleLogin() {
   const userInput = document.getElementById('login-username').value;
   const passInput = document.getElementById('login-password').value;
 
-  const brokerUrl = 'wss://10.226.176.234:8084/mqtt';
+  const brokerUrl = "wss://10.226.176.234:8084/mqtt"; // secure endpoint
   const brokerUser = 'admin';
   const brokerPass = 'mqtt2025';
 
@@ -26,8 +26,9 @@ let topic = "usf/messages";
 
 function connectToMQTT(brokerUrl, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  const ws = new Paho.MQTT.Client(brokerUrl, clientId);
-  client = ws;
+
+  const fullUrl = brokerUrl; // Should be like 'wss://10.226.176.234:8084/mqtt'
+  const client = new Paho.MQTT.Client(fullUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -45,6 +46,8 @@ function connectToMQTT(brokerUrl, username, password) {
       logToAll("❌ MQTT connect failed: " + err.errorMessage);
     }
   });
+
+  window.client = client; // Save to global for use in other functions
 }
 
 function onMessageArrived(message) {

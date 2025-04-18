@@ -122,7 +122,7 @@ function sendEmail() {
     return;
   }
 
-  emailjs.send('service_og1c0rm', 'template_vnrbr1d', {
+  emailjs.send('service_lsa1r4i', 'template_vnrbr1d', {
     message: fullLog,
     to_email: userEmail,
     title: "MQTT Report",

@@ -107,11 +107,10 @@ function exportLogs() {
 }
 
 // -----------------------------
-// 📧 Send Report via EmailJS (Gmail-Compatible)
+// 📧 Send Report via EmailJS
 // -----------------------------
 function sendEmail() {
   const userEmail = document.getElementById('user-email').value;
-
   if (!userEmail) {
     alert("❗ Please enter your email address.");
     return;
@@ -190,11 +189,11 @@ function switchLanguage() {
 }
 
 // -----------------------------
-// 📧 EmailJS Init on DOM Ready
+// 📧 EmailJS Init
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // Your EmailJS public key
+    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Your EmailJS public key
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

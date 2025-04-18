@@ -174,7 +174,7 @@ function switchLanguage() {
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("Zef-nSPeSMWDSxVfmByILA");
+    emailjs.init("7osg1XmfdRC2z68Xt");
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

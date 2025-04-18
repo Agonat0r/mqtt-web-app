@@ -2,13 +2,17 @@
 // 🔐 Login System
 // -----------------------------
 function handleLogin() {
-  const username = document.getElementById('login-username').value;
-  const password = document.getElementById('login-password').value;
+  const userInput = document.getElementById('login-username').value;
+  const passInput = document.getElementById('login-password').value;
 
-  if (username === 'admin' && password === 'mqtt2025') {
+  const brokerUrl = document.getElementById('broker-url').value;
+  const brokerUser = document.getElementById('broker-user').value;
+  const brokerPass = document.getElementById('broker-pass').value;
+
+  if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
-    connectToMQTT();
+    connectToMQTT(brokerUrl, brokerUser, brokerPass);
   } else {
     alert('❌ Invalid credentials');
   }
@@ -20,10 +24,7 @@ function handleLogin() {
 let client;
 let topic = "usf/messages";
 
-function connectToMQTT() {
-  const brokerUrl = document.getElementById('broker-url').value.trim();
-  const username = document.getElementById('broker-user').value.trim();
-  const password = document.getElementById('broker-pass').value.trim();
+function connectToMQTT(brokerUrl, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
 
   client = new Paho.MQTT.Client(brokerUrl, clientId);

@@ -1,200 +1,88 @@
-// -----------------------------
-// 🔐 Login System
-// -----------------------------
-function handleLogin() {
-  const username = 'admin';
-  const password = 'mqtt2025';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>USF Harmar MQTT Console</title>
 
-  const brokerUrl = "ws://10.226.176.234:8083/mqtt";
-  const userInput = document.getElementById('login-username').value;
-  const passInput = document.getElementById('login-password').value;
+  <!-- 🌐 Styles -->
+  <link rel="stylesheet" href="styles.css" />
 
-  if (userInput === username && passInput === password) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
-    connectToMQTT(brokerUrl, username, password);
-  } else {
-    alert('❌ Invalid credentials');
-  }
-}
+  <!-- 📡 MQTT via WebSocket -->
+  <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
 
-// -----------------------------
-// 🌐 MQTT Setup (Static Config)
-// -----------------------------
-let client;
-let topic = "usf/messages";
+  <!-- 📧 EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+</head>
+<body>
+  <!-- 🔐 Login Screen -->
+  <div id="login-screen">
+    <h1>🔐 USF Harmar MQTT Login</h1>
+    <input type="text" id="login-username" placeholder="Username" />
+    <input type="password" id="login-password" placeholder="Password" />
+    <button onclick="handleLogin()">Login</button>
 
-function connectToMQTT(brokerUrl, username, password) {
-  const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
+    <!-- 🔒 Hidden MQTT credentials -->
+    <input type="hidden" id="broker-url" value="ws://10.226.176.234:8083/mqtt" />
+    <input type="hidden" id="broker-user" value="admin" />
+    <input type="hidden" id="broker-pass" value="mqtt2025" />
+  </div>
 
-  client = new Paho.MQTT.Client(brokerUrl, clientId);
+  <!-- 📡 Main App -->
+  <div id="main-app" class="hidden">
+    <div class="navbar">
+      <div class="nav-title">USF Harmar Dashboard</div>
+      <div class="nav-tabs">
+        <button onclick="switchTab('general')">General</button>
+        <button onclick="switchTab('commands')">Commands</button>
+        <button onclick="switchTab('alerts')">Alerts</button>
+      </div>
+    </div>
 
-  client.onMessageArrived = onMessageArrived;
-  client.onConnectionLost = () => logToAll("🔌 Connection lost");
+    <!-- 💬 Console Tabs -->
+    <div class="tab-content" id="general-tab">
+      <h2>📋 General Console</h2>
+      <pre id="general-log">Waiting for general messages...</pre>
+    </div>
 
-  client.connect({
-    useSSL: brokerUrl.startsWith("wss://"),
-    userName: username,
-    password: password,
-    onSuccess: () => {
-      logToAll("✅ Connected to MQTT broker");
-      client.subscribe(topic);
-      logToAll("🔔 Subscribed to topic: " + topic);
-    },
-    onFailure: (err) => {
-      logToAll("❌ MQTT connect failed: " + err.errorMessage);
-    }
-  });
-}
+    <div class="tab-content hidden" id="commands-tab">
+      <h2>🧠 Command Console</h2>
+      <pre id="command-log">Waiting for commands...</pre>
+    </div>
 
-function onMessageArrived(message) {
-  const msg = message.payloadString;
-  if (msg.startsWith("E")) {
-    log("command-log", "🧠 " + msg);
-  } else if (msg.toLowerCase().includes("alert")) {
-    log("alert-log", "🚨 " + msg);
-  } else {
-    log("general-log", "🛉 " + msg);
-  }
-}
+    <div class="tab-content hidden" id="alerts-tab">
+      <h2>🚨 Alert Console</h2>
+      <pre id="alert-log">Waiting for alerts...</pre>
+    </div>
 
-function log(id, text) {
-  const el = document.getElementById(id);
-  el.textContent += text + "\n";
-  el.scrollTop = el.scrollHeight;
-}
+    <!-- ⚙️ Tools Panel -->
+    <div class="tools-panel">
+      <select id="language-selector" onchange="switchLanguage()">
+        <option value="en">🌐 English</option>
+        <option value="es">🌐 Español</option>
+      </select>
 
-function logToAll(text) {
-  log("general-log", text);
-  log("command-log", text);
-  log("alert-log", text);
-}
+      <input type="email" id="user-email" placeholder="Enter your email" />
+      <button onclick="sendEmail()">📤 Send Report</button>
 
-// -----------------------------
-// 🗂️ Tab Switching
-// -----------------------------
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.getElementById(`${tabId}-tab`).classList.remove('hidden');
-}
+      <select id="file-format">
+        <option value="txt">.txt</option>
+        <option value="csv">.csv</option>
+      </select>
+      <button onclick="exportLogs()">📂 Export Logs</button>
+    </div>
+  </div>
 
-// -----------------------------
-// 📂 Export Logs (.txt / .csv)
-// -----------------------------
-function exportLogs() {
-  const format = document.getElementById('file-format').value;
-  const logs = {
-    general: document.getElementById('general-log').textContent.trim(),
-    command: document.getElementById('command-log').textContent.trim(),
-    alert: document.getElementById('alert-log').textContent.trim()
-  };
+  <!-- 📧 Hidden Form for EmailJS -->
+  <form id="email-form" style="display: none;">
+    <input type="text" name="title" />
+    <input type="text" name="name" />
+    <input type="text" name="time" />
+    <input type="hidden" name="message" />
+    <input type="email" name="to_email" />
+  </form>
 
-  let content = "";
-  if (format === "csv") {
-    content = "Type,Message\n";
-    content += logs.general.split('\n').map(l => `General,"${l}"`).join('\n') + '\n';
-    content += logs.command.split('\n').map(l => `Command,"${l}"`).join('\n') + '\n';
-    content += logs.alert.split('\n').map(l => `Alert,"${l}"`).join('\n');
-  } else {
-    content = `=== General ===\n${logs.general}\n\n=== Commands ===\n${logs.command}\n\n=== Alerts ===\n${logs.alert}`;
-  }
-
-  const blob = new Blob([content], { type: "text/plain" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `mqtt_log.${format}`;
-  link.click();
-}
-
-// -----------------------------
-// 📧 Send Report via EmailJS
-// -----------------------------
-function sendEmail() {
-  const userEmail = document.getElementById('user-email').value;
-  if (!userEmail) {
-    alert("❗ Please enter your email address.");
-    return;
-  }
-
-  const fullLog =
-    "=== General Logs ===\n" + document.getElementById('general-log').textContent.trim() + "\n\n" +
-    "=== Command Logs ===\n" + document.getElementById('command-log').textContent.trim() + "\n\n" +
-    "=== Alert Logs ===\n" + document.getElementById('alert-log').textContent.trim();
-
-  const form = document.createElement("form");
-  form.setAttribute("id", "email-form");
-
-  const fields = {
-    title: "MQTT Report",
-    name: "USF Harmar Dashboard",
-    time: new Date().toLocaleString(),
-    message: fullLog,
-    to_email: userEmail
-  };
-
-  for (const key in fields) {
-    const input = document.createElement("input");
-    input.setAttribute("type", "hidden");
-    input.setAttribute("name", key);
-    input.setAttribute("value", fields[key]);
-    form.appendChild(input);
-  }
-
-  document.body.appendChild(form);
-
-  emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
-    .then(() => {
-      alert("✅ Report sent!");
-      form.remove();
-    })
-    .catch(err => {
-      console.error("EmailJS Error:", err);
-      alert("❌ Failed to send email.");
-      form.remove();
-    });
-}
-
-// -----------------------------
-// 🌐 Language Switcher
-// -----------------------------
-const langMap = {
-  en: {
-    dashboardTitle: "USF Harmar MQTT Dashboard",
-    general: "General Console",
-    commands: "Command Console",
-    alerts: "Alert Console",
-    login: "Login",
-    sendReport: "Send Report",
-    exportLogs: "Export Logs"
-  },
-  es: {
-    dashboardTitle: "Panel MQTT de USF Harmar",
-    general: "Consola General",
-    commands: "Consola de Comandos",
-    alerts: "Consola de Alertas",
-    login: "Iniciar sesión",
-    sendReport: "Enviar Informe",
-    exportLogs: "Exportar Registros"
-  }
-};
-
-function switchLanguage() {
-  const lang = document.getElementById("language-selector").value;
-  document.querySelector(".nav-title").textContent = langMap[lang].dashboardTitle;
-  document.querySelector("#general-tab h2").textContent = "📋 " + langMap[lang].general;
-  document.querySelector("#commands-tab h2").textContent = "🧠 " + langMap[lang].commands;
-  document.querySelector("#alerts-tab h2").textContent = "🚨 " + langMap[lang].alerts;
-  document.querySelector("button[onclick='sendEmail()']").textContent = "📤 " + langMap[lang].sendReport;
-  document.querySelector("button[onclick='exportLogs()']").textContent = "📂 " + langMap[lang].exportLogs;
-}
-
-// -----------------------------
-// 📧 EmailJS Init
-// -----------------------------
-window.addEventListener("DOMContentLoaded", () => {
-  if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt");
-  } else {
-    console.error("❌ EmailJS SDK not loaded.");
-  }
-});
+  <!-- 📜 Main Logic -->
+  <script defer src="script.js"></script>
+</body>
+</html>

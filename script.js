@@ -18,21 +18,21 @@ function handleLogin() {
 // 🌐 MQTT Setup (via EMQX)
 // -----------------------------
 let client;
-const host = "localhost";  // Your IP address
+const host = "10.226.176.234"; // ✅ Your actual IP address
 const port = 8083;
 const path = "/mqtt";
 const topic = "usf/messages";
 
 function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
+  const wsUrl = `ws://${host}:${port}${path}`; // ✅ Use non-SSL ws://
 
-  client = new Paho.MQTT.Client(host, Number(port), path, clientId);
+  client = new Paho.MQTT.Client(wsUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
-    useSSL: false, // ❗ TLS is disabled in your MQTT setup
     userName: "admin",
     password: "mqtt2025",
     onSuccess: () => {
@@ -48,13 +48,12 @@ function connectToMQTT() {
 
 function onMessageArrived(message) {
   const msg = message.payloadString;
-
   if (msg.startsWith("E")) {
     log("command-log", "🧠 " + msg);
   } else if (msg.toLowerCase().includes("alert")) {
     log("alert-log", "🚨 " + msg);
   } else {
-    log("general-log", "📩 " + msg);
+    log("general-log", "🛉 " + msg);
   }
 }
 
@@ -79,7 +78,7 @@ function switchTab(tabId) {
 }
 
 // -----------------------------
-// 💾 Export Logs (.txt / .csv)
+// 📂 Export Logs (.txt / .csv)
 // -----------------------------
 function exportLogs() {
   const format = document.getElementById('file-format').value;
@@ -185,7 +184,7 @@ function switchLanguage() {
   document.querySelector("#commands-tab h2").textContent = "🧠 " + langMap[lang].commands;
   document.querySelector("#alerts-tab h2").textContent = "🚨 " + langMap[lang].alerts;
   document.querySelector("button[onclick='sendEmail()']").textContent = "📤 " + langMap[lang].sendReport;
-  document.querySelector("button[onclick='exportLogs()']").textContent = "💾 " + langMap[lang].exportLogs;
+  document.querySelector("button[onclick='exportLogs()']").textContent = "📂 " + langMap[lang].exportLogs;
 }
 
 // -----------------------------
@@ -193,7 +192,7 @@ function switchLanguage() {
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Your EmailJS public key
+    emailjs.init("7osg1XmfdRC2z68Xt");
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

@@ -26,7 +26,7 @@ const topic = "usf/messages";
 function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
   const wsUrl = `wss://${host}:${port}${path}`;
-  client = new Paho.MQTT.Client(`wss://${host}:${port}${path}`, clientId);
+  client = new Paho.MQTT.Client(wsUrl, clientId); // ✅ FIXED
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");

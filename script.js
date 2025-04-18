@@ -141,7 +141,7 @@ function sendEmail() {
   emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
     .then(() => alert("✅ Report sent!"))
     .catch(err => {
-      console.error("❌ EmailJS Error:", err);
+      
       alert("❌ Failed to send email.");
     });
 }

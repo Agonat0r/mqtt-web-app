@@ -21,11 +21,6 @@
     <input type="text" id="login-username" placeholder="Username" />
     <input type="password" id="login-password" placeholder="Password" />
     <button onclick="handleLogin()">Login</button>
-
-    <!-- 🔒 Hidden MQTT credentials -->
-    <input type="hidden" id="broker-url" value="ws://10.226.176.234:8083/mqtt" />
-    <input type="hidden" id="broker-user" value="admin" />
-    <input type="hidden" id="broker-pass" value="mqtt2025" />
   </div>
 
   <!-- 📡 Main App -->
@@ -39,7 +34,6 @@
       </div>
     </div>
 
-    <!-- 💬 Console Tabs -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <pre id="general-log">Waiting for general messages...</pre>
@@ -55,7 +49,7 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- ⚙️ Tools Panel -->
+    <!-- 🔧 Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -69,7 +63,7 @@
         <option value="txt">.txt</option>
         <option value="csv">.csv</option>
       </select>
-      <button onclick="exportLogs()">📂 Export Logs</button>
+      <button onclick="exportLogs()">💾 Export Logs</button>
     </div>
   </div>
 
@@ -82,7 +76,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 📜 Main Logic -->
+  <!-- 📜 Main JavaScript -->
   <script defer src="script.js"></script>
 </body>
 </html>

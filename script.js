@@ -18,7 +18,7 @@ function handleLogin() {
 // 🌐 MQTT Setup (via EMQX)
 // -----------------------------
 let client;
-const host = "10.226.176.234";  // Your IP address
+const host = "localhost";  // Your IP address
 const port = 8083;
 const path = "/mqtt";
 const topic = "usf/messages";

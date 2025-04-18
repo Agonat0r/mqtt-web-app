@@ -6,7 +6,7 @@ let brokerPort = 8084;
 let brokerPath = "/mqtt";
 let brokerUser = "Carlos";
 let brokerPass = "mqtt2025";
-let topic = "/esp32/hmi";
+let topic = "usf/messages";
 let client;
 let loggedIn = false;
 

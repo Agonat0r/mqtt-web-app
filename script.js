@@ -11,12 +11,12 @@ let client;
 let loggedIn = false;
 
 function handleLogin() {
-  const userInput = document.getElementById('login-username').value;
-  const passInput = document.getElementById('login-password').value;
+  const userInput = document.getElementById("login-username").value;
+  const passInput = document.getElementById("login-password").value;
 
   if (userInput === brokerUser && passInput === brokerPass) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-app').classList.remove('hidden');
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.remove("hidden");
     loggedIn = true;
     connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
   } else {
@@ -25,20 +25,19 @@ function handleLogin() {
 }
 
 // -----------------------------
-// 🌐 MQTT Setup (WSS)
+// 🌐 MQTT Setup (WSS Config)
 // -----------------------------
 function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  const fullUrl = `wss://${host}:${port}${path}`;
-  console.log("🌐 Connecting to:", fullUrl);
+  console.log("🌐 Connecting to MQTT at:", host, port, path, clientId);
 
   try {
     if (typeof Paho === "undefined" || typeof Paho.MQTT === "undefined" || typeof Paho.MQTT.Client === "undefined") {
-      console.error("❌ Paho MQTT not loaded or not defined.");
+      console.error("❌ Paho MQTT not loaded or defined. Check <script src='libs/paho-mqtt.js'>");
       return;
     }
 
-    client = new Paho.MQTT.Client(fullUrl, clientId);
+    client = new Paho.MQTT.Client(host, Number(port), path, clientId);
 
     client.onConnectionLost = () => logToAll("🔌 Connection lost");
     client.onMessageArrived = onMessageArrived;
@@ -52,12 +51,12 @@ function connectToMQTT(host, port, path, username, password) {
         client.subscribe(topic);
         logToAll("🔔 Subscribed to topic: " + topic);
       },
-      onFailure: err => {
+      onFailure: (err) => {
         logToAll("❌ MQTT connect failed: " + err.errorMessage);
       }
     });
   } catch (error) {
-    console.error("🚨 MQTT Connection Error:", error);
+    console.error("🚨 MQTT Client Init Error:", error);
   }
 }
 
@@ -75,26 +74,26 @@ function log(id, text) {
 }
 
 function logToAll(text) {
-  ["general-log", "command-log", "alert-log"].forEach(id => log(id, text));
+  ["general-log", "command-log", "alert-log"].forEach((id) => log(id, text));
 }
 
 // -----------------------------
 // 🗂️ Tab Switching
 // -----------------------------
 function switchTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.getElementById(`${tabId}-tab`).classList.remove('hidden');
+  document.querySelectorAll(".tab-content").forEach((el) => el.classList.add("hidden"));
+  document.getElementById(`${tabId}-tab`).classList.remove("hidden");
 }
 
 // -----------------------------
 // 📂 Export Logs
 // -----------------------------
 function exportLogs() {
-  const format = document.getElementById('file-format').value;
+  const format = document.getElementById("file-format").value;
   const logs = {
-    general: document.getElementById('general-log').textContent.trim(),
-    command: document.getElementById('command-log').textContent.trim(),
-    alert: document.getElementById('alert-log').textContent.trim()
+    general: document.getElementById("general-log").textContent.trim(),
+    command: document.getElementById("command-log").textContent.trim(),
+    alert: document.getElementById("alert-log").textContent.trim()
   };
 
   let content = "";
@@ -191,8 +190,8 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   if (typeof Paho !== "undefined" && typeof Paho.MQTT !== "undefined") {
-    console.log("✅ Paho MQTT loaded");
+    console.log("✅ Paho MQTT loaded from local libs/paho-mqtt.js");
   } else {
-    console.error("❌ Paho MQTT not loaded.");
+    console.error("❌ Paho MQTT not loaded. Make sure script path is correct: libs/paho-mqtt.js");
   }
 });

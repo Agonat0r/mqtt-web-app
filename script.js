@@ -74,7 +74,6 @@ function onMessageArrived(message) {
     log("alert-log", "🚨 " + msg);
   }
 }
-
 function log(id, text) {
   const el = document.getElementById(id);
   el.textContent += text + "\n";

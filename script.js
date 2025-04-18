@@ -27,35 +27,55 @@ function handleLogin() {
 // -----------------------------
 // 🌐 MQTT Setup
 // -----------------------------
-function connectToMQTT() {
+function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
 
-  const fullUrl = `wss://${brokerHost}:${brokerPort}${brokerPath}`;
-  console.log("Connecting to MQTT with URL:", fullUrl, "ClientID:", clientId);
+  console.log("📡 [DEBUG] Starting connectToMQTT()");
+  console.log("🌐 [DEBUG] Inputs ->", { host, port, path, username, password });
+  console.log("🆔 [DEBUG] Client ID:", clientId);
 
   try {
-    client = new Paho.MQTT.Client(brokerHost, Number(brokerPort), brokerPath, clientId);
-  } catch (err) {
-    console.error("❌ Failed to create MQTT client:", err);
-    return;
-  }
-
-  client.onMessageArrived = onMessageArrived;
-  client.onConnectionLost = () => logToAll("🔌 Connection lost");
-
-  client.connect({
-    useSSL: true,
-    userName: brokerUser,
-    password: brokerPass,
-    onSuccess: () => {
-      logToAll("✅ Connected to MQTT broker");
-      client.subscribe(topic);
-      logToAll("🔔 Subscribed to topic: " + topic);
-    },
-    onFailure: (err) => {
-      logToAll("❌ MQTT connect failed: " + err.errorMessage);
+    // Check if Paho is loaded
+    if (typeof Paho === "undefined") {
+      console.error("❌ [ERROR] Paho is undefined.");
+      return;
     }
-  });
+
+    if (typeof Paho.MQTT === "undefined") {
+      console.error("❌ [ERROR] Paho.MQTT is undefined.");
+      return;
+    }
+
+    if (typeof Paho.MQTT.Client === "undefined") {
+      console.error("❌ [ERROR] Paho.MQTT.Client is not defined.");
+      return;
+    }
+
+    console.log("✅ [DEBUG] Paho.MQTT.Client is defined. Proceeding to create client...");
+
+    // Correct way to initialize
+    client = new Paho.MQTT.Client(host, Number(port), path, clientId);
+
+    client.onMessageArrived = onMessageArrived;
+    client.onConnectionLost = () => logToAll("🔌 Connection lost");
+
+    client.connect({
+      useSSL: true,
+      userName: username,
+      password: password,
+      onSuccess: () => {
+        logToAll("✅ Connected to MQTT broker");
+        client.subscribe(topic);
+        logToAll("🔔 Subscribed to topic: " + topic);
+      },
+      onFailure: (err) => {
+        logToAll("❌ MQTT connect failed: " + err.errorMessage);
+      }
+    });
+
+  } catch (error) {
+    console.error("🚨 [ERROR] Failed to create or connect MQTT client:", error);
+  }
 }
 
 function onMessageArrived(message) {
@@ -206,6 +226,13 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
     console.log("📧 EmailJS initialized");
+
+    if (typeof Paho !== "undefined" && typeof Paho.MQTT !== "undefined") {
+      console.log("✅ Paho MQTT loaded");
+    } else {
+      console.error("❌ Paho MQTT not loaded");
+    }
+    
   }
 
   if (typeof Paho !== "undefined") {

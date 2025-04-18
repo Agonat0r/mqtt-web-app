@@ -171,11 +171,11 @@ function switchLanguage() {
 }
 
 // -----------------------------
-// 📧 EmailJS Init (when DOM is ready)
+// 📧 EmailJS Init on DOM Ready
 // -----------------------------
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Replace with your actual public key
+    emailjs.init("7osg1XmfdRC2z68Xt"); // ✅ Your Public Key (Gmail EmailJS service)
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

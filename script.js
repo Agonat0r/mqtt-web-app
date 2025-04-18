@@ -4,8 +4,8 @@ let brokerPath = "/mqtt";
 let brokerUser = "Carlos";
 let brokerPass = "mqtt2025";
 let topic = "usf/messages";
-let client = "WebDashboardClient_";
-let loggedIn = false;
+let client;
+let loggedIn = true;
 
 function handleLogin() {
   const userInput = document.getElementById("login-username").value;

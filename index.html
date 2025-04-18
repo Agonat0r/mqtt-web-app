@@ -6,13 +6,14 @@
   <title>USF Harmar MQTT Console</title>
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- ✅ Load Local Paho MQTT -->
-  <script src="paho-mqtt.js"></script>
+  <!-- ✅ Load Local Paho MQTT from libs folder -->
+  <script src="libs/paho-mqtt.js"></script>
 
   <!-- 📧 EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
+  <!-- 🔐 Login Section -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
@@ -20,6 +21,7 @@
     <button onclick="handleLogin()">Login</button>
   </div>
 
+  <!-- 📊 Main App Section -->
   <div id="main-app" class="hidden">
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
@@ -30,9 +32,11 @@
       </div>
     </div>
 
+    <!-- Hidden Credentials -->
     <input type="hidden" id="broker-user" value="admin" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
+    <!-- Tabs -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <pre id="general-log">Waiting for general messages...</pre>
@@ -48,6 +52,7 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
+    <!-- 📦 Controls -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -65,6 +70,7 @@
     </div>
   </div>
 
+  <!-- 📧 EmailJS Form -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -73,7 +79,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- Your logic -->
+  <!-- 🚀 App Logic -->
   <script src="script.js"></script>
 </body>
 </html>

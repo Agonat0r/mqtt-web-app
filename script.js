@@ -33,7 +33,7 @@ function connectToMQTT(host, port, path, username, password) {
 
   try {
     if (typeof Paho === "undefined" || typeof Paho.MQTT === "undefined" || typeof Paho.MQTT.Client === "undefined") {
-      console.error("❌ Paho MQTT not loaded or defined. Check <script src='libs/paho-mqtt.js'>");
+      
       return;
     }
 
@@ -192,6 +192,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof Paho !== "undefined" && typeof Paho.MQTT !== "undefined") {
     console.log("✅ Paho MQTT loaded from local libs/paho-mqtt.js");
   } else {
-    console.error("❌ Paho MQTT not loaded. Make sure script path is correct: libs/paho-mqtt.js");
+
   }
 });

@@ -34,7 +34,7 @@ function connectToMQTT() {
   console.log("Connecting to MQTT with URL:", fullUrl, "ClientID:", clientId);
 
   try {
-    client = new Paho.MQTT.Client(brokerHost, brokerPort, brokerPath, clientId);
+    client = new Paho.MQTT.Client(brokerHost, Number(brokerPort), brokerPath, clientId);
   } catch (err) {
     console.error("❌ Failed to create MQTT client:", err);
     return;

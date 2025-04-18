@@ -4,7 +4,7 @@
 let brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
 let brokerPort = 8084;
 let brokerPath = "/mqtt";
-let brokerUser = "admin";
+let brokerUser = "Carlos";
 let brokerPass = "mqtt2025";
 let topic = "/esp32/hmi";
 let client;

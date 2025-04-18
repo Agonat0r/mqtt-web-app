@@ -27,7 +27,7 @@ function handleLogin() {
 // 🌐 MQTT Setup (WSS Config)
 // -----------------------------
 let client;
-let topic = "usf/messages";
+let topic = "/esp32/hmi";
 
 function connectToMQTTCredentials(host, port, path, username, password) {
     connectToMQTT(host,port,path,username,password);

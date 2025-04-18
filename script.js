@@ -5,7 +5,7 @@ function handleLogin() {
   const username = document.getElementById('login-username').value;
   const password = document.getElementById('login-password').value;
 
-  if (username === 'carlos' && password === 'pena') {
+  if (username === 'admin' && password === 'pena') {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     connectToMQTT();
@@ -18,22 +18,22 @@ function handleLogin() {
 // 🌐 MQTT Setup (via EMQX)
 // -----------------------------
 let client;
-const host = "lb88002c.ala.us-east-1.emqxsl.com";
-const port = 8084;
+const host = "10.226.176.234";
+const port = 8083;
 const path = "/mqtt";
 const topic = "usf/messages";
 
 function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
   const wsUrl = `wss://${host}:${port}${path}`;
-  client = new Paho.MQTT.Client(wsUrl, clientId); // ✅ CORRECT CONSTRUCTOR
+  client = new Paho.MQTT.Client(host, port, path, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
     useSSL: true,
-    userName: "Carlos",
+    userName: "admin",
     password: "Pena",
     onSuccess: () => {
       logToAll("✅ Connected to MQTT broker");

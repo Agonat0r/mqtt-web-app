@@ -4,34 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
-
-  <!-- 🌐 Styles -->
   <link rel="stylesheet" href="styles.css" />
 
-  <!-- 📡 MQTT via WebSocket -->
+  <!-- Load Paho MQTT -->
   <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
 
-  <!-- 📧 EmailJS SDK -->
+  <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 </head>
 <body>
-  <!-- 🔐 Login Screen -->
+  <!-- 🔐 Login -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
     <input type="password" id="login-password" placeholder="Password" />
     <button onclick="handleLogin()">Login</button>
+
+    <!-- Hidden MQTT Broker Credentials -->
+    <input type="hidden" id="broker-url" value="ws://10.226.176.234:8083/mqtt" />
+    <input type="hidden" id="broker-user" value="admin" />
+    <input type="hidden" id="broker-pass" value="mqtt2025" />
   </div>
 
   <!-- 📡 Main App -->
   <div id="main-app" class="hidden">
-    <!-- Hidden Broker Credentials -->
-    <div style="display: none;">
-      <input type="text" id="broker-url" value="ws://10.226.176.234:8083/mqtt">
-      <input type="text" id="broker-user" value="admin">
-      <input type="password" id="broker-pass" value="mqtt2025">
-    </div>
-
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
       <div class="nav-tabs">
@@ -56,6 +52,7 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
+    <!-- Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -69,12 +66,12 @@
         <option value="txt">.txt</option>
         <option value="csv">.csv</option>
       </select>
-      <button onclick="exportLogs()">📂 Export Logs</button>
+      <button onclick="exportLogs()">💾 Export Logs</button>
     </div>
   </div>
 
-  <!-- 📧 Hidden Form for EmailJS -->
-  <form id="email-form" style="display: none;">
+  <!-- 📧 Hidden EmailJS Form -->
+  <form id="email-form" style="display:none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
     <input type="text" name="time" />
@@ -82,7 +79,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 📜 Logic -->
+  <!-- Load JavaScript -->
   <script defer src="script.js"></script>
 </body>
 </html>

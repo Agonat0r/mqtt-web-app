@@ -15,26 +15,26 @@ function handleLogin() {
 }
 
 // -----------------------------
-// 🌐 MQTT Setup (via EMQX)
+// 🌐 MQTT Setup (Dynamic Config)
 // -----------------------------
 let client;
-const host = "10.226.176.234"; // ✅ Your actual IP address
-const port = 8083;
-const path = "/mqtt";
-const topic = "usf/messages";
+let topic = "usf/messages";
 
 function connectToMQTT() {
+  const brokerUrl = document.getElementById('broker-url').value.trim();
+  const username = document.getElementById('broker-user').value.trim();
+  const password = document.getElementById('broker-pass').value.trim();
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  const wsUrl = `ws://${host}:${port}${path}`; // ✅ Use non-SSL ws://
 
-  client = new Paho.MQTT.Client(wsUrl, clientId);
+  client = new Paho.MQTT.Client(brokerUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
-    userName: "admin",
-    password: "mqtt2025",
+    useSSL: brokerUrl.startsWith("wss://"),
+    userName: username,
+    password: password,
     onSuccess: () => {
       logToAll("✅ Connected to MQTT broker");
       client.subscribe(topic);

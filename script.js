@@ -11,10 +11,12 @@ function handleLogin() {
   if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
-    const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
-    const brokerPort = 8084;
-    const brokerPath = "/mqtt";
-    connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+    //  Call connectToMQTT *AFTER* the page has loaded.  We'll do this,
+    //  in the window.onload function
+    // const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
+    // const brokerPort = 8084;
+    // const brokerPath = "/mqtt";
+    // connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
   } else {
     alert('❌ Invalid credentials');
   }
@@ -31,7 +33,13 @@ function connectToMQTT(host, port, path, username, password) {
   const fullUrl = `wss://${host}:${port}${path}`;
 
   console.log("Connecting to MQTT with URL:", fullUrl, "and clientId:", clientId); // Debug
-  client = new Paho.MQTT.Client(fullUrl, clientId);
+  try {
+    client = new Paho.MQTT.Client(fullUrl, clientId);
+  } catch (error) {
+    console.error("Error creating MQTT client:", error);
+    return; // IMPORTANT: Stop if client creation fails.
+  }
+
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -193,13 +201,25 @@ function switchLanguage() {
 }
 
 // -----------------------------
-// 📧 EmailJS Init
+// 📧 EmailJS Init and MQTT Connection
 // -----------------------------
-window.addEventListener("DOMContentLoaded", () => {
+window.onload = () => {
+  // Initialize EmailJS
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
-    console.log("EmailJS initialized"); // Debug
+    console.log("EmailJS initialized");
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }
-});
+
+  //  Now it's safe to connect to MQTT, because this happens *after*
+  //  the libraries have loaded.
+  const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
+  const brokerPort = 8084;
+  const brokerPath = "/mqtt";
+  const brokerUser = 'admin';
+  const brokerPass = 'mqtt2025';
+
+  connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+
+};

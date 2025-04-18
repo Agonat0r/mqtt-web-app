@@ -62,9 +62,17 @@ function connectToMQTT(host, port, path, username, password) {
 
 function onMessageArrived(message) {
   const msg = message.payloadString;
-  if (msg.startsWith("E")) log("command-log", "🧠 " + msg);
-  else if (msg.toLowerCase().includes("alert")) log("alert-log", "🚨 " + msg);
-  else log("general-log", "📩 " + msg);
+
+  // ✅ Always log to General first
+  log("general-log", "📩 " + msg);
+
+  // ✅ Then optionally log to Command or Alert
+  if (msg.startsWith("E")) {
+    log("command-log", "🧠 " + msg);
+  }
+  if (msg.toLowerCase().includes("alert")) {
+    log("alert-log", "🚨 " + msg);
+  }
 }
 
 function log(id, text) {

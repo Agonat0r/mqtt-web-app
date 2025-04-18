@@ -1,4 +1,3 @@
-// script.js
 // -----------------------------
 // 🔐 Login System
 // -----------------------------
@@ -29,9 +28,10 @@ let topic = "usf/messages";
 
 function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-
   const fullUrl = `wss://${host}:${port}${path}`;
-  client = new Paho.MQTT.Client(fullUrl, clientId); // ✅ fixed line
+
+  console.log("Connecting to MQTT with URL:", fullUrl, "and clientId:", clientId); // Debug
+  client = new Paho.MQTT.Client(fullUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -198,6 +198,7 @@ function switchLanguage() {
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
+    console.log("EmailJS initialized"); // Debug
   } else {
     console.error("❌ EmailJS SDK not loaded.");
   }

@@ -18,21 +18,21 @@ function handleLogin() {
 // 🌐 MQTT Setup (via EMQX)
 // -----------------------------
 let client;
-const host = "10.226.176.234";
+const host = "10.226.176.234";  // Your IP address
 const port = 8083;
 const path = "/mqtt";
 const topic = "usf/messages";
 
 function connectToMQTT() {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-  const wsUrl = `wss://${host}:${port}${path}`;
-  client = new Paho.MQTT.Client(host, port, path, clientId);
+
+  client = new Paho.MQTT.Client(host, Number(port), path, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
 
   client.connect({
-    useSSL: true,
+    useSSL: false, // ❗ TLS is disabled in your MQTT setup
     userName: "admin",
     password: "mqtt2025",
     onSuccess: () => {

@@ -5,6 +5,7 @@ let brokerUser = "Carlos";
 let brokerPass = "mqtt2025";
 let topic = "usf/messages";
 let client;
+const clientId = "WebDashboardClient_" + Math.random().toString(16).slice(2, 10);
 let loggedIn = false;
 
 function handleLogin() {

@@ -4,14 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
-
-  <!-- 🌐 Styles -->
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- 📡 MQTT via WebSocket -->
   <script src="https://unpkg.com/paho-mqtt@1.1.0/paho-mqtt-min.js"></script>
-
-  <!-- 📧 EmailJS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 </head>
 <body>
@@ -34,6 +28,10 @@
       </div>
     </div>
 
+    <!-- 🪪 Hidden broker credentials -->
+    <input type="hidden" id="broker-user" value="admin" />
+    <input type="hidden" id="broker-pass" value="mqtt2025" />
+
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <pre id="general-log">Waiting for general messages...</pre>
@@ -49,6 +47,7 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
+    <!-- 🛠️ Controls -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -66,7 +65,7 @@
     </div>
   </div>
 
-  <!-- 📧 Hidden Form for EmailJS -->
+  <!-- 📧 Hidden EmailJS Form -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -75,12 +74,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 🔒 Hidden MQTT Config -->
-  <input type="hidden" id="broker-url" value="wss://10.226.176.234:8084/mqtt" />
-  <input type="hidden" id="broker-user" value="admin" />
-  <input type="hidden" id="broker-pass" value="mqtt2025" />
-
-  <!-- 📜 Main JavaScript -->
-  <script defer src="script.js"></script>
+  <!-- ✅ Your Script -->
+  <script src="script.js"></script>
 </body>
 </html>

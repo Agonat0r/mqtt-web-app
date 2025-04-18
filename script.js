@@ -5,30 +5,30 @@ function handleLogin() {
   const userInput = document.getElementById('login-username').value;
   const passInput = document.getElementById('login-password').value;
 
-  const brokerUrl = "wss://10.226.176.234:8084/mqtt"; // secure endpoint
   const brokerUser = 'admin';
   const brokerPass = 'mqtt2025';
 
   if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
-    connectToMQTT(brokerUrl, brokerUser, brokerPass);
+    const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
+    const brokerPort = 8084;
+    const brokerPath = "/mqtt";
+    connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
   } else {
     alert('❌ Invalid credentials');
   }
 }
 
 // -----------------------------
-// 🌐 MQTT Setup (Static WSS Config)
+// 🌐 MQTT Setup (WSS Config)
 // -----------------------------
 let client;
 let topic = "usf/messages";
 
-function connectToMQTT(brokerUrl, username, password) {
+function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
-
-  const fullUrl = brokerUrl; // Should be like 'wss://10.226.176.234:8084/mqtt'
-  const client = new Paho.MQTT.Client(fullUrl, clientId);
+  client = new Paho.MQTT.Client(host, Number(port), path, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -46,8 +46,6 @@ function connectToMQTT(brokerUrl, username, password) {
       logToAll("❌ MQTT connect failed: " + err.errorMessage);
     }
   });
-
-  window.client = client; // Save to global for use in other functions
 }
 
 function onMessageArrived(message) {

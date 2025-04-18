@@ -25,6 +25,13 @@
 
   <!-- 📡 Main App -->
   <div id="main-app" class="hidden">
+    <!-- Hidden Broker Credentials -->
+    <div style="display: none;">
+      <input type="text" id="broker-url" value="ws://10.226.176.234:8083/mqtt">
+      <input type="text" id="broker-user" value="admin">
+      <input type="password" id="broker-pass" value="mqtt2025">
+    </div>
+
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
       <div class="nav-tabs">
@@ -49,7 +56,6 @@
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- 🔧 Tools -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -63,7 +69,7 @@
         <option value="txt">.txt</option>
         <option value="csv">.csv</option>
       </select>
-      <button onclick="exportLogs()">💾 Export Logs</button>
+      <button onclick="exportLogs()">📂 Export Logs</button>
     </div>
   </div>
 
@@ -76,7 +82,7 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 📜 Main JavaScript -->
+  <!-- 📜 Logic -->
   <script defer src="script.js"></script>
 </body>
 </html>

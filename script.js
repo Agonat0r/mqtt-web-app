@@ -27,7 +27,8 @@ let topic = "usf/messages";
 function connectToMQTT(brokerUrl, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
 
-  client = new Paho.MQTT.Client(brokerUrl, clientId);
+  // ✅ FIXED LINE
+  client = new Paho.Client(brokerUrl, clientId);
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");

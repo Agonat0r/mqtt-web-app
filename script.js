@@ -4,27 +4,20 @@
 let brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
 let brokerPort = 8084;
 let brokerPath = "/mqtt";
-let brokerUser = 'admin';  // Default
-let brokerPass = 'mqtt2025';  // Default
+let brokerUser = 'admin';
+let brokerPass = 'mqtt2025';
 let loggedIn = false;
 
 function handleLogin() {
   const userInput = document.getElementById('login-username').value;
   const passInput = document.getElementById('login-password').value;
 
-  //  const brokerUser = 'admin';  // No longer hardcoded here
-  //  const brokerPass = 'mqtt2025';  // No longer hardcoded here
-
   if (userInput === brokerUser && passInput === brokerPass) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
-    loggedIn = true; //set to true
-    //  Call connectToMQTT *AFTER* the page has loaded.  We'll do this,
-    //  in the window.onload function
-    // const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
-    // const brokerPort = 8084;
-    // const brokerPath = "/mqtt";
-    // connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);  <-- REMOVED
+    loggedIn = true;
+    // Connect to MQTT *after* successful login
+    connectToMQTTCredentials(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
   } else {
     alert('❌ Invalid credentials');
   }
@@ -36,18 +29,21 @@ function handleLogin() {
 let client;
 let topic = "usf/messages";
 
+function connectToMQTTCredentials(host, port, path, username, password) {
+    connectToMQTT(host,port,path,username,password);
+}
+
 function connectToMQTT(host, port, path, username, password) {
   const clientId = "webClient_" + Math.random().toString(16).substr(2, 8);
   const fullUrl = `wss://${host}:${port}${path}`;
 
-  console.log("Connecting to MQTT with URL:", fullUrl, "and clientId:", clientId); // Debug
+  console.log("Connecting to MQTT with URL:", fullUrl, "and clientId:", clientId);
   try {
     client = new Paho.MQTT.Client(fullUrl, clientId);
   } catch (error) {
     console.error("Error creating MQTT client:", error);
-    return; // IMPORTANT: Stop if client creation fails.
+    return;
   }
-
 
   client.onMessageArrived = onMessageArrived;
   client.onConnectionLost = () => logToAll("🔌 Connection lost");
@@ -220,14 +216,9 @@ window.onload = () => {
     console.error("❌ EmailJS SDK not loaded.");
   }
 
-  //  Now it's safe to connect to MQTT, because this happens *after*
-  //  the libraries have loaded.
-  const brokerHost = "lb88002c.ala.us-east-1.emqxsl.com";
-  const brokerPort = 8084;
-  const brokerPath = "/mqtt";
-  const brokerUser = 'admin';
-  const brokerPass = 'mqtt2025';
-
-  connectToMQTT(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+  // Check if logged in.
+  if(loggedIn){
+    connectToMQTTCredentials(brokerHost, brokerPort, brokerPath, brokerUser, brokerPass);
+  }
 
 };

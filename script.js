@@ -1,4 +1,4 @@
-let brokerHost = "wss://broker.emqx.io:8084/mqtt";
+let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
 let topic = "usf/messages";
 let client;
 let loggedIn = false;

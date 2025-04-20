@@ -59,6 +59,23 @@ pre {
   font-family: 'Courier New', monospace;
 }
 
+/* === Status Dashboard === */
+.status-section {
+  max-width: 600px;
+  margin: 20px auto;
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  font-size: 1.1em;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.status-section p {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
 /* === Hidden Elements === */
 .hidden {
   display: none;
@@ -96,7 +113,7 @@ pre {
   background-color: #4CAF50;
 }
 
-/* === Tab Transitions === */
+/* === Tab Content === */
 .tab-content {
   animation: fadeIn 0.5s ease-in-out;
 }
@@ -132,7 +149,7 @@ pre {
   text-align: center;
 }
 
-/* === Customization Helpers === */
+/* === Border Toggle === */
 .bordered {
   border: 2px dashed #888;
   border-radius: 8px;
@@ -144,14 +161,15 @@ pre {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* === Dark Theme === */
+/* === Themes === */
 body.dark-mode {
   background-color: #111 !important;
   color: #eee !important;
 }
 
 body.dark-mode .tools-panel,
-body.dark-mode #login-screen {
+body.dark-mode #login-screen,
+body.dark-mode .status-section {
   background-color: #222;
   color: #eee;
 }
@@ -164,14 +182,14 @@ body.dark-mode button {
   border: 1px solid #666;
 }
 
-/* === USF Green Theme === */
 body.usf-mode {
   background-color: #044c29 !important;
   color: #d4f4dd !important;
 }
 
 body.usf-mode .tools-panel,
-body.usf-mode #login-screen {
+body.usf-mode #login-screen,
+body.usf-mode .status-section {
   background-color: #06623b;
   color: #d4f4dd;
 }

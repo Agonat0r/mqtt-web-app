@@ -22,16 +22,34 @@
     <div class="navbar">
       <div class="nav-title">USF Harmar Dashboard</div>
       <div class="nav-tabs">
-        <button onclick="switchTab('general')">General</button>
-        <button onclick="switchTab('commands')">Commands</button>
-        <button onclick="switchTab('alerts')">Alerts</button>
-        <button onclick="switchTab('customization')">Customization</button>
+        <button onclick="switchTab('status')">📊 Status</button>
+        <button onclick="switchTab('general')">📋 General</button>
+        <button onclick="switchTab('commands')">🧠 Commands</button>
+        <button onclick="switchTab('alerts')">🚨 Alerts</button>
+        <button onclick="switchTab('customization')">🎨 Customization</button>
       </div>
     </div>
 
+    <!-- Hidden MQTT Credentials -->
     <input type="hidden" id="broker-user" value="Carlos" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
+    <!-- 📊 STATUS DASHBOARD TAB -->
+    <div class="tab-content hidden" id="status-tab">
+      <h2>📊 Lift System Status</h2>
+      <div class="status-section">
+        <p><strong>Direction:</strong> <span id="status-direction">Idle</span></p>
+        <p><strong>Current Position:</strong> <span id="status-position">Unknown</span></p>
+        <p><strong>Target Position:</strong> <span id="status-target">None</span></p>
+        <p><strong>Top Limit Switch:</strong> <span id="limit-top">Inactive</span></p>
+        <p><strong>Bottom Limit Switch:</strong> <span id="limit-bottom">Inactive</span></p>
+        <p><strong>Door State:</strong> <span id="door-sensor">Unknown</span></p>
+        <p><strong>Emergency Stop:</strong> <span id="emergency-stop">Inactive</span></p>
+        <p><strong>Alarms:</strong> <span id="active-alarms">None</span></p>
+      </div>
+    </div>
+
+    <!-- 📋 GENERAL TAB -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <button onclick="clearLog('general-log')">🗑️ Clear Log</button>
@@ -42,18 +60,21 @@
       <input type="text" id="terminal-input" placeholder="Type a message and press Enter..." onkeydown="handleTerminalInput(event)" />
     </div>
 
+    <!-- 🧠 COMMANDS TAB -->
     <div class="tab-content hidden" id="commands-tab">
       <h2>🧠 Command Console</h2>
       <button onclick="clearLog('command-log')">🗑️ Clear Log</button>
       <pre id="command-log">Waiting for commands...</pre>
     </div>
 
+    <!-- 🚨 ALERTS TAB -->
     <div class="tab-content hidden" id="alerts-tab">
       <h2>🚨 Alert Console</h2>
       <button onclick="clearLog('alert-log')">🗑️ Clear Log</button>
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
+    <!-- 🎨 CUSTOMIZATION TAB -->
     <div class="tab-content hidden" id="customization-tab">
       <h2>🎨 Customization</h2>
 
@@ -89,10 +110,19 @@
       <input type="file" id="load-log-file" onchange="loadLogFromFile(event)" accept=".txt" style="margin-top:10px;" />
     </div>
 
+    <!-- 🌍 TOOLS PANEL -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
-        <option value="en">🌐 English</option>
-        <option value="es">🌐 Español</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="es">🇪🇸 Spanish</option>
+        <option value="zh">🇨🇳 Chinese</option>
+        <option value="hi">🇮🇳 Hindi</option>
+        <option value="ar">🇸🇦 Arabic</option>
+        <option value="bn">🇧🇩 Bengali</option>
+        <option value="pt">🇧🇷 Portuguese</option>
+        <option value="ru">🇷🇺 Russian</option>
+        <option value="ja">🇯🇵 Japanese</option>
+        <option value="de">🇩🇪 German</option>
       </select>
 
       <input type="email" id="user-email" placeholder="Enter your email" />
@@ -106,6 +136,7 @@
     </div>
   </div>
 
+  <!-- 📧 Email Form (Hidden) -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -114,10 +145,11 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 🔊 Sound Effects -->
+  <!-- 🔊 Sounds -->
   <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
   <audio id="command-sound" src="chime.wav" preload="auto"></audio>
 
+  <!-- 🚀 JavaScript -->
   <script src="script.js"></script>
 </body>
 </html>

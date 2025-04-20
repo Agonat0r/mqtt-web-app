@@ -5,7 +5,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
   authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
   projectId: "usf-harmar-mqtt-dashboar-3a6ed",
-  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
+  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.appspot.com",
   messagingSenderId: "469430781334",
   appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
   measurementId: "G-JR8BJYRZFW"
@@ -13,6 +13,16 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+// 🔒 Set Firebase rules in Firestore console for testing:
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /{document=**} {
+//       allow read, write: if true;
+//     }
+//   }
+// }
 
 let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
 let topic = "usf/messages";
@@ -63,14 +73,14 @@ function connectToMQTT() {
 
     if (msg.startsWith("COMMAND:") || msg.startsWith("E")) {
       log("command-log", msg, "command", msg);
-      document.getElementById("command-sound").play();
+      document.getElementById("command-sound")?.play();
     } else {
       log("general-log", msg, "general", msg);
     }
 
     if (msg.toLowerCase().includes("alert")) {
       log("alert-log", msg, "alert", msg);
-      document.getElementById("alert-sound").play();
+      document.getElementById("alert-sound")?.play();
     }
 
     updateStatusPanel(msg);
@@ -110,7 +120,7 @@ function updateStatusPanel(msg) {
 function log(id, text, type = "general", rawCommand = null) {
   const timestamp = new Date();
   const lang = document.getElementById("language-selector")?.value || "en";
-  const translated = `[${timestamp.toLocaleTimeString()}] ${translatePrefix(text, lang)}`;
+  const translated = `[${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}] ${translatePrefix(text, lang)}`;
   const el = document.getElementById(id);
   if (el) {
     el.textContent += translated + "\n";
@@ -124,6 +134,8 @@ function log(id, text, type = "general", rawCommand = null) {
     timestamp,
     lang,
     command: rawCommand || ""
+  }).catch(err => {
+    console.error("❌ Firestore write failed:", err);
   });
 }
 
@@ -151,11 +163,4 @@ function translatePrefix(text, lang) {
     }
   }
   return text;
-}
-
-function switchTab(tabId) {
-  document.querySelectorAll(".tab-content").forEach((tab) => {
-    tab.classList.add("hidden");
-  });
-  document.getElementById(`${tabId}-tab`)?.classList.remove("hidden");
 }

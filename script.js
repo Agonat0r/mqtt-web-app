@@ -162,6 +162,13 @@ const langMap = {
   }
 };
 
+function clearLog(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = ""; // Clears the console
+  }
+}
+
 function switchLanguage() {
   const lang = document.getElementById("language-selector").value;
   document.querySelector(".nav-title").textContent = langMap[lang].dashboardTitle;

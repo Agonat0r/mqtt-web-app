@@ -39,6 +39,7 @@
     <!-- Tabs -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
+      <button onclick="clearLog('general-log')">🗑️ Clear</button>
       <pre id="general-log">Waiting for general messages...</pre>
 
       <h3>🖥️ Terminal</h3>
@@ -48,11 +49,13 @@
 
     <div class="tab-content hidden" id="commands-tab">
       <h2>🧠 Command Console</h2>
+      <button onclick="clearLog('command-log')">🗑️ Clear</button>
       <pre id="command-log">Waiting for commands...</pre>
     </div>
 
     <div class="tab-content hidden" id="alerts-tab">
       <h2>🚨 Alert Console</h2>
+      <button onclick="clearLog('alert-log')">🗑️ Clear</button>
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 

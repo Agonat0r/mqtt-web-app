@@ -5,9 +5,10 @@ body {
   margin: 0;
   padding: 0;
   color: #333;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-h1, h2 {
+h1, h2, h3 {
   text-align: center;
   margin-top: 20px;
 }
@@ -55,6 +56,7 @@ pre {
   margin: 20px auto;
   width: 90%;
   max-width: 1000px;
+  font-family: 'Courier New', monospace;
 }
 
 /* === Hidden Elements === */
@@ -130,13 +132,54 @@ pre {
   text-align: center;
 }
 
+/* === Customization Helpers === */
+.bordered {
+  border: 2px dashed #888;
+  border-radius: 8px;
+}
+
 /* === Animations === */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.bordered {
-  border: 2px dashed #888;
-  border-radius: 8px;
+/* === Dark Theme === */
+body.dark-mode {
+  background-color: #111 !important;
+  color: #eee !important;
+}
+
+body.dark-mode .tools-panel,
+body.dark-mode #login-screen {
+  background-color: #222;
+  color: #eee;
+}
+
+body.dark-mode select,
+body.dark-mode input,
+body.dark-mode button {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #666;
+}
+
+/* === USF Green Theme === */
+body.usf-mode {
+  background-color: #044c29 !important;
+  color: #d4f4dd !important;
+}
+
+body.usf-mode .tools-panel,
+body.usf-mode #login-screen {
+  background-color: #06623b;
+  color: #d4f4dd;
+}
+
+body.usf-mode select,
+body.usf-mode input,
+body.usf-mode button {
+  background-color: #0b8457;
+  color: white;
+  border: 1px solid #1aff8c;
 }

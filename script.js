@@ -54,12 +54,14 @@ function connectToMQTT() {
 
     if (msg.startsWith("COMMAND:") || msg.startsWith("E")) {
       log("command-log", "🧠 " + msg);
+      document.getElementById("command-sound").play();
     } else {
       log("general-log", "📩 " + msg);
     }
 
     if (msg.toLowerCase().includes("alert")) {
       log("alert-log", "🚨 " + msg);
+      document.getElementById("alert-sound").play();
     }
   });
 }
@@ -148,24 +150,17 @@ function clearLog(id) {
   if (el) el.textContent = "";
 }
 
-// === Customization Features ===
+// === Customization ===
 function applyTheme() {
   const theme = document.getElementById("theme-selector").value;
   const root = document.body;
 
-  switch (theme) {
-    case "dark":
-      root.style.backgroundColor = "#111";
-      root.style.color = "#eee";
-      break;
-    case "usf":
-      root.style.backgroundColor = "#044c29";
-      root.style.color = "#d4f4dd";
-      break;
-    default:
-      root.style.backgroundColor = "";
-      root.style.color = "";
-      break;
+  root.classList.remove("dark-mode", "usf-mode");
+
+  if (theme === "dark") {
+    root.classList.add("dark-mode");
+  } else if (theme === "usf") {
+    root.classList.add("usf-mode");
   }
 
   localStorage.setItem("selectedTheme", theme);
@@ -189,6 +184,53 @@ function applyBorders() {
     }
   });
   localStorage.setItem("borderedLogs", toggle ? "true" : "false");
+}
+
+function resetCustomizations() {
+  localStorage.clear();
+  document.body.className = "";
+  document.body.style.fontFamily = "";
+  document.getElementById("theme-selector").value = "default";
+  document.getElementById("font-selector").value = "default";
+  document.getElementById("border-toggle").checked = false;
+  applyTheme();
+  applyFont();
+  applyBorders();
+  alert("🎨 Customization reset!");
+}
+
+function saveLogsToFile() {
+  const content = `
+    === General ===\n${document.getElementById("general-log").textContent.trim()}\n
+    === Commands ===\n${document.getElementById("command-log").textContent.trim()}\n
+    === Alerts ===\n${document.getElementById("alert-log").textContent.trim()}
+  `;
+  const blob = new Blob([content], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "mqtt_logs.txt";
+  a.click();
+}
+
+function loadLogFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const content = e.target.result;
+    const sections = content.split("=== ");
+    sections.forEach(section => {
+      if (section.includes("General ===")) {
+        document.getElementById("general-log").textContent = section.split("===\n")[1] || "";
+      } else if (section.includes("Commands ===")) {
+        document.getElementById("command-log").textContent = section.split("===\n")[1] || "";
+      } else if (section.includes("Alerts ===")) {
+        document.getElementById("alert-log").textContent = section.split("===\n")[1] || "";
+      }
+    });
+  };
+  reader.readAsText(file);
 }
 
 function loadCustomizations() {
@@ -243,14 +285,7 @@ function switchLanguage() {
 
 // === Init ===
 window.addEventListener("DOMContentLoaded", () => {
-  if (typeof emailjs !== "undefined") {
-    emailjs.init("7osg1XmfdRC2z68Xt");
-    console.log("📧 EmailJS initialized");
-  }
-
-  if (typeof mqtt !== "undefined") {
-    console.log("✅ mqtt.js loaded");
-  }
-
+  if (typeof emailjs !== "undefined") emailjs.init("7osg1XmfdRC2z68Xt");
+  if (typeof mqtt !== "undefined") console.log("✅ mqtt.js loaded");
   loadCustomizations();
 });

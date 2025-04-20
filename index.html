@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>USF Harmar MQTT Console</title>
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- ✅ Load MQTT.js from CDN -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-  <!-- 📧 EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
@@ -33,11 +29,9 @@
       </div>
     </div>
 
-    <!-- Hidden MQTT Credentials -->
     <input type="hidden" id="broker-user" value="Carlos" />
     <input type="hidden" id="broker-pass" value="mqtt2025" />
 
-    <!-- Tabs -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
       <button onclick="clearLog('general-log')">🗑️ Clear Log</button>
@@ -87,9 +81,14 @@
         <input type="checkbox" id="border-toggle" onchange="applyBorders()" />
         Enable Borders on Logs
       </label>
+
+      <br /><br />
+
+      <button onclick="resetCustomizations()">🔄 Reset Customization</button>
+      <button onclick="saveLogsToFile()">💾 Save Logs to File</button>
+      <input type="file" id="load-log-file" onchange="loadLogFromFile(event)" accept=".txt" style="margin-top:10px;" />
     </div>
 
-    <!-- 📦 Controls -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
         <option value="en">🌐 English</option>
@@ -107,7 +106,6 @@
     </div>
   </div>
 
-  <!-- 📧 EmailJS Form -->
   <form id="email-form" style="display: none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
@@ -116,7 +114,10 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 🚀 App Logic -->
+  <!-- 🔊 Sound Effects -->
+  <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
+  <audio id="command-sound" src="chime.wav" preload="auto"></audio>
+
   <script src="script.js"></script>
 </body>
 </html>

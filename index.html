@@ -3,13 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>USF Harmar MQTT Console</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>USF Harmar MQTT Dashboard</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <!-- MQTT.js -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- 🔐 Login Section -->
+  <!-- 🔐 Login -->
   <div id="login-screen">
     <h1>🔐 USF Harmar MQTT Login</h1>
     <input type="text" id="login-username" placeholder="Username" />
@@ -17,127 +27,109 @@
     <button onclick="handleLogin()">Login</button>
   </div>
 
-  <!-- 📊 Main App Section -->
+  <!-- 📊 Main App -->
   <div id="main-app" class="hidden">
     <div class="navbar">
-      <div class="nav-title">USF Harmar Dashboard</div>
+      <div class="nav-title">USF Harmar MQTT Dashboard</div>
       <div class="nav-tabs">
-        <button onclick="switchTab('status')">📊 Status</button>
-        <button onclick="switchTab('general')">📋 General</button>
-        <button onclick="switchTab('commands')">🧠 Commands</button>
-        <button onclick="switchTab('alerts')">🚨 Alerts</button>
-        <button onclick="switchTab('customization')">🎨 Customization</button>
+        <select onchange="switchTab(this.value)">
+          <option value="status">📊 Status</option>
+          <option value="general">📋 General</option>
+          <option value="commands">🧠 Commands</option>
+          <option value="alerts">🚨 Alerts</option>
+          <option value="customization">🍩 Customization</option>
+        </select>
       </div>
     </div>
 
-    <!-- Hidden MQTT Credentials -->
-    <input type="hidden" id="broker-user" value="Carlos" />
-    <input type="hidden" id="broker-pass" value="mqtt2025" />
-
-    <!-- 📊 STATUS DASHBOARD TAB -->
-    <div class="tab-content hidden" id="status-tab">
+    <!-- Tabs -->
+    <div id="status-tab" class="tab-content">
       <h2>📊 Lift System Status</h2>
-      <div class="status-section">
-        <p><strong>Direction:</strong> <span id="status-direction">Idle</span></p>
-        <p><strong>Current Position:</strong> <span id="status-position">Unknown</span></p>
-        <p><strong>Target Position:</strong> <span id="status-target">None</span></p>
-        <p><strong>Top Limit Switch:</strong> <span id="limit-top">Inactive</span></p>
-        <p><strong>Bottom Limit Switch:</strong> <span id="limit-bottom">Inactive</span></p>
-        <p><strong>Door State:</strong> <span id="door-sensor">Unknown</span></p>
-        <p><strong>Emergency Stop:</strong> <span id="emergency-stop">Inactive</span></p>
-        <p><strong>Alarms:</strong> <span id="active-alarms">None</span></p>
-      </div>
+      <p>Direction: <span id="status-direction">N/A</span></p>
+      <p>Position: <span id="status-position">0</span></p>
+      <p>Target: <span id="status-target">0</span></p>
+      <p>Top Limit: <span id="limit-top">N/A</span></p>
+      <p>Bottom Limit: <span id="limit-bottom">N/A</span></p>
+      <p>Door Sensor: <span id="door-sensor">N/A</span></p>
+      <p>Emergency Stop: <span id="emergency-stop">N/A</span></p>
+      <p>Alarms: <span id="active-alarms">None</span></p>
     </div>
 
-    <!-- 📋 GENERAL TAB -->
-    <div class="tab-content" id="general-tab">
+    <div id="general-tab" class="tab-content hidden">
       <h2>📋 General Console</h2>
-      <button onclick="clearLog('general-log')">🗑️ Clear Log</button>
-      <pre id="general-log">Waiting for general messages...</pre>
-
-      <h3 style="text-align:center;">🖥️ Terminal</h3>
-      <pre id="terminal-log">[Terminal Initialized...]</pre>
-      <input type="text" id="terminal-input" placeholder="Type a message and press Enter..." onkeydown="handleTerminalInput(event)" />
+      <pre id="general-log">Waiting for messages...</pre>
+      <h3>🖥️ Terminal</h3>
+      <pre id="terminal-log">[Terminal Initialized]</pre>
+      <input type="text" id="terminal-input" onkeydown="handleTerminalInput(event)" placeholder="Type command here..." />
     </div>
 
-    <!-- 🧠 COMMANDS TAB -->
-    <div class="tab-content hidden" id="commands-tab">
+    <div id="commands-tab" class="tab-content hidden">
       <h2>🧠 Command Console</h2>
-      <button onclick="clearLog('command-log')">🗑️ Clear Log</button>
       <pre id="command-log">Waiting for commands...</pre>
     </div>
 
-    <!-- 🚨 ALERTS TAB -->
-    <div class="tab-content hidden" id="alerts-tab">
+    <div id="alerts-tab" class="tab-content hidden">
       <h2>🚨 Alert Console</h2>
-      <button onclick="clearLog('alert-log')">🗑️ Clear Log</button>
       <pre id="alert-log">Waiting for alerts...</pre>
     </div>
 
-    <!-- 🎨 CUSTOMIZATION TAB -->
-    <div class="tab-content hidden" id="customization-tab">
+    <div id="customization-tab" class="tab-content hidden">
       <h2>🎨 Customization</h2>
-
-      <label for="theme-selector">Choose Theme:</label>
-      <select id="theme-selector" onchange="applyTheme()">
-        <option value="default">🌤️ Default</option>
-        <option value="dark">🌑 Dark Mode</option>
-        <option value="usf">🐂 USF Green</option>
-      </select>
-
-      <br /><br />
-
-      <label for="font-selector">Select Font:</label>
-      <select id="font-selector" onchange="applyFont()">
-        <option value="default">Default</option>
-        <option value="monospace">Monospace</option>
-        <option value="serif">Serif</option>
-        <option value="sans-serif">Sans-Serif</option>
-        <option value="cursive">Cursive</option>
-      </select>
-
-      <br /><br />
-
-      <label>
-        <input type="checkbox" id="border-toggle" onchange="applyBorders()" />
-        Enable Borders on Logs
+      <label>Theme:
+        <select id="theme-selector" onchange="applyTheme()">
+          <option value="default">Default</option>
+          <option value="dark">Dark</option>
+          <option value="usf">USF Theme</option>
+        </select>
       </label>
-
-      <br /><br />
-
-      <button onclick="resetCustomizations()">🔄 Reset Customization</button>
-      <button onclick="saveLogsToFile()">💾 Save Logs to File</button>
-      <input type="file" id="load-log-file" onchange="loadLogFromFile(event)" accept=".txt" style="margin-top:10px;" />
+      <label>Font:
+        <select id="font-selector" onchange="applyFont()">
+          <option value="default">Default</option>
+          <option value="monospace">Monospace</option>
+          <option value="sans-serif">Sans Serif</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="border-toggle" onchange="applyBorders()"> Show Borders</label>
+      <button onclick="resetCustomizations()">Reset</button>
     </div>
 
-    <!-- 🌍 TOOLS PANEL -->
+    <!-- Tools Panel -->
     <div class="tools-panel">
       <select id="language-selector" onchange="switchLanguage()">
-        <option value="en">🇺🇸 English</option>
-        <option value="es">🇪🇸 Spanish</option>
-        <option value="zh">🇨🇳 Chinese</option>
-        <option value="hi">🇮🇳 Hindi</option>
-        <option value="ar">🇸🇦 Arabic</option>
-        <option value="bn">🇧🇩 Bengali</option>
-        <option value="pt">🇧🇷 Portuguese</option>
-        <option value="ru">🇷🇺 Russian</option>
-        <option value="ja">🇯🇵 Japanese</option>
-        <option value="de">🇩🇪 German</option>
+        <option value="en">🌐 English</option>
+        <option value="es">🌐 Español</option>
+        <option value="zh">🌐 中文</option>
+        <option value="hi">🌐 हिंदी</option>
+        <option value="ar">🌐 العربية</option>
+        <option value="bn">🌐 বাংলা</option>
+        <option value="pt">🌐 Português</option>
+        <option value="ru">🌐 Русский</option>
+        <option value="ja">🌐 日本語</option>
+        <option value="de">🌐 Deutsch</option>
       </select>
 
-      <input type="email" id="user-email" placeholder="Enter your email" />
+      <input type="email" id="user-email" placeholder="Enter your email..." />
       <button onclick="sendEmail()">📤 Send Report</button>
 
       <select id="file-format">
-        <option value="txt">.txt</option>
-        <option value="csv">.csv</option>
+        <option value="txt">TXT</option>
+        <option value="csv">CSV</option>
       </select>
       <button onclick="exportLogs()">💾 Export Logs</button>
+      <button onclick="saveLogsToFile()">📁 Save</button>
+      <input type="file" onchange="loadLogFromFile(event)" />
+    </div>
+
+    <!-- Clear Buttons -->
+    <div style="text-align: center;">
+      <button onclick="clearLog('general-log')">🧹 Clear General</button>
+      <button onclick="clearLog('command-log')">🧹 Clear Commands</button>
+      <button onclick="clearLog('alert-log')">🧹 Clear Alerts</button>
     </div>
   </div>
 
-  <!-- 📧 Email Form (Hidden) -->
-  <form id="email-form" style="display: none;">
+  <!-- EmailJS Form (Hidden) -->
+  <form id="email-form" style="display:none;">
     <input type="text" name="title" />
     <input type="text" name="name" />
     <input type="text" name="time" />
@@ -145,11 +137,11 @@
     <input type="email" name="to_email" />
   </form>
 
-  <!-- 🔊 Sounds -->
-  <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
-  <audio id="command-sound" src="chime.wav" preload="auto"></audio>
+  <!-- Audio for Command/Alert -->
+  <audio id="command-sound" src="command.mp3" preload="auto"></audio>
+  <audio id="alert-sound" src="alert.mp3" preload="auto"></audio>
 
-  <!-- 🚀 JavaScript -->
+  <!-- App Script -->
   <script src="script.js"></script>
 </body>
 </html>

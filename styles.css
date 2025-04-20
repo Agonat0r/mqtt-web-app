@@ -81,7 +81,7 @@ pre {
   display: none;
 }
 
-/* === Navigation Bar === */
+/* === Navigation Bar with Dropdown === */
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -92,6 +92,7 @@ pre {
   position: sticky;
   top: 0;
   z-index: 10;
+  flex-wrap: wrap;
 }
 
 .nav-title {
@@ -99,18 +100,18 @@ pre {
   font-weight: bold;
 }
 
-.nav-tabs button {
-  background: none;
+#tab-selector {
+  margin-left: auto;
+  font-size: 1em;
+  padding: 6px 12px;
+  background-color: #444;
   color: white;
-  font-weight: bold;
   border: none;
-  padding: 10px 15px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  border-radius: 6px;
 }
 
-.nav-tabs button:hover {
-  background-color: #4CAF50;
+#tab-selector option {
+  color: #000;
 }
 
 /* === Tab Content === */

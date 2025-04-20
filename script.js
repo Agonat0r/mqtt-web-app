@@ -1,3 +1,17 @@
+// ✅ Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
+  authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
+  projectId: "usf-harmar-mqtt-dashboar-3a6ed",
+  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
+  messagingSenderId: "469430781334",
+  appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
+  measurementId: "G-JR8BJYRZFW"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
 let topic = "usf/messages";
 let client;

@@ -1,12 +1,13 @@
+// === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
+
 // ✅ Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
-  authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
-  projectId: "usf-harmar-mqtt-dashboar-3a6ed",
-  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
-  messagingSenderId: "469430781334",
-  appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
-  measurementId: "G-JR8BJYRZFW"
+  apiKey: "AIzaSyCHkQG4nmdAa2_TtSBDKo-V6kjITF4auGc",
+  authDomain: "usf-harmar-mqtt-dashboard.firebaseapp.com",
+  projectId: "usf-harmar-mqtt-dashboard",
+  storageBucket: "usf-harmar-mqtt-dashboard.appspot.com",
+  messagingSenderId: "523086536136",
+  appId: "1:523086536136:web:6d0d18f0a05debc83e689c"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -57,17 +58,17 @@ function connectToMQTT() {
 
   client.on("message", (topic, message) => {
     const msg = message.toString();
-    log("terminal-log", `[RECV] ${msg}`);
+    log("terminal-log", `[RECV] ${msg}`, "general", msg);
 
     if (msg.startsWith("COMMAND:") || msg.startsWith("E")) {
-      log("command-log", "🧠 " + msg);
+      log("command-log", msg, "command", msg);
       document.getElementById("command-sound").play();
     } else {
-      log("general-log", "📩 " + msg);
+      log("general-log", msg, "general", msg);
     }
 
     if (msg.toLowerCase().includes("alert")) {
-      log("alert-log", "🚨 " + msg);
+      log("alert-log", msg, "alert", msg);
       document.getElementById("alert-sound").play();
     }
 
@@ -105,184 +106,48 @@ function updateStatusPanel(msg) {
   }
 }
 
-function switchTab(tabId) {
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
-  document.getElementById(`${tabId}-tab`).classList.remove("hidden");
-}
-
-function log(id, text) {
+function log(id, text, type = "general", rawCommand = null) {
+  const timestamp = new Date();
+  const lang = document.getElementById("language-selector")?.value || "en";
+  const translated = `[${timestamp.toLocaleTimeString()}] ${translatePrefix(text, lang)}`;
   const el = document.getElementById(id);
-  el.textContent += text + "\n";
-  el.scrollTop = el.scrollHeight;
+  if (el) {
+    el.textContent += translated + "\n";
+    el.scrollTop = el.scrollHeight;
+  }
+
+  db.collection("logs").add({
+    type,
+    tab: id,
+    message: text,
+    timestamp,
+    lang,
+    command: rawCommand || ""
+  });
 }
 
 function logToAll(text) {
   ["general-log", "command-log", "alert-log"].forEach(id => log(id, text));
 }
 
-function handleTerminalInput(e) {
-  if (e.key === "Enter") {
-    const input = document.getElementById("terminal-input");
-    const text = input.value.trim();
-    if (text && client?.connected) {
-      client.publish(topic, text);
-      log("terminal-log", `[SEND] ${text}`);
-      input.value = "";
-    } else {
-      log("terminal-log", "[WARN] MQTT not connected");
+function translatePrefix(text, lang) {
+  const map = {
+    en: { '[SEND]': '[SEND]', '[RECV]': '[RECV]', '[WARN]': '[WARN]' },
+    es: { '[SEND]': '[ENVIADO]', '[RECV]': '[RECIBIDO]', '[WARN]': '[AVISO]' },
+    zh: { '[SEND]': '[发送]', '[RECV]': '[接收]', '[WARN]': '[警告]' },
+    hi: { '[SEND]': '[भेजा गया]', '[RECV]': '[प्राप्त]', '[WARN]': '[चेतावनी]' },
+    ar: { '[SEND]': '[مرسل]', '[RECV]': '[مستلم]', '[WARN]': '[تحذير]' },
+    bn: { '[SEND]': '[প্রেরিত]', '[RECV]': '[গৃহীত]', '[WARN]': '[সতর্কতা]' },
+    pt: { '[SEND]': '[ENVIADO]', '[RECV]': '[RECEBIDO]', '[WARN]': '[AVISO]' },
+    ru: { '[SEND]': '[ОТПРАВ]', '[RECV]': '[ПРИНЯТ]', '[WARN]': '[ПРЕД]' },
+    ja: { '[SEND]': '[送信]', '[RECV]': '[受信]', '[WARN]': '[警告]' },
+    de: { '[SEND]': '[GESENDET]', '[RECV]': '[EMPFANGEN]', '[WARN]': '[WARNUNG]' }
+  };
+  const dictionary = map[lang] || map.en;
+  for (const prefix in dictionary) {
+    if (text.includes(prefix)) {
+      return text.replace(prefix, dictionary[prefix]);
     }
   }
+  return text;
 }
-
-function clearLog(id) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = "";
-}
-
-function exportLogs() {
-  const format = document.getElementById("file-format").value;
-  const logs = {
-    general: document.getElementById("general-log").textContent,
-    command: document.getElementById("command-log").textContent,
-    alert: document.getElementById("alert-log").textContent
-  };
-  let content = "";
-
-  if (format === "csv") {
-    content = "Type,Message\n";
-    for (const [type, data] of Object.entries(logs)) {
-      content += data.split("\n").map(line => `${type},"${line}"`).join("\n") + "\n";
-    }
-  } else {
-    content = `=== General ===\n${logs.general}\n\n=== Command ===\n${logs.command}\n\n=== Alert ===\n${logs.alert}`;
-  }
-
-  const blob = new Blob([content], { type: "text/plain" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `mqtt_log.${format}`;
-  a.click();
-}
-
-function sendEmail() {
-  const email = document.getElementById("user-email").value;
-  if (!email) return alert("Enter your email!");
-
-  const logs = `
-    === General ===
-    ${document.getElementById("general-log").textContent}
-    === Command ===
-    ${document.getElementById("command-log").textContent}
-    === Alert ===
-    ${document.getElementById("alert-log").textContent}
-  `;
-
-  const form = document.getElementById("email-form");
-  form.title.value = "MQTT Report";
-  form.name.value = "USF Harmar Dashboard";
-  form.time.value = new Date().toLocaleString();
-  form.message.value = logs;
-  form.to_email.value = email;
-
-  emailjs.sendForm("service_lsa1r4i", "template_vnrbr1d", "#email-form")
-    .then(() => alert("✅ Report sent!"))
-    .catch(() => alert("❌ Email send failed"));
-}
-
-// === UI Customization ===
-function applyTheme() {
-  const theme = document.getElementById("theme-selector").value;
-  document.body.className = ""; // Reset
-  if (theme === "dark") document.body.classList.add("dark-mode");
-  if (theme === "usf") document.body.classList.add("usf-mode");
-  localStorage.setItem("selectedTheme", theme);
-}
-
-function applyFont() {
-  const font = document.getElementById("font-selector").value;
-  document.body.style.fontFamily = font === "default" ? "" : font;
-  localStorage.setItem("selectedFont", font);
-}
-
-function applyBorders() {
-  const toggle = document.getElementById("border-toggle").checked;
-  ["general-log", "command-log", "alert-log", "terminal-log"].forEach(id => {
-    const el = document.getElementById(id);
-    el.classList.toggle("bordered", toggle);
-  });
-  localStorage.setItem("borderedLogs", toggle);
-}
-
-function resetCustomizations() {
-  localStorage.clear();
-  document.body.className = "";
-  document.body.style.fontFamily = "";
-  document.getElementById("theme-selector").value = "default";
-  document.getElementById("font-selector").value = "default";
-  document.getElementById("border-toggle").checked = false;
-  applyTheme();
-  applyFont();
-  applyBorders();
-  alert("🎨 Customization Reset!");
-}
-
-function saveLogsToFile() {
-  const content = `
-    === General ===\n${document.getElementById("general-log").textContent}
-    === Commands ===\n${document.getElementById("command-log").textContent}
-    === Alerts ===\n${document.getElementById("alert-log").textContent}
-  `;
-  const blob = new Blob([content], { type: "text/plain" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "mqtt_logs.txt";
-  a.click();
-}
-
-function loadLogFromFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    const sections = text.split("=== ");
-    sections.forEach(sec => {
-      if (sec.includes("General ===")) document.getElementById("general-log").textContent = sec.split("===\n")[1] || "";
-      if (sec.includes("Commands ===")) document.getElementById("command-log").textContent = sec.split("===\n")[1] || "";
-      if (sec.includes("Alerts ===")) document.getElementById("alert-log").textContent = sec.split("===\n")[1] || "";
-    });
-  };
-  reader.readAsText(file);
-}
-
-function switchLanguage() {
-  const lang = document.getElementById("language-selector").value;
-  const map = langMap[lang] || langMap["en"];
-  document.querySelector(".nav-title").textContent = map.dashboardTitle;
-  document.querySelector("#general-tab h2").textContent = map.general;
-  document.querySelector("#commands-tab h2").textContent = map.commands;
-  document.querySelector("#alerts-tab h2").textContent = map.alerts;
-  document.querySelector("#status-tab h2").textContent = map.status;
-  document.querySelector("button[onclick='sendEmail()']").textContent = map.sendReport;
-  document.querySelector("button[onclick='exportLogs()']").textContent = map.exportLogs;
-}
-
-// === Translations ===
-const langMap = {
-  en: { dashboardTitle: "USF Harmar MQTT Dashboard", general: "📋 General Console", commands: "🧠 Command Console", alerts: "🚨 Alert Console", status: "📊 Lift System Status", sendReport: "📤 Send Report", exportLogs: "💾 Export Logs" },
-  es: { dashboardTitle: "Panel MQTT de USF Harmar", general: "📋 Consola General", commands: "🧠 Consola de Comandos", alerts: "🚨 Consola de Alertas", status: "📊 Estado del Elevador", sendReport: "📤 Enviar Informe", exportLogs: "💾 Exportar Registros" },
-  zh: { dashboardTitle: "USF Harmar MQTT仪表盘", general: "📋 常规控制台", commands: "🧠 指令控制台", alerts: "🚨 警报控制台", status: "📊 电梯状态", sendReport: "📤 发送报告", exportLogs: "💾 导出日志" },
-  hi: { dashboardTitle: "USF हारमार MQTT डैशबोर्ड", general: "📋 सामान्य कंसोल", commands: "🧠 कमांड कंसोल", alerts: "🚨 अलर्ट कंसोल", status: "📊 लिफ्ट स्थिति", sendReport: "📤 रिपोर्ट भेजें", exportLogs: "💾 लॉग्स निर्यात करें" },
-  ar: { dashboardTitle: "لوحة معلومات USF Harmar", general: "📋 وحدة التحكم العامة", commands: "🧠 وحدة الأوامر", alerts: "🚨 وحدة التنبيهات", status: "📊 حالة المصعد", sendReport: "📤 إرسال التقرير", exportLogs: "💾 تصدير السجلات" },
-  bn: { dashboardTitle: "USF Harmar MQTT ড্যাশবোর্ড", general: "📋 সাধারণ কনসোল", commands: "🧠 কমান্ড কনসোল", alerts: "🚨 এলার্ট কনসোল", status: "📊 লিফট স্ট্যাটাস", sendReport: "📤 রিপোর্ট পাঠান", exportLogs: "💾 লগ রপ্তানি করুন" },
-  pt: { dashboardTitle: "Painel MQTT USF Harmar", general: "📋 Console Geral", commands: "🧠 Console de Comandos", alerts: "🚨 Console de Alertas", status: "📊 Status do Elevador", sendReport: "📤 Enviar Relatório", exportLogs: "💾 Exportar Logs" },
-  ru: { dashboardTitle: "Панель USF Harmar MQTT", general: "📋 Общая консоль", commands: "🧠 Консоль команд", alerts: "🚨 Консоль тревог", status: "📊 Статус лифта", sendReport: "📤 Отправить отчет", exportLogs: "💾 Экспорт логов" },
-  ja: { dashboardTitle: "USF Harmar MQTT ダッシュボード", general: "📋 一般コンソール", commands: "🧠 コマンドコンソール", alerts: "🚨 アラートコンソール", status: "📊 リフトステータス", sendReport: "📤 レポート送信", exportLogs: "💾 ログをエクスポート" },
-  de: { dashboardTitle: "USF Harmar MQTT-Dashboard", general: "📋 Allgemeine Konsole", commands: "🧠 Befehls-Konsole", alerts: "🚨 Alarm-Konsole", status: "📊 Aufzugsstatus", sendReport: "📤 Bericht senden", exportLogs: "💾 Logs exportieren" }
-};
-
-window.addEventListener("DOMContentLoaded", () => {
-  emailjs.init("7osg1XmfdRC2z68Xt");
-  loadCustomizations();
-});

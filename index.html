@@ -29,6 +29,7 @@
         <button onclick="switchTab('general')">General</button>
         <button onclick="switchTab('commands')">Commands</button>
         <button onclick="switchTab('alerts')">Alerts</button>
+        <button onclick="switchTab('customization')">Customization</button>
       </div>
     </div>
 
@@ -39,24 +40,53 @@
     <!-- Tabs -->
     <div class="tab-content" id="general-tab">
       <h2>📋 General Console</h2>
-      <button onclick="clearLog('general-log')">🗑️ Clear</button>
+      <button onclick="clearLog('general-log')">🗑️ Clear Log</button>
       <pre id="general-log">Waiting for general messages...</pre>
 
-      <h3>🖥️ Terminal</h3>
+      <h3 style="text-align:center;">🖥️ Terminal</h3>
       <pre id="terminal-log">[Terminal Initialized...]</pre>
       <input type="text" id="terminal-input" placeholder="Type a message and press Enter..." onkeydown="handleTerminalInput(event)" />
     </div>
 
     <div class="tab-content hidden" id="commands-tab">
       <h2>🧠 Command Console</h2>
-      <button onclick="clearLog('command-log')">🗑️ Clear</button>
+      <button onclick="clearLog('command-log')">🗑️ Clear Log</button>
       <pre id="command-log">Waiting for commands...</pre>
     </div>
 
     <div class="tab-content hidden" id="alerts-tab">
       <h2>🚨 Alert Console</h2>
-      <button onclick="clearLog('alert-log')">🗑️ Clear</button>
+      <button onclick="clearLog('alert-log')">🗑️ Clear Log</button>
       <pre id="alert-log">Waiting for alerts...</pre>
+    </div>
+
+    <div class="tab-content hidden" id="customization-tab">
+      <h2>🎨 Customization</h2>
+
+      <label for="theme-selector">Choose Theme:</label>
+      <select id="theme-selector" onchange="applyTheme()">
+        <option value="default">🌤️ Default</option>
+        <option value="dark">🌑 Dark Mode</option>
+        <option value="usf">🐂 USF Green</option>
+      </select>
+
+      <br /><br />
+
+      <label for="font-selector">Select Font:</label>
+      <select id="font-selector" onchange="applyFont()">
+        <option value="default">Default</option>
+        <option value="monospace">Monospace</option>
+        <option value="serif">Serif</option>
+        <option value="sans-serif">Sans-Serif</option>
+        <option value="cursive">Cursive</option>
+      </select>
+
+      <br /><br />
+
+      <label>
+        <input type="checkbox" id="border-toggle" onchange="applyBorders()" />
+        Enable Borders on Logs
+      </label>
     </div>
 
     <!-- 📦 Controls -->

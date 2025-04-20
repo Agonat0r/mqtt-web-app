@@ -51,13 +51,13 @@ function connectToMQTT() {
   client.on("message", (topic, message) => {
     const msg = message.toString();
     log("terminal-log", `[RECV] ${msg}`);
-  
+
     if (msg.startsWith("COMMAND:") || msg.startsWith("E")) {
       log("command-log", "🧠 " + msg);
     } else {
       log("general-log", "📩 " + msg);
     }
-  
+
     if (msg.toLowerCase().includes("alert")) {
       log("alert-log", "🚨 " + msg);
     }
@@ -143,6 +143,75 @@ function sendEmail() {
     .catch(err => alert("❌ Failed to send email."));
 }
 
+function clearLog(id) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = "";
+}
+
+// === Customization Features ===
+function applyTheme() {
+  const theme = document.getElementById("theme-selector").value;
+  const root = document.body;
+
+  switch (theme) {
+    case "dark":
+      root.style.backgroundColor = "#111";
+      root.style.color = "#eee";
+      break;
+    case "usf":
+      root.style.backgroundColor = "#044c29";
+      root.style.color = "#d4f4dd";
+      break;
+    default:
+      root.style.backgroundColor = "";
+      root.style.color = "";
+      break;
+  }
+
+  localStorage.setItem("selectedTheme", theme);
+}
+
+function applyFont() {
+  const font = document.getElementById("font-selector").value;
+  document.body.style.fontFamily = font === "default" ? "" : font;
+  localStorage.setItem("selectedFont", font);
+}
+
+function applyBorders() {
+  const toggle = document.getElementById("border-toggle").checked;
+  const logs = ["general-log", "command-log", "alert-log", "terminal-log"];
+  logs.forEach(id => {
+    const el = document.getElementById(id);
+    if (toggle) {
+      el.classList.add("bordered");
+    } else {
+      el.classList.remove("bordered");
+    }
+  });
+  localStorage.setItem("borderedLogs", toggle ? "true" : "false");
+}
+
+function loadCustomizations() {
+  const theme = localStorage.getItem("selectedTheme");
+  const font = localStorage.getItem("selectedFont");
+  const border = localStorage.getItem("borderedLogs");
+
+  if (theme) {
+    document.getElementById("theme-selector").value = theme;
+    applyTheme();
+  }
+
+  if (font) {
+    document.getElementById("font-selector").value = font;
+    applyFont();
+  }
+
+  if (border === "true") {
+    document.getElementById("border-toggle").checked = true;
+    applyBorders();
+  }
+}
+
 const langMap = {
   en: {
     dashboardTitle: "USF Harmar MQTT Dashboard",
@@ -162,13 +231,6 @@ const langMap = {
   }
 };
 
-function clearLog(id) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.textContent = ""; // Clears the console
-  }
-}
-
 function switchLanguage() {
   const lang = document.getElementById("language-selector").value;
   document.querySelector(".nav-title").textContent = langMap[lang].dashboardTitle;
@@ -179,6 +241,7 @@ function switchLanguage() {
   document.querySelector("button[onclick='exportLogs()']").textContent = "💾 " + langMap[lang].exportLogs;
 }
 
+// === Init ===
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof emailjs !== "undefined") {
     emailjs.init("7osg1XmfdRC2z68Xt");
@@ -188,4 +251,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof mqtt !== "undefined") {
     console.log("✅ mqtt.js loaded");
   }
+
+  loadCustomizations();
 });

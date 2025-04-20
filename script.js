@@ -52,8 +52,14 @@ function connectToMQTT() {
     const msg = message.toString();
     log("terminal-log", `[RECV] ${msg}`);
     log("general-log", "📩 " + msg);
-    if (msg.startsWith("E")) log("command-log", "🧠 " + msg);
-    if (msg.toLowerCase().includes("alert")) log("alert-log", "🚨 " + msg);
+  
+    if (msg.startsWith("E") || msg.startsWith("COMMAND:")) {
+      log("command-log", "🧠 " + msg);
+    }
+  
+    if (msg.toLowerCase().includes("alert")) {
+      log("alert-log", "🚨 " + msg);
+    }
   });
 }
 

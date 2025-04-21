@@ -1,6 +1,78 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
 import translations from './translations.js';
 
+// Initialize event handlers
+document.addEventListener('DOMContentLoaded', () => {
+  initializeEventHandlers();
+  loadSettings();
+  applySettings();
+  updateAllText();
+  mqttHandler.connect();
+  
+  // Subscribe to VPL topics
+  ['vpl/status', 'vpl/telemetry', 'vpl/alerts'].forEach(topic => {
+    mqttHandler.subscribe(topic);
+  });
+});
+
+function initializeEventHandlers() {
+  // Use event delegation for all data-action elements
+  document.addEventListener('click', handleAction);
+  document.addEventListener('change', handleAction);
+
+  // Add input handler for terminal
+  const terminalInput = document.getElementById('terminal-input');
+  if (terminalInput) {
+    terminalInput.addEventListener('keydown', handleTerminalInput);
+  }
+}
+
+function handleAction(event) {
+  const target = event.target;
+  const action = target.getAttribute('data-action');
+  if (!action) return;
+
+  switch (action) {
+    case 'login':
+      handleLogin();
+      break;
+    case 'switch-tab':
+      switchTab(target.value);
+      break;
+    case 'apply-theme':
+      applyTheme();
+      break;
+    case 'apply-font':
+      applyFont();
+      break;
+    case 'apply-borders':
+      applyBorders();
+      break;
+    case 'reset-customizations':
+      resetCustomizations();
+      break;
+    case 'switch-language':
+      switchLanguage();
+      break;
+    case 'send-email':
+      sendEmail();
+      break;
+    case 'export-logs':
+      exportLogs();
+      break;
+    case 'save-logs':
+      saveLogsToFile();
+      break;
+    case 'load-log':
+      loadLogFromFile(event);
+      break;
+    case 'clear-log':
+      const logId = target.getAttribute('data-log');
+      if (logId) clearLog(logId);
+      break;
+  }
+}
+
 // Current language
 let currentLang = 'en';
 
@@ -37,13 +109,6 @@ let currentSettings = {
   fontSize: 'normal',
   language: 'en'
 };
-
-// Load settings on startup
-document.addEventListener('DOMContentLoaded', () => {
-  loadSettings();
-  applySettings();
-  updateAllText();
-});
 
 // Translation helper function
 function t(key) {
@@ -237,11 +302,171 @@ function clearLog(id) {
   }
 }
 
-// === MQTT Configuration ===
-let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
-let topic = "usf/messages";
-let client;
-let loggedIn = false;
+// MQTT Handler Class
+class MQTTHandler {
+  constructor() {
+    this.client = null;
+    this.config = {
+      host: 'broker.hivemq.com',
+      port: 8884,
+      protocol: 'wss',
+      path: '/mqtt',
+      clientId: `vpl_dashboard_${Math.random().toString(16).slice(2, 10)}`,
+      username: process.env.MQTT_USERNAME,
+      password: process.env.MQTT_PASSWORD,
+      keepalive: 60,
+      clean: true,
+      reconnectPeriod: 1000,
+      connectTimeout: 30 * 1000
+    };
+  }
+
+  connect() {
+    try {
+      this.client = mqtt.connect(this.config);
+
+      this.client.on('connect', () => {
+        this.updateConnectionStatus(true);
+        this.client.subscribe('vpl/+/+');
+        this.logMessage('Connected to MQTT broker');
+      });
+
+      this.client.on('message', (topic, message) => {
+        this.handleMessage(topic, message);
+        this.updateLastUpdate();
+      });
+
+      this.client.on('error', (error) => {
+        this.logMessage(`Error: ${error.message}`, 'error');
+        this.updateConnectionStatus(false);
+      });
+
+      this.client.on('close', () => {
+        this.updateConnectionStatus(false);
+      });
+
+      this.client.on('reconnect', () => {
+        this.logMessage('Reconnecting to MQTT broker...', 'info');
+      });
+
+    } catch (error) {
+      this.logMessage(`Connection failed: ${error.message}`, 'error');
+      this.updateConnectionStatus(false);
+    }
+  }
+
+  handleMessage(topic, message) {
+    try {
+      const payload = JSON.parse(message.toString());
+      const [device, category, type] = topic.split('/');
+
+      switch (category) {
+        case 'telemetry':
+          this.updateTelemetry(payload);
+          break;
+        case 'status':
+          this.updateStatus(payload);
+          break;
+        default:
+          this.logMessage(`Received message on ${topic}: ${message.toString()}`);
+      }
+
+      // Play sounds for specific message types
+      if (message.toString().startsWith("COMMAND:") || message.toString().startsWith("E")) {
+        document.getElementById("command-sound")?.play();
+      }
+      if (message.toString().toLowerCase().includes("alert")) {
+        document.getElementById("alert-sound")?.play();
+      }
+
+    } catch (error) {
+      this.logMessage(`Error handling message: ${error.message}`, 'error');
+    }
+  }
+
+  updateTelemetry(data) {
+    if (data.position !== undefined) {
+      elements.position.textContent = `${data.position}mm`;
+    }
+    if (data.speed !== undefined) {
+      elements.speed.textContent = `${data.speed}mm/s`;
+    }
+    if (data.temperature !== undefined) {
+      elements.temperature.textContent = `${data.temperature}°C`;
+    }
+  }
+
+  updateStatus(data) {
+    if (data.state) {
+      elements.vplState.textContent = data.state;
+      elements.vplState.className = `state-${data.state.toLowerCase()}`;
+    }
+  }
+
+  updateConnectionStatus(connected) {
+    elements.connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
+    elements.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
+    elements.mqttStatus.textContent = connected ? 'Connected' : 'Not Connected';
+  }
+
+  updateLastUpdate() {
+    elements.lastUpdate.textContent = new Date().toLocaleTimeString();
+  }
+
+  logMessage(message, type = 'info') {
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry log-${type}`;
+    logEntry.innerHTML = `
+      <span class="log-time">${new Date().toLocaleTimeString()}</span>
+      <span class="log-message">${message}</span>
+    `;
+    elements.messageLog.appendChild(logEntry);
+    elements.messageLog.scrollTop = elements.messageLog.scrollHeight;
+  }
+
+  disconnect() {
+    if (this.client) {
+      this.client.end();
+      this.client = null;
+      this.updateConnectionStatus(false);
+      this.logMessage('Disconnected from MQTT broker');
+    }
+  }
+
+  subscribe(topic) {
+    if (!this.client?.connected) {
+      this.client.subscribe(topic, (err) => {
+        if (err) {
+          console.error(`Failed to subscribe to ${topic}:`, err);
+          this.logMessage(`Failed to subscribe to ${topic}: ${err.message}`, 'error');
+        } else {
+          this.logMessage(`Subscribed to ${topic}`);
+        }
+      });
+    }
+  }
+}
+
+// UI Elements
+const elements = {
+  connectionStatus: document.getElementById('connectionStatus'),
+  mqttStatus: document.getElementById('mqttStatus'),
+  lastUpdate: document.getElementById('lastUpdate'),
+  vplState: document.getElementById('vplState'),
+  position: document.getElementById('position'),
+  speed: document.getElementById('speed'),
+  temperature: document.getElementById('temperature'),
+  messageLog: document.getElementById('messageLog'),
+  clearLog: document.getElementById('clearLog'),
+  exportLog: document.getElementById('exportLog'),
+  themeSelector: document.getElementById('themeSelector'),
+  fontSelector: document.getElementById('fontSelector'),
+  borderToggle: document.getElementById('borderToggle'),
+  resetCustomizations: document.getElementById('resetCustomizations'),
+};
+
+// Initialize MQTT Handler
+const mqttHandler = new MQTTHandler();
 
 function handleLogin() {
   const user = document.getElementById("login-username").value;
@@ -249,85 +474,9 @@ function handleLogin() {
   if (user === "Carlos" && pass === "mqtt2025") {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-app").classList.remove("hidden");
-    connectToMQTT();
+    mqttHandler.connect();
   } else {
     alert(t('invalidCredentials'));
-  }
-}
-
-function connectToMQTT() {
-  const clientId = "mqttjs_" + Math.random().toString(16).substr(2, 8);
-  const options = {
-    clientId,
-    username: "Carlos",
-    password: "mqtt2025",
-    keepalive: 60,
-    clean: true,
-    reconnectPeriod: 1000,
-    connectTimeout: 30 * 1000
-  };
-
-  client = mqtt.connect(brokerHost, options);
-
-  client.on("connect", () => {
-    logToAll(t('connected'));
-    client.subscribe(topic, () => logToAll(t('subscribed') + topic));
-  });
-
-  client.on("error", (err) => {
-    logToAll(t('mqttError') + err.message);
-    client.end();
-  });
-
-  client.on("reconnect", () => logToAll(t('reconnecting')));
-
-  client.on("message", (topic, message) => {
-    const msg = message.toString();
-    log("terminal-log", `[RECV] ${msg}`, "general", msg);
-
-    if (msg.startsWith("COMMAND:") || msg.startsWith("E")) {
-      log("command-log", msg, "command", msg);
-      document.getElementById("command-sound")?.play();
-    } else {
-      log("general-log", msg, "general", msg);
-    }
-
-    if (msg.toLowerCase().includes("alert")) {
-      log("alert-log", msg, "alert", msg);
-      document.getElementById("alert-sound")?.play();
-    }
-
-    updateStatusPanel(msg);
-  });
-}
-
-function updateStatusPanel(msg) {
-  if (msg.includes("UP")) document.getElementById("status-direction").textContent = t('up');
-  if (msg.includes("DOWN")) document.getElementById("status-direction").textContent = t('down');
-  if (msg.includes("IDLE")) document.getElementById("status-direction").textContent = t('idle');
-
-  if (msg.includes("POS:")) {
-    const pos = msg.split("POS:")[1].split(" ")[0];
-    document.getElementById("status-position").textContent = pos;
-  }
-
-  if (msg.includes("TARGET:")) {
-    const tgt = msg.split("TARGET:")[1].split(" ")[0];
-    document.getElementById("status-target").textContent = tgt;
-  }
-
-  if (msg.includes("LIMIT_TOP")) document.getElementById("limit-top").textContent = t('active');
-  if (msg.includes("LIMIT_BOTTOM")) document.getElementById("limit-bottom").textContent = t('active');
-
-  if (msg.includes("DOOR_OPEN")) document.getElementById("door-sensor").textContent = t('open');
-  if (msg.includes("DOOR_CLOSED")) document.getElementById("door-sensor").textContent = t('closed');
-
-  if (msg.includes("EMERGENCY")) document.getElementById("emergency-stop").textContent = t('triggered');
-  if (msg.includes("NORMAL")) document.getElementById("emergency-stop").textContent = t('inactive');
-
-  if (msg.includes("ALARM")) {
-    const alarm = msg.split("ALARM:")[1] || t('none');
-    document.getElementById("active-alarms").textContent = alarm;
   }
 }
 
@@ -385,3 +534,22 @@ function switchTab(tabId) {
   });
   document.getElementById(`${tabId}-tab`)?.classList.remove("hidden");
 }
+
+// Event Listeners
+elements.clearLog.addEventListener('click', () => {
+  elements.messageLog.innerHTML = '';
+  mqttHandler.logMessage('Log cleared');
+});
+
+elements.exportLog.addEventListener('click', () => {
+  const logContent = elements.messageLog.innerText;
+  const blob = new Blob([logContent], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vpl-log-${new Date().toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});

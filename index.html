@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>USF Harmar MQTT Dashboard</title>
+  <title>VPL Monitoring Dashboard</title>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -19,137 +19,93 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- 🔐 Login -->
-  <div id="login-screen" role="dialog" aria-labelledby="login-title">
-    <h1 id="login-title">🔐 USF Harmar MQTT Login</h1>
-    <input type="text" id="login-username" placeholder="Username" aria-label="Username" required />
-    <input type="password" id="login-password" placeholder="Password" aria-label="Password" required />
-    <button onclick="handleLogin()" aria-label="Login">Login</button>
-  </div>
-
-  <!-- 📊 Main App -->
-  <div id="main-app" class="hidden" role="main">
-    <div class="navbar" role="navigation">
-      <div class="nav-title">
-        <span class="connection-status" id="mqtt-status" aria-label="Connection status"></span>
-        USF Harmar MQTT Dashboard
-      </div>
-      <div class="nav-tabs">
-        <select onchange="switchTab(this.value)" aria-label="Select dashboard section">
-          <option value="status">📊 Status</option>
-          <option value="general">📋 General</option>
-          <option value="commands">🧠 Commands</option>
-          <option value="alerts">🚨 Alerts</option>
-          <option value="customization">🍩 Customization</option>
-        </select>
-      </div>
+  <nav class="navbar">
+    <h1>VPL Monitoring Dashboard</h1>
+    <div class="status-indicator status-disconnected" id="connectionStatus">
+      Disconnected
     </div>
+  </nav>
 
-    <!-- Tabs -->
-    <div id="status-tab" class="tab-content" role="tabpanel" aria-labelledby="status-title">
-      <h2 id="status-title">📊 Lift System Status</h2>
-      <div class="status-section">
-        <p><span>Direction:</span> <span id="status-direction" aria-live="polite">N/A</span></p>
-        <p><span>Position:</span> <span id="status-position" aria-live="polite">0</span></p>
-        <p><span>Target:</span> <span id="status-target" aria-live="polite">0</span></p>
-        <p><span>Top Limit:</span> <span id="limit-top" aria-live="polite">N/A</span></p>
-        <p><span>Bottom Limit:</span> <span id="limit-bottom" aria-live="polite">N/A</span></p>
-        <p><span>Door Sensor:</span> <span id="door-sensor" aria-live="polite">N/A</span></p>
-        <p><span>Emergency Stop:</span> <span id="emergency-stop" aria-live="polite">N/A</span></p>
-        <p><span>Alarms:</span> <span id="active-alarms" aria-live="assertive">None</span></p>
-      </div>
-    </div>
-
-    <div id="general-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="general-title">
-      <h2 id="general-title">📋 General Console</h2>
-      <pre id="general-log" role="log" aria-label="General message log" tabindex="0">Waiting for messages...</pre>
-      <h3>🖥️ Terminal</h3>
-      <pre id="terminal-log" role="log" aria-label="Terminal output" tabindex="0">[Terminal Initialized]</pre>
-      <input type="text" id="terminal-input" onkeydown="handleTerminalInput(event)" 
-             placeholder="Type command here..." aria-label="Terminal input" />
-    </div>
-
-    <div id="commands-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="commands-title">
-      <h2 id="commands-title">🧠 Command Console</h2>
-      <pre id="command-log" role="log" aria-label="Command log" tabindex="0">Waiting for commands...</pre>
-    </div>
-
-    <div id="alerts-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="alerts-title">
-      <h2 id="alerts-title">🚨 Alert Console</h2>
-      <pre id="alert-log" role="log" aria-label="Alert log" tabindex="0">Waiting for alerts...</pre>
-    </div>
-
-    <div id="customization-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="customization-title">
-      <h2 id="customization-title">🎨 Customization</h2>
-      <div class="customization-section">
-        <label for="theme-selector">Theme:</label>
-        <select id="theme-selector" onchange="applyTheme()" aria-label="Select theme">
-          <option value="default">Default</option>
-          <option value="dark">Dark</option>
-          <option value="usf">USF Theme</option>
-        </select>
-
-        <label for="font-selector">Font:</label>
-        <select id="font-selector" onchange="applyFont()" aria-label="Select font">
-          <option value="default">Default</option>
-          <option value="monospace">Monospace</option>
-          <option value="sans-serif">Sans Serif</option>
-        </select>
-
-        <div class="checkbox-group">
-          <input type="checkbox" id="border-toggle" onchange="applyBorders()" aria-label="Toggle borders" />
-          <label for="border-toggle">Show Borders</label>
+  <main class="container">
+    <section class="status-section">
+      <h2>System Status</h2>
+      <div class="status-grid">
+        <div class="status-card">
+          <h3>Connection</h3>
+          <p id="mqttStatus">Not Connected</p>
         </div>
-
-        <button onclick="resetCustomizations()" aria-label="Reset all customizations">Reset</button>
+        <div class="status-card">
+          <h3>Last Update</h3>
+          <p id="lastUpdate">Never</p>
+        </div>
+        <div class="status-card">
+          <h3>VPL State</h3>
+          <p id="vplState">Unknown</p>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Tools Panel -->
-    <div class="tools-panel" role="toolbar" aria-label="Tools and actions">
-      <select id="language-selector" onchange="switchLanguage()" aria-label="Select language">
-        <option value="en">🌐 English</option>
-        <option value="es">🌐 Español</option>
-        <option value="zh">🌐 中文</option>
-        <option value="hi">🌐 हिंदी</option>
-        <option value="ar">🌐 العربية</option>
-        <option value="bn">🌐 বাংলা</option>
-        <option value="pt">🌐 Português</option>
-        <option value="ru">🌐 Русский</option>
-        <option value="ja">🌐 日本語</option>
-        <option value="de">🌐 Deutsch</option>
-      </select>
+    <section class="telemetry-section">
+      <h2>Telemetry Data</h2>
+      <div class="telemetry-grid">
+        <div class="telemetry-card">
+          <h3>Position</h3>
+          <p id="position">--</p>
+        </div>
+        <div class="telemetry-card">
+          <h3>Speed</h3>
+          <p id="speed">--</p>
+        </div>
+        <div class="telemetry-card">
+          <h3>Temperature</h3>
+          <p id="temperature">--</p>
+        </div>
+      </div>
+    </section>
 
-      <input type="email" id="user-email" placeholder="Enter your email..." 
-             aria-label="Email address for reports" />
-      <button onclick="sendEmail()" aria-label="Send report via email">📤 Send Report</button>
+    <section class="log-section">
+      <h2>System Log</h2>
+      <div class="message-log" id="messageLog"></div>
+      <div class="log-controls">
+        <button id="clearLog" class="btn btn-secondary">Clear Log</button>
+        <button id="exportLog" class="btn btn-primary">Export Log</button>
+      </div>
+    </section>
 
-      <select id="file-format" aria-label="Select export file format">
-        <option value="txt">TXT</option>
-        <option value="csv">CSV</option>
-      </select>
-      <button onclick="exportLogs()" aria-label="Export logs to file">💾 Export Logs</button>
-      <button onclick="saveLogsToFile()" aria-label="Save logs to file">📁 Save</button>
-      <input type="file" onchange="loadLogFromFile(event)" 
-             aria-label="Load log from file" accept=".txt,.csv" />
-    </div>
+    <section class="customization-section">
+      <h2>Customization</h2>
+      <div class="customization-grid">
+        <div class="customization-card">
+          <h3>Theme</h3>
+          <select id="themeSelector" class="form-select">
+            <option value="default">Default</option>
+            <option value="dark">Dark</option>
+            <option value="usf">USF Theme</option>
+          </select>
+        </div>
+        <div class="customization-card">
+          <h3>Font</h3>
+          <select id="fontSelector" class="form-select">
+            <option value="default">Default</option>
+            <option value="monospace">Monospace</option>
+            <option value="sans-serif">Sans Serif</option>
+          </select>
+        </div>
+        <div class="customization-card">
+          <h3>Borders</h3>
+          <label class="switch">
+            <input type="checkbox" id="borderToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <button id="resetCustomizations" class="btn btn-secondary">Reset to Default</button>
+    </section>
+  </main>
 
-    <!-- Clear Buttons -->
-    <div class="clear-buttons" style="text-align: center;" role="group" aria-label="Clear log buttons">
-      <button onclick="clearLog('general-log')" aria-label="Clear general log">🧹 Clear General</button>
-      <button onclick="clearLog('command-log')" aria-label="Clear command log">🧹 Clear Commands</button>
-      <button onclick="clearLog('alert-log')" aria-label="Clear alert log">🧹 Clear Alerts</button>
-    </div>
-  </div>
-
-  <!-- EmailJS Form (Hidden) -->
-  <form id="email-form" style="display:none;" aria-hidden="true">
-    <input type="text" name="title" />
-    <input type="text" name="name" />
-    <input type="text" name="time" />
-    <input type="hidden" name="message" />
-    <input type="email" name="to_email" />
-  </form>
+  <footer>
+    <p>&copy; 2024 VPL Monitoring System</p>
+  </footer>
 
   <!-- Audio for Command/Alert -->
   <audio id="command-sound" src="command.mp3" preload="auto"></audio>

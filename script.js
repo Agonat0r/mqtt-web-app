@@ -400,6 +400,12 @@ function clearLog(id) {
   }
 }
 
+// MQTT Configuration
+let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
+let topic = "usf/messages";
+let client;
+let loggedIn = false;
+
 /**
  * MQTT Handler Class
  * Manages all MQTT connections, subscriptions, and message handling.
@@ -411,16 +417,17 @@ class MQTTHandler {
   constructor() {
     this.client = null;
     this.config = {
-      host: 'usf-harmar2025.cloud.emqx.io',
-      port: 8084,
+      // Using WebSocket connection
       protocol: 'wss',
+      hostname: 'lb88002c.ala.us-east-1.emqxsl.com',
+      port: 8084,
       path: '/mqtt',
       clientId: `vpl_dashboard_${Math.random().toString(16).slice(2, 10)}`,
       username: 'usf-harmar',
       password: 'harmar2025',
       keepalive: 60,
       clean: true,
-      reconnectPeriod: 1000,
+      reconnectPeriod: 4000,
       connectTimeout: 30 * 1000,
       rejectUnauthorized: false
     };
@@ -431,12 +438,30 @@ class MQTTHandler {
    */
   connect() {
     try {
-      this.client = mqtt.connect(this.config);
+      // Use the brokerHost directly for connection
+      this.client = mqtt.connect(brokerHost, {
+        clientId: this.config.clientId,
+        username: this.config.username,
+        password: this.config.password,
+        keepalive: this.config.keepalive,
+        clean: this.config.clean,
+        reconnectPeriod: this.config.reconnectPeriod,
+        connectTimeout: this.config.connectTimeout,
+        rejectUnauthorized: this.config.rejectUnauthorized
+      });
 
       this.client.on('connect', () => {
         this.updateConnectionStatus(true);
-        this.client.subscribe('vpl/#');
         this.logMessage('Connected to EMQX broker');
+        
+        // Subscribe to topics after successful connection
+        this.client.subscribe([topic, 'vpl/#'], (err) => {
+          if (err) {
+            this.logMessage(`Subscription error: ${err.message}`, 'error');
+          } else {
+            this.logMessage('Subscribed to topics');
+          }
+        });
       });
 
       this.client.on('message', (topic, message) => {
@@ -445,16 +470,17 @@ class MQTTHandler {
       });
 
       this.client.on('error', (error) => {
-        this.logMessage(`Error: ${error.message}`, 'error');
+        this.logMessage(`MQTT Error: ${error.message}`, 'error');
         this.updateConnectionStatus(false);
       });
 
       this.client.on('close', () => {
+        this.logMessage('Connection closed', 'warn');
         this.updateConnectionStatus(false);
       });
 
       this.client.on('reconnect', () => {
-        this.logMessage('Reconnecting to MQTT broker...', 'info');
+        this.logMessage('Attempting to reconnect...', 'info');
       });
 
     } catch (error) {

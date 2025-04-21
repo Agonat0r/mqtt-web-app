@@ -1,4 +1,8 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
+import translations from './translations.js';
+
+// Current language
+let currentLang = 'en';
 
 // ✅ Firebase Configuration
 const firebaseConfig = {
@@ -30,14 +34,114 @@ let currentSettings = {
   theme: 'default',
   font: 'default',
   showBorders: false,
-  fontSize: 'normal'
+  fontSize: 'normal',
+  language: 'en'
 };
 
 // Load settings on startup
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   applySettings();
+  updateAllText();
 });
+
+// Translation helper function
+function t(key) {
+  return translations[currentLang]?.[key] || translations.en[key] || key;
+}
+
+// Update all text content in the UI
+function updateAllText() {
+  // Login screen
+  document.getElementById('login-title').textContent = t('loginTitle');
+  document.getElementById('login-username').placeholder = t('username');
+  document.getElementById('login-password').placeholder = t('password');
+  document.querySelector('#login-screen button').textContent = t('loginButton');
+
+  // Navigation
+  document.querySelector('.nav-title').textContent = t('dashboard');
+  
+  // Update tab selector options
+  const tabSelector = document.querySelector('.nav-tabs select');
+  tabSelector.innerHTML = `
+    <option value="status">${t('status')}</option>
+    <option value="general">${t('general')}</option>
+    <option value="commands">${t('commands')}</option>
+    <option value="alerts">${t('alerts')}</option>
+    <option value="customization">${t('customization')}</option>
+  `;
+
+  // Status panel
+  document.getElementById('status-title').textContent = t('liftSystemStatus');
+  document.querySelectorAll('.status-section p').forEach(p => {
+    const label = p.querySelector('span:first-child');
+    if (label) {
+      const key = label.textContent.replace(':', '').toLowerCase();
+      label.textContent = t(key) + ':';
+    }
+  });
+
+  // Console tabs
+  document.getElementById('general-title').textContent = t('generalConsole');
+  document.getElementById('terminal-input').placeholder = t('typeCommand');
+  document.getElementById('commands-title').textContent = t('commandConsole');
+  document.getElementById('alerts-title').textContent = t('alertConsole');
+
+  // Customization panel
+  document.getElementById('customization-title').textContent = t('customization');
+  document.querySelector('label[for="theme-selector"]').textContent = t('theme') + ':';
+  document.querySelector('label[for="font-selector"]').textContent = t('font') + ':';
+  document.querySelector('label[for="border-toggle"]').textContent = t('showBorders');
+  document.querySelector('#customization-tab button').textContent = t('reset');
+
+  // Update select options
+  const themeSelector = document.getElementById('theme-selector');
+  themeSelector.innerHTML = `
+    <option value="default">${t('themeDefault')}</option>
+    <option value="dark">${t('themeDark')}</option>
+    <option value="usf">${t('themeUsf')}</option>
+  `;
+
+  const fontSelector = document.getElementById('font-selector');
+  fontSelector.innerHTML = `
+    <option value="default">${t('fontDefault')}</option>
+    <option value="monospace">${t('fontMonospace')}</option>
+    <option value="sans-serif">${t('fontSansSerif')}</option>
+  `;
+
+  // Tools panel
+  document.getElementById('user-email').placeholder = t('enterEmail');
+  document.querySelector('button[onclick="sendEmail()"]').textContent = t('sendReport');
+  document.querySelector('button[onclick="exportLogs()"]').textContent = t('exportLogs');
+  document.querySelector('button[onclick="saveLogsToFile()"]').textContent = t('saveLogs');
+
+  // Clear buttons
+  document.querySelector('button[onclick="clearLog(\'general-log\')"]').textContent = t('clearGeneral');
+  document.querySelector('button[onclick="clearLog(\'command-log\')"]').textContent = t('clearCommands');
+  document.querySelector('button[onclick="clearLog(\'alert-log\')"]').textContent = t('clearAlerts');
+
+  // Update initial log messages
+  if (document.getElementById('general-log').textContent.includes('Waiting for messages')) {
+    document.getElementById('general-log').textContent = t('waitingMessages');
+  }
+  if (document.getElementById('terminal-log').textContent.includes('[Terminal Initialized]')) {
+    document.getElementById('terminal-log').textContent = t('terminalInitialized');
+  }
+  if (document.getElementById('command-log').textContent.includes('Waiting for commands')) {
+    document.getElementById('command-log').textContent = t('waitingCommands');
+  }
+  if (document.getElementById('alert-log').textContent.includes('Waiting for alerts')) {
+    document.getElementById('alert-log').textContent = t('waitingAlerts');
+  }
+}
+
+function switchLanguage() {
+  const lang = document.getElementById('language-selector').value;
+  currentLang = lang;
+  currentSettings.language = lang;
+  saveSettings();
+  updateAllText();
+}
 
 function loadSettings() {
   const saved = localStorage.getItem(SETTINGS_KEY);
@@ -48,6 +152,8 @@ function loadSettings() {
     document.getElementById('theme-selector').value = currentSettings.theme;
     document.getElementById('font-selector').value = currentSettings.font;
     document.getElementById('border-toggle').checked = currentSettings.showBorders;
+    document.getElementById('language-selector').value = currentSettings.language;
+    currentLang = currentSettings.language;
   }
 }
 
@@ -125,7 +231,7 @@ function clearLog(id) {
     // Add a subtle animation when clearing
     el.style.opacity = '0';
     setTimeout(() => {
-      el.textContent = 'Log cleared...';
+      el.textContent = t('logCleared');
       el.style.opacity = '1';
     }, 300);
   }
@@ -145,7 +251,7 @@ function handleLogin() {
     document.getElementById("main-app").classList.remove("hidden");
     connectToMQTT();
   } else {
-    alert("❌ Invalid credentials");
+    alert(t('invalidCredentials'));
   }
 }
 
@@ -164,16 +270,16 @@ function connectToMQTT() {
   client = mqtt.connect(brokerHost, options);
 
   client.on("connect", () => {
-    logToAll("✅ Connected to MQTT broker");
-    client.subscribe(topic, () => logToAll("🔔 Subscribed to topic: " + topic));
+    logToAll(t('connected'));
+    client.subscribe(topic, () => logToAll(t('subscribed') + topic));
   });
 
   client.on("error", (err) => {
-    logToAll("❌ MQTT Error: " + err.message);
+    logToAll(t('mqttError') + err.message);
     client.end();
   });
 
-  client.on("reconnect", () => logToAll("🔁 Reconnecting..."));
+  client.on("reconnect", () => logToAll(t('reconnecting')));
 
   client.on("message", (topic, message) => {
     const msg = message.toString();
@@ -196,9 +302,9 @@ function connectToMQTT() {
 }
 
 function updateStatusPanel(msg) {
-  if (msg.includes("UP")) document.getElementById("status-direction").textContent = "Up";
-  if (msg.includes("DOWN")) document.getElementById("status-direction").textContent = "Down";
-  if (msg.includes("IDLE")) document.getElementById("status-direction").textContent = "Idle";
+  if (msg.includes("UP")) document.getElementById("status-direction").textContent = t('up');
+  if (msg.includes("DOWN")) document.getElementById("status-direction").textContent = t('down');
+  if (msg.includes("IDLE")) document.getElementById("status-direction").textContent = t('idle');
 
   if (msg.includes("POS:")) {
     const pos = msg.split("POS:")[1].split(" ")[0];
@@ -210,17 +316,17 @@ function updateStatusPanel(msg) {
     document.getElementById("status-target").textContent = tgt;
   }
 
-  if (msg.includes("LIMIT_TOP")) document.getElementById("limit-top").textContent = "Active";
-  if (msg.includes("LIMIT_BOTTOM")) document.getElementById("limit-bottom").textContent = "Active";
+  if (msg.includes("LIMIT_TOP")) document.getElementById("limit-top").textContent = t('active');
+  if (msg.includes("LIMIT_BOTTOM")) document.getElementById("limit-bottom").textContent = t('active');
 
-  if (msg.includes("DOOR_OPEN")) document.getElementById("door-sensor").textContent = "Open";
-  if (msg.includes("DOOR_CLOSED")) document.getElementById("door-sensor").textContent = "Closed";
+  if (msg.includes("DOOR_OPEN")) document.getElementById("door-sensor").textContent = t('open');
+  if (msg.includes("DOOR_CLOSED")) document.getElementById("door-sensor").textContent = t('closed');
 
-  if (msg.includes("EMERGENCY")) document.getElementById("emergency-stop").textContent = "Triggered";
-  if (msg.includes("NORMAL")) document.getElementById("emergency-stop").textContent = "Inactive";
+  if (msg.includes("EMERGENCY")) document.getElementById("emergency-stop").textContent = t('triggered');
+  if (msg.includes("NORMAL")) document.getElementById("emergency-stop").textContent = t('inactive');
 
   if (msg.includes("ALARM")) {
-    const alarm = msg.split("ALARM:")[1] || "Unknown";
+    const alarm = msg.split("ALARM:")[1] || t('none');
     document.getElementById("active-alarms").textContent = alarm;
   }
 }

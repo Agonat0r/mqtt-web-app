@@ -139,26 +139,39 @@ function t(key) {
  */
 function updateAllText() {
   // Login screen
-  document.getElementById('login-title').textContent = t('loginTitle');
-  document.getElementById('login-username').placeholder = t('username');
-  document.getElementById('login-password').placeholder = t('password');
-  document.querySelector('#login-screen button').textContent = t('loginButton');
+  const loginElements = {
+    title: document.getElementById('login-title'),
+    username: document.getElementById('login-username'),
+    password: document.getElementById('login-password'),
+    button: document.querySelector('#login-screen button')
+  };
+
+  if (loginElements.title) loginElements.title.textContent = t('loginTitle');
+  if (loginElements.username) loginElements.username.placeholder = t('username');
+  if (loginElements.password) loginElements.password.placeholder = t('password');
+  if (loginElements.button) loginElements.button.textContent = t('loginButton');
 
   // Navigation
-  document.querySelector('.nav-title').textContent = t('dashboard');
+  const navTitle = document.querySelector('.nav-title');
+  if (navTitle) navTitle.textContent = t('dashboard');
   
   // Update tab selector options
   const tabSelector = document.querySelector('.nav-tabs select');
-  tabSelector.innerHTML = `
-    <option value="status">${t('status')}</option>
-    <option value="general">${t('general')}</option>
-    <option value="commands">${t('commands')}</option>
-    <option value="alerts">${t('alerts')}</option>
-    <option value="customization">${t('customization')}</option>
-  `;
+  if (tabSelector) {
+    tabSelector.innerHTML = `
+      <option value="status">${t('status')}</option>
+      <option value="general">${t('general')}</option>
+      <option value="commands">${t('commands')}</option>
+      <option value="alerts">${t('alerts')}</option>
+      <option value="customization">${t('customization')}</option>
+    `;
+  }
 
   // Status panel
-  document.getElementById('status-title').textContent = t('liftSystemStatus');
+  const statusTitle = document.getElementById('status-title');
+  if (statusTitle) statusTitle.textContent = t('liftSystemStatus');
+
+  // Update status section labels
   document.querySelectorAll('.status-section p').forEach(p => {
     const label = p.querySelector('span:first-child');
     if (label) {
@@ -168,56 +181,72 @@ function updateAllText() {
   });
 
   // Console tabs
-  document.getElementById('general-title').textContent = t('generalConsole');
-  document.getElementById('terminal-input').placeholder = t('typeCommand');
-  document.getElementById('commands-title').textContent = t('commandConsole');
-  document.getElementById('alerts-title').textContent = t('alertConsole');
+  const consoleElements = {
+    general: document.getElementById('general-title'),
+    terminal: document.getElementById('terminal-input'),
+    commands: document.getElementById('commands-title'),
+    alerts: document.getElementById('alerts-title')
+  };
+
+  if (consoleElements.general) consoleElements.general.textContent = t('generalConsole');
+  if (consoleElements.terminal) consoleElements.terminal.placeholder = t('typeCommand');
+  if (consoleElements.commands) consoleElements.commands.textContent = t('commandConsole');
+  if (consoleElements.alerts) consoleElements.alerts.textContent = t('alertConsole');
 
   // Customization panel
-  document.getElementById('customization-title').textContent = t('customization');
-  document.querySelector('label[for="theme-selector"]').textContent = t('theme') + ':';
-  document.querySelector('label[for="font-selector"]').textContent = t('font') + ':';
-  document.querySelector('label[for="border-toggle"]').textContent = t('showBorders');
-  document.querySelector('#customization-tab button').textContent = t('reset');
+  const customElements = {
+    title: document.getElementById('customization-title'),
+    themeLabel: document.querySelector('label[for="themeSelector"]'),
+    fontLabel: document.querySelector('label[for="fontSelector"]'),
+    borderLabel: document.querySelector('label[for="borderToggle"]'),
+    resetButton: document.querySelector('#resetCustomizations')
+  };
 
-  // Update select options
-  const themeSelector = document.getElementById('theme-selector');
-  themeSelector.innerHTML = `
-    <option value="default">${t('themeDefault')}</option>
-    <option value="dark">${t('themeDark')}</option>
-    <option value="usf">${t('themeUsf')}</option>
-  `;
+  if (customElements.title) customElements.title.textContent = t('customization');
+  if (customElements.themeLabel) customElements.themeLabel.textContent = t('theme') + ':';
+  if (customElements.fontLabel) customElements.fontLabel.textContent = t('font') + ':';
+  if (customElements.borderLabel) customElements.borderLabel.textContent = t('showBorders');
+  if (customElements.resetButton) customElements.resetButton.textContent = t('reset');
 
-  const fontSelector = document.getElementById('font-selector');
-  fontSelector.innerHTML = `
-    <option value="default">${t('fontDefault')}</option>
-    <option value="monospace">${t('fontMonospace')}</option>
-    <option value="sans-serif">${t('fontSansSerif')}</option>
-  `;
+  // Update theme selector options
+  const themeSelector = document.getElementById('themeSelector');
+  if (themeSelector) {
+    themeSelector.innerHTML = `
+      <option value="default">${t('themeDefault')}</option>
+      <option value="dark">${t('themeDark')}</option>
+      <option value="usf">${t('themeUsf')}</option>
+    `;
+  }
 
-  // Tools panel
-  document.getElementById('user-email').placeholder = t('enterEmail');
-  document.querySelector('button[onclick="sendEmail()"]').textContent = t('sendReport');
-  document.querySelector('button[onclick="exportLogs()"]').textContent = t('exportLogs');
-  document.querySelector('button[onclick="saveLogsToFile()"]').textContent = t('saveLogs');
-
-  // Clear buttons
-  document.querySelector('button[onclick="clearLog(\'general-log\')"]').textContent = t('clearGeneral');
-  document.querySelector('button[onclick="clearLog(\'command-log\')"]').textContent = t('clearCommands');
-  document.querySelector('button[onclick="clearLog(\'alert-log\')"]').textContent = t('clearAlerts');
+  // Update font selector options
+  const fontSelector = document.getElementById('fontSelector');
+  if (fontSelector) {
+    fontSelector.innerHTML = `
+      <option value="default">${t('fontDefault')}</option>
+      <option value="monospace">${t('fontMonospace')}</option>
+      <option value="sans-serif">${t('fontSansSerif')}</option>
+    `;
+  }
 
   // Update initial log messages
-  if (document.getElementById('general-log').textContent.includes('Waiting for messages')) {
-    document.getElementById('general-log').textContent = t('waitingMessages');
+  const logs = {
+    general: document.getElementById('messageLog'),
+    terminal: document.getElementById('terminal-log'),
+    command: document.getElementById('command-log'),
+    alert: document.getElementById('alert-log')
+  };
+
+  if (logs.general && logs.general.textContent.includes('Waiting for messages')) {
+    logs.general.textContent = t('waitingMessages');
   }
-  if (document.getElementById('terminal-log').textContent.includes('[Terminal Initialized]')) {
-    document.getElementById('terminal-log').textContent = t('terminalInitialized');
+  if (logs.terminal && logs.terminal.textContent.includes('[Terminal Initialized]')) {
+    logs.terminal.textContent = t('terminalInitialized');
   }
-  if (document.getElementById('command-log').textContent.includes('Waiting for commands')) {
-    document.getElementById('command-log').textContent = t('waitingCommands');
+  if (logs.command && logs.command.textContent.includes('Waiting for commands')) {
+    logs.command.textContent = t('waitingCommands');
   }
-  if (document.getElementById('alert-log').textContent.includes('Waiting for alerts')) {
-    document.getElementById('alert-log').textContent = t('waitingAlerts');
+  if (logs.alert && logs.alert.textContent.includes('Waiting for alerts')) {
+    logs.alert.textContent = t('waitingAlerts');
   }
 }
 

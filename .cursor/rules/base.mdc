@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Technical Stack
+
+- python for the backend 
+- html/js for the frontend
+- SQL/firestone cloud databases, never JSON file storage
+- Seperate databases for dev, test, and prod
+- python tests
+- EMQX for MQTT servers
+

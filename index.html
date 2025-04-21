@@ -20,19 +20,22 @@
 </head>
 <body>
   <!-- 🔐 Login -->
-  <div id="login-screen">
-    <h1>🔐 USF Harmar MQTT Login</h1>
-    <input type="text" id="login-username" placeholder="Username" />
-    <input type="password" id="login-password" placeholder="Password" />
-    <button onclick="handleLogin()">Login</button>
+  <div id="login-screen" role="dialog" aria-labelledby="login-title">
+    <h1 id="login-title">🔐 USF Harmar MQTT Login</h1>
+    <input type="text" id="login-username" placeholder="Username" aria-label="Username" required />
+    <input type="password" id="login-password" placeholder="Password" aria-label="Password" required />
+    <button onclick="handleLogin()" aria-label="Login">Login</button>
   </div>
 
   <!-- 📊 Main App -->
-  <div id="main-app" class="hidden">
-    <div class="navbar">
-      <div class="nav-title">USF Harmar MQTT Dashboard</div>
+  <div id="main-app" class="hidden" role="main">
+    <div class="navbar" role="navigation">
+      <div class="nav-title">
+        <span class="connection-status" id="mqtt-status" aria-label="Connection status"></span>
+        USF Harmar MQTT Dashboard
+      </div>
       <div class="nav-tabs">
-        <select onchange="switchTab(this.value)">
+        <select onchange="switchTab(this.value)" aria-label="Select dashboard section">
           <option value="status">📊 Status</option>
           <option value="general">📋 General</option>
           <option value="commands">🧠 Commands</option>
@@ -43,59 +46,68 @@
     </div>
 
     <!-- Tabs -->
-    <div id="status-tab" class="tab-content">
-      <h2>📊 Lift System Status</h2>
-      <p>Direction: <span id="status-direction">N/A</span></p>
-      <p>Position: <span id="status-position">0</span></p>
-      <p>Target: <span id="status-target">0</span></p>
-      <p>Top Limit: <span id="limit-top">N/A</span></p>
-      <p>Bottom Limit: <span id="limit-bottom">N/A</span></p>
-      <p>Door Sensor: <span id="door-sensor">N/A</span></p>
-      <p>Emergency Stop: <span id="emergency-stop">N/A</span></p>
-      <p>Alarms: <span id="active-alarms">None</span></p>
+    <div id="status-tab" class="tab-content" role="tabpanel" aria-labelledby="status-title">
+      <h2 id="status-title">📊 Lift System Status</h2>
+      <div class="status-section">
+        <p><span>Direction:</span> <span id="status-direction" aria-live="polite">N/A</span></p>
+        <p><span>Position:</span> <span id="status-position" aria-live="polite">0</span></p>
+        <p><span>Target:</span> <span id="status-target" aria-live="polite">0</span></p>
+        <p><span>Top Limit:</span> <span id="limit-top" aria-live="polite">N/A</span></p>
+        <p><span>Bottom Limit:</span> <span id="limit-bottom" aria-live="polite">N/A</span></p>
+        <p><span>Door Sensor:</span> <span id="door-sensor" aria-live="polite">N/A</span></p>
+        <p><span>Emergency Stop:</span> <span id="emergency-stop" aria-live="polite">N/A</span></p>
+        <p><span>Alarms:</span> <span id="active-alarms" aria-live="assertive">None</span></p>
+      </div>
     </div>
 
-    <div id="general-tab" class="tab-content hidden">
-      <h2>📋 General Console</h2>
-      <pre id="general-log">Waiting for messages...</pre>
+    <div id="general-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="general-title">
+      <h2 id="general-title">📋 General Console</h2>
+      <pre id="general-log" role="log" aria-label="General message log" tabindex="0">Waiting for messages...</pre>
       <h3>🖥️ Terminal</h3>
-      <pre id="terminal-log">[Terminal Initialized]</pre>
-      <input type="text" id="terminal-input" onkeydown="handleTerminalInput(event)" placeholder="Type command here..." />
+      <pre id="terminal-log" role="log" aria-label="Terminal output" tabindex="0">[Terminal Initialized]</pre>
+      <input type="text" id="terminal-input" onkeydown="handleTerminalInput(event)" 
+             placeholder="Type command here..." aria-label="Terminal input" />
     </div>
 
-    <div id="commands-tab" class="tab-content hidden">
-      <h2>🧠 Command Console</h2>
-      <pre id="command-log">Waiting for commands...</pre>
+    <div id="commands-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="commands-title">
+      <h2 id="commands-title">🧠 Command Console</h2>
+      <pre id="command-log" role="log" aria-label="Command log" tabindex="0">Waiting for commands...</pre>
     </div>
 
-    <div id="alerts-tab" class="tab-content hidden">
-      <h2>🚨 Alert Console</h2>
-      <pre id="alert-log">Waiting for alerts...</pre>
+    <div id="alerts-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="alerts-title">
+      <h2 id="alerts-title">🚨 Alert Console</h2>
+      <pre id="alert-log" role="log" aria-label="Alert log" tabindex="0">Waiting for alerts...</pre>
     </div>
 
-    <div id="customization-tab" class="tab-content hidden">
-      <h2>🎨 Customization</h2>
-      <label>Theme:
-        <select id="theme-selector" onchange="applyTheme()">
+    <div id="customization-tab" class="tab-content hidden" role="tabpanel" aria-labelledby="customization-title">
+      <h2 id="customization-title">🎨 Customization</h2>
+      <div class="customization-section">
+        <label for="theme-selector">Theme:</label>
+        <select id="theme-selector" onchange="applyTheme()" aria-label="Select theme">
           <option value="default">Default</option>
           <option value="dark">Dark</option>
           <option value="usf">USF Theme</option>
         </select>
-      </label>
-      <label>Font:
-        <select id="font-selector" onchange="applyFont()">
+
+        <label for="font-selector">Font:</label>
+        <select id="font-selector" onchange="applyFont()" aria-label="Select font">
           <option value="default">Default</option>
           <option value="monospace">Monospace</option>
           <option value="sans-serif">Sans Serif</option>
         </select>
-      </label>
-      <label><input type="checkbox" id="border-toggle" onchange="applyBorders()"> Show Borders</label>
-      <button onclick="resetCustomizations()">Reset</button>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="border-toggle" onchange="applyBorders()" aria-label="Toggle borders" />
+          <label for="border-toggle">Show Borders</label>
+        </div>
+
+        <button onclick="resetCustomizations()" aria-label="Reset all customizations">Reset</button>
+      </div>
     </div>
 
     <!-- Tools Panel -->
-    <div class="tools-panel">
-      <select id="language-selector" onchange="switchLanguage()">
+    <div class="tools-panel" role="toolbar" aria-label="Tools and actions">
+      <select id="language-selector" onchange="switchLanguage()" aria-label="Select language">
         <option value="en">🌐 English</option>
         <option value="es">🌐 Español</option>
         <option value="zh">🌐 中文</option>
@@ -108,28 +120,30 @@
         <option value="de">🌐 Deutsch</option>
       </select>
 
-      <input type="email" id="user-email" placeholder="Enter your email..." />
-      <button onclick="sendEmail()">📤 Send Report</button>
+      <input type="email" id="user-email" placeholder="Enter your email..." 
+             aria-label="Email address for reports" />
+      <button onclick="sendEmail()" aria-label="Send report via email">📤 Send Report</button>
 
-      <select id="file-format">
+      <select id="file-format" aria-label="Select export file format">
         <option value="txt">TXT</option>
         <option value="csv">CSV</option>
       </select>
-      <button onclick="exportLogs()">💾 Export Logs</button>
-      <button onclick="saveLogsToFile()">📁 Save</button>
-      <input type="file" onchange="loadLogFromFile(event)" />
+      <button onclick="exportLogs()" aria-label="Export logs to file">💾 Export Logs</button>
+      <button onclick="saveLogsToFile()" aria-label="Save logs to file">📁 Save</button>
+      <input type="file" onchange="loadLogFromFile(event)" 
+             aria-label="Load log from file" accept=".txt,.csv" />
     </div>
 
     <!-- Clear Buttons -->
-    <div style="text-align: center;">
-      <button onclick="clearLog('general-log')">🧹 Clear General</button>
-      <button onclick="clearLog('command-log')">🧹 Clear Commands</button>
-      <button onclick="clearLog('alert-log')">🧹 Clear Alerts</button>
+    <div class="clear-buttons" style="text-align: center;" role="group" aria-label="Clear log buttons">
+      <button onclick="clearLog('general-log')" aria-label="Clear general log">🧹 Clear General</button>
+      <button onclick="clearLog('command-log')" aria-label="Clear command log">🧹 Clear Commands</button>
+      <button onclick="clearLog('alert-log')" aria-label="Clear alert log">🧹 Clear Alerts</button>
     </div>
   </div>
 
   <!-- EmailJS Form (Hidden) -->
-  <form id="email-form" style="display:none;">
+  <form id="email-form" style="display:none;" aria-hidden="true">
     <input type="text" name="title" />
     <input type="text" name="name" />
     <input type="text" name="time" />

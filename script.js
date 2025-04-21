@@ -24,6 +24,114 @@ const db = firebase.firestore();
 //   }
 // }
 
+// === Customization Settings ===
+const SETTINGS_KEY = 'usf_harmar_settings';
+let currentSettings = {
+  theme: 'default',
+  font: 'default',
+  showBorders: false,
+  fontSize: 'normal'
+};
+
+// Load settings on startup
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  applySettings();
+});
+
+function loadSettings() {
+  const saved = localStorage.getItem(SETTINGS_KEY);
+  if (saved) {
+    currentSettings = { ...currentSettings, ...JSON.parse(saved) };
+    
+    // Update UI to match loaded settings
+    document.getElementById('theme-selector').value = currentSettings.theme;
+    document.getElementById('font-selector').value = currentSettings.font;
+    document.getElementById('border-toggle').checked = currentSettings.showBorders;
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(currentSettings));
+}
+
+function applySettings() {
+  applyTheme();
+  applyFont();
+  applyBorders();
+}
+
+function applyTheme() {
+  const theme = document.getElementById('theme-selector').value;
+  document.body.classList.remove('dark-mode', 'usf-mode');
+  
+  if (theme === 'dark') {
+    document.body.classList.add('dark-mode');
+  } else if (theme === 'usf') {
+    document.body.classList.add('usf-mode');
+  }
+  
+  currentSettings.theme = theme;
+  saveSettings();
+}
+
+function applyFont() {
+  const font = document.getElementById('font-selector').value;
+  const fontMap = {
+    'default': "'Segoe UI', sans-serif",
+    'monospace': "'Courier New', monospace",
+    'sans-serif': "Arial, sans-serif"
+  };
+  
+  document.body.style.fontFamily = fontMap[font] || fontMap.default;
+  currentSettings.font = font;
+  saveSettings();
+}
+
+function applyBorders() {
+  const showBorders = document.getElementById('border-toggle').checked;
+  document.querySelectorAll('.status-section, .tools-panel, pre').forEach(el => {
+    if (showBorders) {
+      el.classList.add('bordered');
+    } else {
+      el.classList.remove('bordered');
+    }
+  });
+  
+  currentSettings.showBorders = showBorders;
+  saveSettings();
+}
+
+function resetCustomizations() {
+  currentSettings = {
+    theme: 'default',
+    font: 'default',
+    showBorders: false,
+    fontSize: 'normal'
+  };
+  
+  document.getElementById('theme-selector').value = 'default';
+  document.getElementById('font-selector').value = 'default';
+  document.getElementById('border-toggle').checked = false;
+  
+  applySettings();
+  saveSettings();
+}
+
+function clearLog(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = '';
+    // Add a subtle animation when clearing
+    el.style.opacity = '0';
+    setTimeout(() => {
+      el.textContent = 'Log cleared...';
+      el.style.opacity = '1';
+    }, 300);
+  }
+}
+
+// === MQTT Configuration ===
 let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
 let topic = "usf/messages";
 let client;

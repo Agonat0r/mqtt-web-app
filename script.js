@@ -278,7 +278,10 @@ function applySettings() {
  * Updates body classes and saves the setting.
  */
 function applyTheme() {
-  const theme = document.getElementById('theme-selector').value;
+  const themeSelector = document.getElementById('themeSelector');
+  if (!themeSelector) return;
+  
+  const theme = themeSelector.value;
   document.body.classList.remove('dark-mode', 'usf-mode');
   
   if (theme === 'dark') {
@@ -296,7 +299,10 @@ function applyTheme() {
  * Updates body font-family and saves the setting.
  */
 function applyFont() {
-  const font = document.getElementById('font-selector').value;
+  const fontSelector = document.getElementById('fontSelector');
+  if (!fontSelector) return;
+  
+  const font = fontSelector.value;
   const fontMap = {
     'default': "'Segoe UI', sans-serif",
     'monospace': "'Courier New', monospace",
@@ -313,7 +319,10 @@ function applyFont() {
  * Updates element classes and saves the setting.
  */
 function applyBorders() {
-  const showBorders = document.getElementById('border-toggle').checked;
+  const borderToggle = document.getElementById('borderToggle');
+  if (!borderToggle) return;
+  
+  const showBorders = borderToggle.checked;
   document.querySelectorAll('.status-section, .tools-panel, pre').forEach(el => {
     if (showBorders) {
       el.classList.add('bordered');

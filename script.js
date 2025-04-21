@@ -1,7 +1,11 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
 import translations from './translations.js';
 
-// Initialize event handlers
+/**
+ * Initializes the application when the DOM is fully loaded.
+ * Sets up event handlers, loads settings, applies UI customizations,
+ * updates text translations, and establishes MQTT connection.
+ */
 document.addEventListener('DOMContentLoaded', () => {
   initializeEventHandlers();
   loadSettings();
@@ -15,18 +19,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+/**
+ * Sets up all event handlers for the application.
+ * Uses event delegation for data-action elements and
+ * sets up terminal input handling if available.
+ */
 function initializeEventHandlers() {
-  // Use event delegation for all data-action elements
   document.addEventListener('click', handleAction);
   document.addEventListener('change', handleAction);
 
-  // Add input handler for terminal
   const terminalInput = document.getElementById('terminal-input');
   if (terminalInput) {
     terminalInput.addEventListener('keydown', handleTerminalInput);
   }
 }
 
+/**
+ * Handles all action events through event delegation.
+ * Routes different actions to their appropriate handler functions.
+ * @param {Event} event - The triggered event object
+ */
 function handleAction(event) {
   const target = event.target;
   const action = target.getAttribute('data-action');
@@ -110,12 +122,21 @@ let currentSettings = {
   language: 'en'
 };
 
-// Translation helper function
+/**
+ * Translates a key into the current language.
+ * Falls back to English if translation is not found.
+ * @param {string} key - The translation key to look up
+ * @returns {string} The translated text
+ */
 function t(key) {
   return translations[currentLang]?.[key] || translations.en[key] || key;
 }
 
-// Update all text content in the UI
+/**
+ * Updates all text content in the UI to the current language.
+ * Handles login screen, navigation, status panel, console tabs,
+ * customization panel, and tools panel text.
+ */
 function updateAllText() {
   // Login screen
   document.getElementById('login-title').textContent = t('loginTitle');
@@ -200,6 +221,10 @@ function updateAllText() {
   }
 }
 
+/**
+ * Switches the application language and updates the UI.
+ * Saves the new language preference to settings.
+ */
 function switchLanguage() {
   const lang = document.getElementById('language-selector').value;
   currentLang = lang;
@@ -208,30 +233,50 @@ function switchLanguage() {
   updateAllText();
 }
 
+/**
+ * Loads saved settings from localStorage and updates UI elements.
+ * Includes null checks for all UI elements.
+ */
 function loadSettings() {
   const saved = localStorage.getItem(SETTINGS_KEY);
   if (saved) {
     currentSettings = { ...currentSettings, ...JSON.parse(saved) };
     
-    // Update UI to match loaded settings
-    document.getElementById('theme-selector').value = currentSettings.theme;
-    document.getElementById('font-selector').value = currentSettings.font;
-    document.getElementById('border-toggle').checked = currentSettings.showBorders;
-    document.getElementById('language-selector').value = currentSettings.language;
+    const themeSelector = document.getElementById('theme-selector');
+    const fontSelector = document.getElementById('font-selector');
+    const borderToggle = document.getElementById('border-toggle');
+    const languageSelector = document.getElementById('language-selector');
+
+    if (themeSelector) themeSelector.value = currentSettings.theme;
+    if (fontSelector) fontSelector.value = currentSettings.font;
+    if (borderToggle) borderToggle.checked = currentSettings.showBorders;
+    if (languageSelector) languageSelector.value = currentSettings.language;
+    
     currentLang = currentSettings.language;
   }
 }
 
+/**
+ * Saves current settings to localStorage.
+ */
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(currentSettings));
 }
 
+/**
+ * Applies all current settings to the UI.
+ * Includes theme, font, and border settings.
+ */
 function applySettings() {
   applyTheme();
   applyFont();
   applyBorders();
 }
 
+/**
+ * Applies the selected theme to the application.
+ * Updates body classes and saves the setting.
+ */
 function applyTheme() {
   const theme = document.getElementById('theme-selector').value;
   document.body.classList.remove('dark-mode', 'usf-mode');
@@ -246,6 +291,10 @@ function applyTheme() {
   saveSettings();
 }
 
+/**
+ * Applies the selected font to the application.
+ * Updates body font-family and saves the setting.
+ */
 function applyFont() {
   const font = document.getElementById('font-selector').value;
   const fontMap = {
@@ -259,6 +308,10 @@ function applyFont() {
   saveSettings();
 }
 
+/**
+ * Toggles border visibility on UI elements.
+ * Updates element classes and saves the setting.
+ */
 function applyBorders() {
   const showBorders = document.getElementById('border-toggle').checked;
   document.querySelectorAll('.status-section, .tools-panel, pre').forEach(el => {
@@ -273,6 +326,10 @@ function applyBorders() {
   saveSettings();
 }
 
+/**
+ * Resets all customization settings to their defaults.
+ * Updates UI elements and saves the default settings.
+ */
 function resetCustomizations() {
   currentSettings = {
     theme: 'default',
@@ -289,11 +346,14 @@ function resetCustomizations() {
   saveSettings();
 }
 
+/**
+ * Clears the specified log with an animation effect.
+ * @param {string} id - The ID of the log element to clear
+ */
 function clearLog(id) {
   const el = document.getElementById(id);
   if (el) {
     el.textContent = '';
-    // Add a subtle animation when clearing
     el.style.opacity = '0';
     setTimeout(() => {
       el.textContent = t('logCleared');
@@ -302,33 +362,43 @@ function clearLog(id) {
   }
 }
 
-// MQTT Handler Class
+/**
+ * MQTT Handler Class
+ * Manages all MQTT connections, subscriptions, and message handling.
+ */
 class MQTTHandler {
+  /**
+   * Initializes a new MQTT handler with configuration.
+   */
   constructor() {
     this.client = null;
     this.config = {
-      host: 'broker.hivemq.com',
-      port: 8884,
+      host: 'usf-harmar2025.cloud.emqx.io',
+      port: 8084,
       protocol: 'wss',
       path: '/mqtt',
       clientId: `vpl_dashboard_${Math.random().toString(16).slice(2, 10)}`,
-      username: process.env.MQTT_USERNAME,
-      password: process.env.MQTT_PASSWORD,
+      username: 'usf-harmar',
+      password: 'harmar2025',
       keepalive: 60,
       clean: true,
       reconnectPeriod: 1000,
-      connectTimeout: 30 * 1000
+      connectTimeout: 30 * 1000,
+      rejectUnauthorized: false
     };
   }
 
+  /**
+   * Establishes connection to the MQTT broker and sets up event handlers.
+   */
   connect() {
     try {
       this.client = mqtt.connect(this.config);
 
       this.client.on('connect', () => {
         this.updateConnectionStatus(true);
-        this.client.subscribe('vpl/+/+');
-        this.logMessage('Connected to MQTT broker');
+        this.client.subscribe('vpl/#');
+        this.logMessage('Connected to EMQX broker');
       });
 
       this.client.on('message', (topic, message) => {
@@ -355,6 +425,11 @@ class MQTTHandler {
     }
   }
 
+  /**
+   * Processes incoming MQTT messages and updates UI accordingly.
+   * @param {string} topic - The MQTT topic
+   * @param {Buffer} message - The message payload
+   */
   handleMessage(topic, message) {
     try {
       const payload = JSON.parse(message.toString());
@@ -371,7 +446,6 @@ class MQTTHandler {
           this.logMessage(`Received message on ${topic}: ${message.toString()}`);
       }
 
-      // Play sounds for specific message types
       if (message.toString().startsWith("COMMAND:") || message.toString().startsWith("E")) {
         document.getElementById("command-sound")?.play();
       }
@@ -384,36 +458,64 @@ class MQTTHandler {
     }
   }
 
+  /**
+   * Updates telemetry data in the UI.
+   * @param {Object} data - The telemetry data object
+   */
   updateTelemetry(data) {
-    if (data.position !== undefined) {
+    if (data.position !== undefined && elements.position) {
       elements.position.textContent = `${data.position}mm`;
     }
-    if (data.speed !== undefined) {
+    if (data.speed !== undefined && elements.speed) {
       elements.speed.textContent = `${data.speed}mm/s`;
     }
-    if (data.temperature !== undefined) {
+    if (data.temperature !== undefined && elements.temperature) {
       elements.temperature.textContent = `${data.temperature}°C`;
     }
   }
 
+  /**
+   * Updates VPL status in the UI.
+   * @param {Object} data - The status data object
+   */
   updateStatus(data) {
-    if (data.state) {
+    if (data.state && elements.vplState) {
       elements.vplState.textContent = data.state;
       elements.vplState.className = `state-${data.state.toLowerCase()}`;
     }
   }
 
+  /**
+   * Updates connection status indicators in the UI.
+   * @param {boolean} connected - Whether the client is connected
+   */
   updateConnectionStatus(connected) {
-    elements.connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
-    elements.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
-    elements.mqttStatus.textContent = connected ? 'Connected' : 'Not Connected';
+    if (elements.connectionStatus) {
+      elements.connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
+      elements.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
+    }
+    if (elements.mqttStatus) {
+      elements.mqttStatus.textContent = connected ? 'Connected' : 'Not Connected';
+    }
   }
 
+  /**
+   * Updates the last update timestamp in the UI.
+   */
   updateLastUpdate() {
-    elements.lastUpdate.textContent = new Date().toLocaleTimeString();
+    if (elements.lastUpdate) {
+      elements.lastUpdate.textContent = new Date().toLocaleTimeString();
+    }
   }
 
+  /**
+   * Adds a message to the message log with timestamp.
+   * @param {string} message - The message to log
+   * @param {string} type - The type of message (info, error, etc.)
+   */
   logMessage(message, type = 'info') {
+    if (!elements.messageLog) return;
+    
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry log-${type}`;
     logEntry.innerHTML = `
@@ -424,6 +526,9 @@ class MQTTHandler {
     elements.messageLog.scrollTop = elements.messageLog.scrollHeight;
   }
 
+  /**
+   * Disconnects from the MQTT broker.
+   */
   disconnect() {
     if (this.client) {
       this.client.end();
@@ -433,6 +538,10 @@ class MQTTHandler {
     }
   }
 
+  /**
+   * Subscribes to an MQTT topic.
+   * @param {string} topic - The topic to subscribe to
+   */
   subscribe(topic) {
     if (!this.client?.connected) {
       this.client.subscribe(topic, (err) => {
@@ -447,27 +556,31 @@ class MQTTHandler {
   }
 }
 
-// UI Elements
+// UI Elements object with null checks
 const elements = {
-  connectionStatus: document.getElementById('connectionStatus'),
-  mqttStatus: document.getElementById('mqttStatus'),
-  lastUpdate: document.getElementById('lastUpdate'),
-  vplState: document.getElementById('vplState'),
-  position: document.getElementById('position'),
-  speed: document.getElementById('speed'),
-  temperature: document.getElementById('temperature'),
-  messageLog: document.getElementById('messageLog'),
-  clearLog: document.getElementById('clearLog'),
-  exportLog: document.getElementById('exportLog'),
-  themeSelector: document.getElementById('themeSelector'),
-  fontSelector: document.getElementById('fontSelector'),
-  borderToggle: document.getElementById('borderToggle'),
-  resetCustomizations: document.getElementById('resetCustomizations'),
+  connectionStatus: document.getElementById('connectionStatus') || null,
+  mqttStatus: document.getElementById('mqttStatus') || null,
+  lastUpdate: document.getElementById('lastUpdate') || null,
+  vplState: document.getElementById('vplState') || null,
+  position: document.getElementById('position') || null,
+  speed: document.getElementById('speed') || null,
+  temperature: document.getElementById('temperature') || null,
+  messageLog: document.getElementById('messageLog') || null,
+  clearLog: document.getElementById('clearLog') || null,
+  exportLog: document.getElementById('exportLog') || null,
+  themeSelector: document.getElementById('themeSelector') || null,
+  fontSelector: document.getElementById('fontSelector') || null,
+  borderToggle: document.getElementById('borderToggle') || null,
+  resetCustomizations: document.getElementById('resetCustomizations') || null,
 };
 
 // Initialize MQTT Handler
 const mqttHandler = new MQTTHandler();
 
+/**
+ * Handles user login authentication.
+ * Validates credentials and shows/hides appropriate screens.
+ */
 function handleLogin() {
   const user = document.getElementById("login-username").value;
   const pass = document.getElementById("login-password").value;
@@ -480,6 +593,13 @@ function handleLogin() {
   }
 }
 
+/**
+ * Logs a message to specified log and Firestore.
+ * @param {string} id - The ID of the log element
+ * @param {string} text - The message text
+ * @param {string} type - The type of log entry
+ * @param {string|null} rawCommand - The raw command if applicable
+ */
 function log(id, text, type = "general", rawCommand = null) {
   const timestamp = new Date();
   const lang = document.getElementById("language-selector")?.value || "en";
@@ -502,10 +622,20 @@ function log(id, text, type = "general", rawCommand = null) {
   });
 }
 
+/**
+ * Logs a message to all available logs.
+ * @param {string} text - The message to log
+ */
 function logToAll(text) {
   ["general-log", "command-log", "alert-log"].forEach(id => log(id, text));
 }
 
+/**
+ * Translates message prefixes based on language.
+ * @param {string} text - The text containing prefixes to translate
+ * @param {string} lang - The target language
+ * @returns {string} The text with translated prefixes
+ */
 function translatePrefix(text, lang) {
   const map = {
     en: { '[SEND]': '[SEND]', '[RECV]': '[RECV]', '[WARN]': '[WARN]' },
@@ -528,6 +658,10 @@ function translatePrefix(text, lang) {
   return text;
 }
 
+/**
+ * Switches between different tabs in the UI.
+ * @param {string} tabId - The ID of the tab to switch to
+ */
 function switchTab(tabId) {
   document.querySelectorAll(".tab-content").forEach((tab) => {
     tab.classList.add("hidden");
@@ -535,21 +669,29 @@ function switchTab(tabId) {
   document.getElementById(`${tabId}-tab`)?.classList.remove("hidden");
 }
 
-// Event Listeners
-elements.clearLog.addEventListener('click', () => {
-  elements.messageLog.innerHTML = '';
-  mqttHandler.logMessage('Log cleared');
-});
+// Event Listeners with null checks
+if (elements.clearLog) {
+  elements.clearLog.addEventListener('click', () => {
+    if (elements.messageLog) {
+      elements.messageLog.innerHTML = '';
+      mqttHandler.logMessage('Log cleared');
+    }
+  });
+}
 
-elements.exportLog.addEventListener('click', () => {
-  const logContent = elements.messageLog.innerText;
-  const blob = new Blob([logContent], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `vpl-log-${new Date().toISOString().slice(0, 10)}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
+if (elements.exportLog) {
+  elements.exportLog.addEventListener('click', () => {
+    if (!elements.messageLog) return;
+    
+    const logContent = elements.messageLog.innerText;
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vpl-log-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}

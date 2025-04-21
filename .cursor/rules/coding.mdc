@@ -16,3 +16,5 @@ alwaysApply: true
 - Mocking data is only needed for tests, never mock data for dev or prod
 - Never add stubbing or fake data patterns to code that affects the dev or prod environments
 - Never overwrite my .env file without first asking and confirming
+- Always create a summary.txt file in the project, and modify it whenever you edit the code. Have it be a summary for any developer that look at the code and make it as informative and detail if they want to change or understand the code
+- Always leave a comment on every function explaining what it does

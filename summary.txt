@@ -19,8 +19,57 @@ A real-time monitoring dashboard for VPL (Vertical Platform Lift) systems using 
   - Username: usf-harmar
   - Password: harmar2025
 - Topics: 
-  - 'vpl/#' (subscribes to all VPL topics)
-  - Main topics: vpl/status, vpl/telemetry, vpl/alerts
+  - Main topic: 'usf/messages'
+- Message Format:
+  ```javascript
+  {
+    "type": "telemetry" | "status" | "command" | "alert",
+    "data": {
+      // For telemetry:
+      "position": number,    // Position in mm
+      "speed": number,      // Speed in mm/s
+      "temperature": number // Temperature in °C
+      // For status:
+      "state": string      // VPL state (e.g., "running", "stopped")
+    }
+  }
+  ```
+- Example Messages:
+  ```javascript
+  // Telemetry update:
+  {
+    "type": "telemetry",
+    "data": {
+      "position": 100,
+      "speed": 50,
+      "temperature": 25
+    }
+  }
+
+  // Status update:
+  {
+    "type": "status",
+    "data": {
+      "state": "running"
+    }
+  }
+
+  // Command message:
+  {
+    "type": "command",
+    "data": {
+      "command": "stop"
+    }
+  }
+
+  // Alert message:
+  {
+    "type": "alert",
+    "data": {
+      "message": "Temperature high"
+    }
+  }
+  ```
 
 ### 2. UI Components
 - Status Dashboard

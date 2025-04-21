@@ -12,11 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
   applySettings();
   updateAllText();
   mqttHandler.connect();
-  
-  // Subscribe to VPL topics
-  ['vpl/status', 'vpl/telemetry', 'vpl/alerts'].forEach(topic => {
-    mqttHandler.subscribe(topic);
-  });
 });
 
 /**
@@ -454,19 +449,40 @@ class MQTTHandler {
         this.updateConnectionStatus(true);
         this.logMessage('Connected to EMQX broker');
         
-        // Subscribe to topics after successful connection
-        this.client.subscribe([topic, 'vpl/#'], (err) => {
+        // Subscribe to the authorized topic
+        this.client.subscribe(topic, (err) => {
           if (err) {
             this.logMessage(`Subscription error: ${err.message}`, 'error');
           } else {
-            this.logMessage('Subscribed to topics');
+            this.logMessage(`Subscribed to ${topic}`);
           }
         });
       });
 
-      this.client.on('message', (topic, message) => {
-        this.handleMessage(topic, message);
-        this.updateLastUpdate();
+      this.client.on('message', (receivedTopic, message) => {
+        try {
+          const payload = JSON.parse(message.toString());
+          
+          // Check message type from payload
+          if (payload.type === 'telemetry') {
+            this.updateTelemetry(payload.data);
+          } else if (payload.type === 'status') {
+            this.updateStatus(payload.data);
+          }
+
+          // Play sounds based on message content
+          if (payload.type === 'command' || message.toString().startsWith("COMMAND:")) {
+            document.getElementById("command-sound")?.play();
+          }
+          if (payload.type === 'alert' || message.toString().toLowerCase().includes("alert")) {
+            document.getElementById("alert-sound")?.play();
+          }
+
+          this.logMessage(`Received on ${receivedTopic}: ${message.toString()}`);
+          this.updateLastUpdate();
+        } catch (error) {
+          this.logMessage(`Error handling message: ${error.message}`, 'error');
+        }
       });
 
       this.client.on('error', (error) => {
@@ -486,39 +502,6 @@ class MQTTHandler {
     } catch (error) {
       this.logMessage(`Connection failed: ${error.message}`, 'error');
       this.updateConnectionStatus(false);
-    }
-  }
-
-  /**
-   * Processes incoming MQTT messages and updates UI accordingly.
-   * @param {string} topic - The MQTT topic
-   * @param {Buffer} message - The message payload
-   */
-  handleMessage(topic, message) {
-    try {
-      const payload = JSON.parse(message.toString());
-      const [device, category, type] = topic.split('/');
-
-      switch (category) {
-        case 'telemetry':
-          this.updateTelemetry(payload);
-          break;
-        case 'status':
-          this.updateStatus(payload);
-          break;
-        default:
-          this.logMessage(`Received message on ${topic}: ${message.toString()}`);
-      }
-
-      if (message.toString().startsWith("COMMAND:") || message.toString().startsWith("E")) {
-        document.getElementById("command-sound")?.play();
-      }
-      if (message.toString().toLowerCase().includes("alert")) {
-        document.getElementById("alert-sound")?.play();
-      }
-
-    } catch (error) {
-      this.logMessage(`Error handling message: ${error.message}`, 'error');
     }
   }
 

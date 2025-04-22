@@ -39,6 +39,9 @@ function handleAction(event) {
   const action = target.getAttribute('data-action');
   if (!action) return;
 
+  // Play click sound for all actions
+  document.getElementById('click-sound')?.play().catch(err => console.log('Click sound not loaded yet'));
+
   switch (action) {
     case 'login':
       handleLogin();
@@ -470,12 +473,9 @@ class MQTTHandler {
             this.updateStatus(payload.data);
           }
 
-          // Play sounds based on message content
+          // Play command sound for command messages
           if (payload.type === 'command' || message.toString().startsWith("COMMAND:")) {
-            document.getElementById("command-sound")?.play();
-          }
-          if (payload.type === 'alert' || message.toString().toLowerCase().includes("alert")) {
-            document.getElementById("alert-sound")?.play();
+            document.getElementById("command-sound")?.play().catch(err => console.log('Command sound not loaded yet'));
           }
 
           this.logMessage(`Received on ${receivedTopic}: ${message.toString()}`);

@@ -112,7 +112,7 @@ A real-time monitoring dashboard for VPL (Vertical Platform Lift) systems using 
     - Examples where needed
 - sounds/: Audio files for notifications
   - command.mp3: Command notification sound
-  - alert.mp3: Alert notification sound
+  - click.mp3: Button click feedback sound
 
 ### 5. Settings Management
 - Storage Key: 'usf_harmar_settings'

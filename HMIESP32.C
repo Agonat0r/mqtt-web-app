@@ -181,36 +181,65 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
         case MQTT_EVENT_CONNECTED:
             mqtt_connected = true;
             esp_mqtt_client_subscribe(mqtt_client, MQTT_TOPIC, 0);
-            esp_mqtt_client_subscribe(mqtt_client, "usf/alarms", 0); // Subscribe to alarms topic
+            esp_mqtt_client_subscribe(mqtt_client, "usf/logs/command", 0);  // Add command topic
+            esp_mqtt_client_subscribe(mqtt_client, "usf/logs/alerts", 0);   // Add alerts topic
             lv_label_set_text(label_status, "MQTT Connected!");
             break;
+
+        case MQTT_EVENT_DATA: {
+            // Null terminate the data for safe string operations
+            char *data = strndup(event->data, event->data_len);
+            cJSON *root = cJSON_Parse(data);
+            
+            if (root) {
+                cJSON *type = cJSON_GetObjectItem(root, "type");
+                cJSON *message = cJSON_GetObjectItem(root, "message");
+                cJSON *timestamp = cJSON_GetObjectItem(root, "timestamp");
+                
+                if (type && message && timestamp) {
+                    char formatted_msg[512];
+                    
+                    // Format based on message type
+                    if (strcmp(type->valuestring, "command") == 0) {
+                        snprintf(formatted_msg, sizeof(formatted_msg), 
+                                "[%s] COMMAND: %s\n", 
+                                timestamp->valuestring, 
+                                message->valuestring);
+                    }
+                    else if (strstr("red amber green", type->valuestring)) {
+                        snprintf(formatted_msg, sizeof(formatted_msg), 
+                                "[%s] ALERT (%s): %s\n", 
+                                timestamp->valuestring, 
+                                type->valuestring, 
+                                message->valuestring);
+                    }
+                    
+                    // Add to terminal
+                    xSemaphoreTake(term_mutex, portMAX_DELAY);
+                    if (term_pos + strlen(formatted_msg) < sizeof(term_buf)) {
+                        strcpy(term_buf + term_pos, formatted_msg);
+                        term_pos += strlen(formatted_msg);
+                    }
+                    xSemaphoreGive(term_mutex);
+                    
+                    // Also update alert terminal for alerts
+                    if (strstr("red amber green", type->valuestring)) {
+                        handle_mqtt_alert(type->valuestring, message->valuestring, timestamp->valuestring);
+                    }
+                }
+                cJSON_Delete(root);
+            }
+            free(data);
+            break;
+        }
+
         case MQTT_EVENT_DISCONNECTED:
             mqtt_connected = false;
             lv_label_set_text(label_status, "MQTT Disconnected");
             break;
-        case MQTT_EVENT_DATA:
-            if (strncmp(event->topic, "usf/alarms", event->topic_len) == 0) {
-                // Parse the JSON alert message
-                char *data = strndup(event->data, event->data_len);
-                cJSON *root = cJSON_Parse(data);
-                if (root) {
-                    cJSON *type = cJSON_GetObjectItem(root, "type");
-                    cJSON *message = cJSON_GetObjectItem(root, "message");
-                    cJSON *timestamp = cJSON_GetObjectItem(root, "timestamp");
-                    if (type && message && timestamp) {
-                        handle_mqtt_alert(type->valuestring, message->valuestring, timestamp->valuestring);
-                    }
-                    cJSON_Delete(root);
-                }
-                free(data);
-            } else {
-                printf("\n📩 %.*s: %.*s\n", event->topic_len, event->topic, event->data_len, event->data);
-            }
-            break;
+
         case MQTT_EVENT_ERROR:
             lv_label_set_text(label_status, "MQTT Error");
-            break;
-        default:
             break;
     }
 }
@@ -308,23 +337,38 @@ void ui_init() {
 
     create_sidebar_tabs(lv_scr_act());
 
-    // Status label shown at the top of the Home tab (e.g., Wi-Fi and MQTT connection status)
+    // Status label shown at the top of the Home tab
     label_status = lv_label_create(tabs[0]);
     lv_label_set_text(label_status, "Status: Initializing...");
     lv_obj_align(label_status, LV_ALIGN_TOP_MID, 40, 10);
 
-    // Terminal for displaying received MQTT messages in the Logs tab
+    // Modify terminal creation for better visibility
     terminal = lv_textarea_create(tabs[1]);
-    lv_obj_set_size(terminal, LV_HOR_RES - 140, LV_VER_RES - 40);
-    lv_obj_align(terminal, LV_ALIGN_CENTER, 20, 0);
+    lv_obj_set_size(terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
+    lv_obj_align(terminal, LV_ALIGN_TOP_MID, 20, 10);
+    lv_obj_add_flag(terminal, LV_OBJ_FLAG_READ_ONLY);
+    lv_textarea_set_text(terminal, "=== Command and Alert Terminal ===\n");
+    lv_textarea_set_placeholder_text(terminal, "Waiting for messages...");
+    
+    // Style the terminal
+    lv_obj_set_style_bg_color(terminal, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_style_text_color(terminal, lv_color_hex(0x00FF00), LV_PART_MAIN);
+    lv_obj_set_style_border_color(terminal, lv_color_hex(0x404040), LV_PART_MAIN);
+    lv_obj_set_style_border_width(terminal, 2, LV_PART_MAIN);
 
-    // Create alert terminal
-    alert_terminal = lv_textarea_create(tabs[1]); // Add to the Logs tab
+    // Create alert terminal below the main terminal
+    alert_terminal = lv_textarea_create(tabs[1]);
     lv_obj_set_size(alert_terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
     lv_obj_align_to(alert_terminal, terminal, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
-    lv_textarea_set_text(alert_terminal, "Waiting for alerts...\n");
-    lv_textarea_set_cursor_pos(alert_terminal, LV_TEXTAREA_CURSOR_LAST);
     lv_obj_add_flag(alert_terminal, LV_OBJ_FLAG_READ_ONLY);
+    lv_textarea_set_text(alert_terminal, "=== Alerts Only Terminal ===\n");
+    lv_textarea_set_placeholder_text(alert_terminal, "Waiting for alerts...");
+    
+    // Style the alert terminal
+    lv_obj_set_style_bg_color(alert_terminal, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_style_text_color(alert_terminal, lv_color_hex(0xFF0000), LV_PART_MAIN);
+    lv_obj_set_style_border_color(alert_terminal, lv_color_hex(0x404040), LV_PART_MAIN);
+    lv_obj_set_style_border_width(alert_terminal, 2, LV_PART_MAIN);
 
     // 'UP' control button in the Controls tab (sends COMMAND:UP over MQTT)
     lv_obj_t *btn_up = lv_btn_create(tabs[2]);

@@ -1,18 +1,23 @@
 #include <WiFi.h>
-#include <WebServer.h>
 #include <esp_now.h>
 #include <time.h>
 #include <sys/time.h>
 #include "FS.h"
 #include "SPIFFS.h"
 #include <ESP_Mail_Client.h>
+#include <PubSubClient.h>  // Add MQTT client library
+
 // ===== Login Configuration ===== //
 const char* www_username = "Carlos";     
 const char* www_password = "Pena";
 
-// ===== WiFi Configuration ===== //
-const char* ssid = "Flugel"; // Define network Name
-const char* password = "dogecoin"; // Define network Password
+// ===== WiFi and MQTT Configuration ===== //
+const char* ssid = "Flugel";
+const char* password = "dogecoin";
+const char* mqtt_server = "lb88002c.ala.us-east-1.emqxsl.com";
+const int mqtt_port = 8084;
+const char* mqtt_username = "Carlos";
+const char* mqtt_password = "mqtt2025";
 
 WebServer server(80); // Initialized server on port 80
 
@@ -101,6 +106,35 @@ String lastRedEmailSent = "";
 String lastAmberEmailSent = "";
 String lastGreenEmailSent = "";
 
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+// Topics for MQTT
+const char* alarmTopic = "usf/alarms";
+const char* statusTopic = "usf/status";
+
+// Function to publish alarm via MQTT
+void publishAlarm(const char* type, const String& message) {
+    if (!mqttClient.connected()) {
+        return;
+    }
+    
+    String payload = "{\"type\":\"" + String(type) + "\",\"message\":\"" + message + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+    mqttClient.publish(alarmTopic, payload.c_str());
+}
+
+// Function to reconnect to MQTT broker
+void reconnectMQTT() {
+    while (!mqttClient.connected()) {
+        String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+        if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
+            mqttClient.subscribe(statusTopic);
+        } else {
+            delay(5000);
+        }
+    }
+}
 
 bool sendAlarmEmail(String alarmType, String alarmMessage) {
   if (!emailNotificationsEnabled || emailCount == 0 || millis() - lastEmailSent < EMAIL_COOLDOWN) {
@@ -968,21 +1002,18 @@ for (int i = 0; i < numLEDs; i++) {
 }
     }
 if (redAlarms != "No red alarms." && redAlarms != lastRedEmailSent) {
-  if (sendAlarmEmail("Red", redAlarms)) {
-    lastRedEmailSent = redAlarms;
-  }
+  publishAlarm("red", redAlarms);
+  lastRedEmailSent = redAlarms;
 }
 
 if (amberAlarms != "No amber alarms." && amberAlarms != lastAmberEmailSent) {
-  if (sendAlarmEmail("Amber", amberAlarms)) {
-    lastAmberEmailSent = amberAlarms;
-  }
+  publishAlarm("amber", amberAlarms);
+  lastAmberEmailSent = amberAlarms;
 }
 
 if (greenAlarms != "No green alarms." && greenAlarms != lastGreenEmailSent) {
-  if (sendAlarmEmail("Green", greenAlarms)) {
-    lastGreenEmailSent = greenAlarms;
-  }
+  publishAlarm("green", greenAlarms);
+  lastGreenEmailSent = greenAlarms;
 }
 
     tempStatus += "============================\n";
@@ -1031,287 +1062,73 @@ bool isAuthenticated() {
   return true;
 }
 
-void setup() { // Initialized Serial Monitor for debugging messages
-  Serial.begin(115200); // Initialize Serial Monitor at 115200 baud
- 
-if (!SPIFFS.begin(true)) {
-  Serial.println("SPIFFS Mount Failed");
-} else {
-  Serial.println("SPIFFS initialized");
-}
-
-  // Initialize LED pins as Input
-  for (int i = 0; i < numLEDs; i++) {
-    pinMode(redLEDs[i], INPUT); // Set each red LED pin as INPUT
-    pinMode(greenLEDs[i], INPUT); // Set each green LED pin as INPUT
+void setup() {
+  Serial.begin(115200);
+  
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS Mount Failed");
   }
 
+  // Initialize LED pins
+  for (int i = 0; i < numLEDs; i++) {
+    pinMode(redLEDs[i], INPUT);
+    pinMode(greenLEDs[i], INPUT);
+  }
 
-  // Initialize GPIO (Configures Motor Control Pins as outputs while buttons/limit switches are inputs)
-  pinMode(UP_PIN, OUTPUT); // Set motor control pin for UP as OUTPUT
-  pinMode(DOWN_PIN, OUTPUT);  // Set motor control pin for DOWN as OUTPUT
-  pinMode(UP_BUTTON, INPUT_PULLUP);  // Set UP button pin as INPUT with pull-up resistor
-  pinMode(DOWN_BUTTON, INPUT_PULLUP); // Set DOWN button pin as INPUT with pull-up resistor
-  pinMode(LIMIT_SWITCH_UP, INPUT_PULLUP); // Set upper limit switch pin as INPUT with pull-up resistor
-  pinMode(LIMIT_SWITCH_DOWN, INPUT_PULLUP); // Set lower limit switch pin as INPUT with pull-up resistor
+  // Initialize GPIO
+  pinMode(UP_PIN, OUTPUT);
+  pinMode(DOWN_PIN, OUTPUT);
+  pinMode(UP_BUTTON, INPUT_PULLUP);
+  pinMode(DOWN_BUTTON, INPUT_PULLUP);
+  pinMode(LIMIT_SWITCH_UP, INPUT_PULLUP);
+  pinMode(LIMIT_SWITCH_DOWN, INPUT_PULLUP);
   pinMode(BRAKE_PIN, OUTPUT);
-  digitalWrite(BRAKE_PIN, HIGH);  // Start with brake engaged for safety
-WiFi.mode(WIFI_STA);  // Required for ESP-NOW
-
-// Init ESP-NOW
-if (esp_now_init() != ESP_OK) {
-  Serial.println("Error initializing ESP-NOW");
-  return;
-}
-Serial.println("ESP-NOW Initialized");
-
-// Register receive callback
-esp_now_register_recv_cb(OnDataRecv);
+  digitalWrite(BRAKE_PIN, HIGH);
 
   // Connect to WiFi
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { // Wait until the connection is established
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print("."); // Print dots while waiting
+    Serial.print(".");
   }
-  Serial.println();
-  Serial.println("\nConnected to WiFi"); // Notify that WiFi is connected
-  Serial.println("IP: " + WiFi.localIP().toString()); // Print IP Address
-  Serial.println("MAC Address: " + WiFi.macAddress()); // Print MAC Address
+  Serial.println("\nConnected to WiFi");
 
-
+  // Setup MQTT
+  mqttClient.setServer(mqtt_server, mqtt_port);
+  
   // Initialize NTP
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
-  } else {
-    Serial.println(&timeinfo, "Time initialized: %Y-%m-%d %H:%M:%S");
-  }
-
-server.on("/", []() {
-  if (!isAuthenticated()) return;
-  server.send(200, "text/html", htmlContent);
-});
-
-server.on("/up_start", []() {
-  if (!isAuthenticated()) return;
-  handleMovement("up");
-  server.send(200, "text/plain", "Moving UP");
-});
-
-server.on("/down_start", []() {
-  if (!isAuthenticated()) return;
-  handleMovement("down");
-  server.send(200, "text/plain", "Moving DOWN");
-});
-
-server.on("/stop", []() {
-  if (!isAuthenticated()) return;
-  stopMovement();
-  server.send(200, "text/plain", "Stopped");
-});
-
-
-
-  // Changes the operating mode to the user preference
-server.on("/setMode", []() {
-    if (!isAuthenticated()) return;
-    if (server.hasArg("mode")) {
-      elevatorMode = (server.arg("mode") == "elevator");
-      String mode = elevatorMode ? "Elevator Mode" : "Lift Mode";
-      addToLog("Mode set to: " + mode);
-      server.send(200, "text/plain", mode);
-    }
-  });
-
-
-  // Allows users to adjust delay setting in milliseconds
-  server.on("/setDelay", []() {
-    if (!isAuthenticated()) return;
-    if (server.hasArg("value")) {
-      unsigned long newDelay = server.arg("value").toInt(); // Convert the value parameter to integer
-      if (elevatorMode) {
-        ELEVATOR_MODE_DELAY = newDelay; // Update delay for Elevator Mode if applicable
-      } else {
-        LIFT_MODE_DELAY = newDelay; // Update delay for Lift Mode if applicable
-      }
-      String response = "Delay set to " + String(newDelay) + "ms"; // Create response string
-      addToLog(response); // Log the delay change
-      server.send(200, "text/plain", response); // Send response back to client
-    }
-  });
-
-
-// Allow users to adjust delay settings for LEDs in milliseconds
-  server.on("/setLEDDelay", []() {
-    if (!isAuthenticated()) return;
-    if (server.hasArg("value")) {
-      LED_CHECK_DELAY = server.arg("value").toInt();
-    String msg = "LED check delay set to " + String(LED_CHECK_DELAY) + " ms";
-    addToLog(msg);
-    server.send(200, "text/plain", msg);
-    }
-  });
-
-
-  // Sends system Status (mode, delay, logs) in JSON format
-  server.on("/getStatus", []() {
-  if (!isAuthenticated()) return;
-  String json = "{";
-  json += "\"mode\":\"" + String(elevatorMode ? "Elevator Mode" : "Lift Mode") + "\",";
-  json += "\"delay\":" + String(elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY) + ",";
-  json += "\"logs\":\"" + escapeForJson(serialLogs) + "\",";
-  json += "\"ledStatus\":\"" + escapeForJson(ledStatus) + "\",";
-  json += "\"ledStatusHistory\":\"" + escapeForJson(ledStatusHistory) + "\",";
-  json += "\"greenAlarms\":\"" + escapeForJson(greenAlarms) + "\",";
-  json += "\"amberAlarms\":\"" + escapeForJson(amberAlarms) + "\",";
-  json += "\"redAlarms\":\"" + escapeForJson(redAlarms) + "\",";
-  
-  // Add email information
-  json += "\"emailEnabled\":" + String(emailNotificationsEnabled ? "true" : "false") + ",";
-  json += "\"emails\":[";
-  for (int i = 0; i < emailCount; i++) {
-    json += "\"" + emailAddresses[i] + "\"";
-    if (i < emailCount - 1) json += ",";
-  }
-  json += "]";
-  
-  json += "}";
-  server.send(200, "application/json", json);
-});
-
-  // Clears the log history
-  server.on("/clearLogs", []() {
-    if (!isAuthenticated()) return;
-    serialLogs = ""; // Clear the logs
-    addToLog("Logs cleared"); // Log that logs have been cleared
-    server.send(200, "text/plain", "Logs cleared"); // Send confirmation to client
-  });
-
-server.on("/downloadLogs", []() {
-  if (!isAuthenticated()) return;
-
-  File file = SPIFFS.open("/led_log.txt", FILE_READ);
-  if (!file) {
-    server.send(500, "text/plain", "Failed to open log file");
-    return;
-  }
-
-  server.streamFile(file, "text/plain");
-  file.close();
-});
-// Add these server endpoints inside your setup() function after the other server.on() calls:
-
-server.on("/toggleEmail", []() {
-  if (!isAuthenticated()) return;
-  if (server.hasArg("enabled")) {
-    emailNotificationsEnabled = (server.arg("enabled") == "true");
-    String status = emailNotificationsEnabled ? "enabled" : "disabled";
-    addToLog("Email notifications " + status);
-    server.send(200, "text/plain", "Email notifications " + status);
-  }
-});
-
-// Modify these endpoints to include saving to SPIFFS
-
-server.on("/addEmail", []() {
-  if (!isAuthenticated()) return;
-  if (server.hasArg("email")) {
-    String email = server.arg("email");
-    if (emailCount < MAX_EMAILS) {
-      emailAddresses[emailCount++] = email;
-      addToLog("Added email: " + email);
-      saveEmailsToSPIFFS();  // Save to SPIFFS
-      server.send(200, "text/plain", "Email added successfully");
-    } else {
-      server.send(400, "text/plain", "Maximum number of emails reached (10)");
-    }
-  }
-});
-
-server.on("/removeEmail", []() {
-  if (!isAuthenticated()) return;
-  if (server.hasArg("index")) {
-    int index = server.arg("index").toInt();
-    if (index >= 0 && index < emailCount) {
-      String removedEmail = emailAddresses[index];
-      
-      // Shift remaining emails
-      for (int i = index; i < emailCount - 1; i++) {
-        emailAddresses[i] = emailAddresses[i + 1];
-      }
-      emailCount--;
-      
-      addToLog("Removed email: " + removedEmail);
-      saveEmailsToSPIFFS();  // Save to SPIFFS
-      server.send(200, "text/plain", "Email removed successfully");
-    } else {
-      server.send(400, "text/plain", "Invalid email index");
-    }
-  }
-});
-server.on("/apply_brake", []() {
-  if (!isAuthenticated()) return;
-  applyBrake();
-  server.send(200, "text/plain", "Brake applied");
-});
-
-server.on("/release_brake", []() {
-  if (!isAuthenticated()) return;
-  releaseBrake();
-  server.send(200, "text/plain", "Brake released");
-});
-
-server.on("/stop_up", []() {
-  if (!isAuthenticated()) return;
-  stopUpMovement();
-  server.send(200, "text/plain", "Upward movement stopped");
-});
-
-server.on("/stop_down", []() {
-  if (!isAuthenticated()) return;
-  stopDownMovement();
-  server.send(200, "text/plain", "Downward movement stopped");
-});
-// Add this to your setup() function after SPIFFS initialization:
-  loadEmailsFromSPIFFS();
-// Starts the Web Server
-  server.begin();
-  addToLog("System initialized"); // Log that the system has been initialized
 }
 
+void loop() {
+  if (!mqttClient.connected()) {
+    reconnectMQTT();
+  }
+  mqttClient.loop();
 
-// Handles incoming web requests
-void loop() { // Main loop function that runs repeatedly
-  server.handleClient(); // Handle any incoming web server requests
+  // Read device outputs
+  readDeviceOutputs();
 
+  // Handle physical buttons
+  static unsigned long lastButtonTime = 0;
+  unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY;
 
-  // Insert LED reading code here
-  readDeviceOutputs(); // Call function to read and update LED outputs
- 
-  // Handle physical buttons (Checks if buttons presses and moves accordingly)
-  static unsigned long lastButtonTime = 0; // Static variable to keep track of last button press time
-  unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY; // Choose delay based on mode
- 
-  if (millis() - lastButtonTime >= currentDelay) { // If enough time has passed since the last action
-    if (digitalRead(UP_BUTTON) == LOW) { // If UP button is pressed
-      handleMovement("up"); // Handle upward movement
-      lastButtonTime = millis(); // Update the last button press time
-    } else if (digitalRead(DOWN_BUTTON) == LOW) { // If DOWN button is pressed
-      handleMovement("down"); // Handle downward movement
-      lastButtonTime = millis(); // Update the last button press time
+  if (millis() - lastButtonTime >= currentDelay) {
+    if (digitalRead(UP_BUTTON) == LOW) {
+      handleMovement("up");
+      lastButtonTime = millis();
+    } else if (digitalRead(DOWN_BUTTON) == LOW) {
+      handleMovement("down");
+      lastButtonTime = millis();
     }
   }
- 
-  // Auto-stop in Elevator Mode (Stop Movement if a limit switch is triggered in Elevator Mode)
-  if (elevatorMode) {
-    if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement(); // Stop if upper limit reached
-    if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement(); // Stop if lower limit reached
 
-       // NEW: Emergency limit switch handling in elevator mode
+  // Auto-stop in Elevator Mode
   if (elevatorMode) {
+    if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement();
+    if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement();
+
     if (currentDirection == "up" && digitalRead(LIMIT_SWITCH_UP) == LOW) {
       addToLog("Emergency Stop: Upper limit switch held down");
       stopMovement();
@@ -1321,10 +1138,8 @@ void loop() { // Main loop function that runs repeatedly
       stopMovement();
     }
   }
-   delay(1);
-  }
-  }
-// Add these functions after the other functions:
+  delay(1);
+}
 
 void saveEmailsToSPIFFS() {
   File file = SPIFFS.open("/emails.txt", FILE_WRITE);

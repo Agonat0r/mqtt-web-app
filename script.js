@@ -102,6 +102,24 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Collections
+const emailCollection = db.collection('emailSubscribers');
+const alertsCollection = db.collection('alerts');
+
+// Function to save alert to Firebase
+async function saveAlertToFirebase(type, message) {
+    try {
+        await alertsCollection.add({
+            type: type,
+            message: message,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('Alert saved to Firebase');
+    } catch (error) {
+        console.error('Error saving alert to Firebase:', error);
+    }
+}
+
 // 🔒 Set Firebase rules in Firestore console for testing:
 // rules_version = '2';
 // service cloud.firestore {
@@ -559,8 +577,10 @@ function handleMQTTMessage(payload) {
         case 'command':
             logToCommandTerminal('Command: ' + JSON.stringify(payload.data), 'command');
             break;
-        case 'alert':
-            handleAlert(payload.data);
+        case 'red':
+        case 'amber':
+        case 'green':
+            handleAlarm(payload);
             break;
         default:
             logToTerminal('Unknown message type: ' + payload.type, 'warning');
@@ -740,10 +760,219 @@ function updateTelemetryData(data) {
     });
 }
 
-// Handle Alert
-function handleAlert(data) {
-    logToTerminal('Alert: ' + JSON.stringify(data), 'alert');
-    // You can add additional alert handling here, such as showing a notification
+// Update the handleAlarm function to save alerts to Firebase
+async function handleAlarm(payload) {
+    // Log to appropriate terminal
+    logToTerminal(`${payload.type.toUpperCase()} ALARM: ${payload.message}`, payload.type);
+    logToCommandTerminal(`${payload.type.toUpperCase()} ALARM: ${payload.message}`, 'alert');
+
+    // Save alert to Firebase
+    await saveAlertToFirebase(payload.type, payload.message);
+
+    // Update alarm tabs
+    const alarmDiv = document.getElementById(`${payload.type}Alarms`);
+    if (alarmDiv) {
+        const timestamp = new Date().toLocaleTimeString();
+        const alarmHtml = `<div class="alarm-entry ${payload.type}">[${timestamp}] ${payload.message}</div>`;
+        alarmDiv.innerHTML = alarmHtml + alarmDiv.innerHTML;
+    }
+
+    // For red alarms, notify email subscribers
+    if (payload.type === 'red') {
+        try {
+            const snapshot = await emailCollection.get();
+            snapshot.forEach(doc => {
+                const emailData = {
+                    to: doc.data().email,
+                    subject: 'RED ALARM - VPL System',
+                    text: `A red alarm has been detected:\n\n${payload.message}\n\nTimestamp: ${payload.timestamp}`,
+                    html: `
+                        <h2>VPL System Red Alarm</h2>
+                        <p>A red alarm has been detected:</p>
+                        <p style="color: red; font-weight: bold;">${payload.message}</p>
+                        <p>Timestamp: ${payload.timestamp}</p>
+                    `
+                };
+                
+                // Send email using EmailJS
+                emailjs.send("service_lsa1r4i", "template_vnrbr1d", emailData)
+                    .catch(error => console.error('Error sending email:', error));
+            });
+        } catch (error) {
+            console.error('Error processing red alarm:', error);
+        }
+    }
+}
+
+// Add CSS for alarm styling
+const style = document.createElement('style');
+style.textContent = `
+  .alarm-entry {
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+  }
+  .alarm-entry.red {
+    background-color: rgba(255, 0, 0, 0.1);
+    border-left: 4px solid red;
+  }
+  .alarm-entry.amber {
+    background-color: rgba(255, 165, 0, 0.1);
+    border-left: 4px solid orange;
+  }
+  .alarm-entry.green {
+    background-color: rgba(0, 255, 0, 0.1);
+    border-left: 4px solid green;
+  }
+  .email-form {
+    margin: 20px 0;
+  }
+  .email-list {
+    margin-top: 20px;
+  }
+  .email-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    margin: 4px 0;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+  }
+  .email-item button {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+`;
+document.head.appendChild(style);
+
+// Add translations for email management
+const emailTranslations = {
+    en: {
+        emailSettings: 'Email Settings',
+        enterEmail: 'Enter email address',
+        addEmail: 'Add Email',
+        remove: 'Remove',
+        invalidEmail: 'Invalid email address',
+        emailAdded: 'Email added successfully',
+        emailRemoved: 'Email removed successfully',
+        errorAddingEmail: 'Error adding email',
+        errorRemovingEmail: 'Error removing email',
+        errorLoadingEmails: 'Error loading emails'
+    },
+    de: {
+        emailSettings: 'E-Mail-Einstellungen',
+        enterEmail: 'E-Mail-Adresse eingeben',
+        addEmail: 'E-Mail hinzufügen',
+        remove: 'Entfernen',
+        invalidEmail: 'Ungültige E-Mail-Adresse',
+        emailAdded: 'E-Mail erfolgreich hinzugefügt',
+        emailRemoved: 'E-Mail erfolgreich entfernt',
+        errorAddingEmail: 'Fehler beim Hinzufügen der E-Mail',
+        errorRemovingEmail: 'Fehler beim Entfernen der E-Mail',
+        errorLoadingEmails: 'Fehler beim Laden der E-Mails'
+    }
+};
+
+// Update translations object
+Object.keys(translations).forEach(lang => {
+    translations[lang] = { ...translations[lang], ...emailTranslations[lang] };
+});
+
+// Add a tab for email management
+document.addEventListener('DOMContentLoaded', () => {
+  const tabSelector = document.getElementById('tab-selector');
+  if (tabSelector) {
+    const emailOption = document.createElement('option');
+    emailOption.value = 'email-settings';
+    emailOption.textContent = t('emailSettings');
+    tabSelector.appendChild(emailOption);
+  }
+
+  // Add email settings tab content
+  const mainApp = document.getElementById('main-app');
+  if (mainApp) {
+    const emailTab = document.createElement('div');
+    emailTab.id = 'email-settings-tab';
+    emailTab.className = 'tab-content hidden';
+    emailTab.innerHTML = `
+      <h3>${t('emailSettings')}</h3>
+      <div class="email-form">
+        <input type="email" id="email-input" placeholder="${t('enterEmail')}">
+        <button onclick="addEmailSubscriber()">${t('addEmail')}</button>
+      </div>
+      <div id="email-list" class="email-list"></div>
+    `;
+    mainApp.appendChild(emailTab);
+  }
+
+  // Load existing email subscribers
+  loadEmailSubscribers();
+});
+
+// Function to add email subscriber
+async function addEmailSubscriber() {
+  const emailInput = document.getElementById('email-input');
+  const email = emailInput.value.trim();
+  
+  if (!email || !validateEmail(email)) {
+    showMessage(t('invalidEmail'), 'error');
+    return;
+  }
+
+  try {
+    await emailCollection.add({
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    emailInput.value = '';
+    showMessage(t('emailAdded'), 'success');
+    loadEmailSubscribers();
+  } catch (error) {
+    console.error('Error adding email:', error);
+    showMessage(t('errorAddingEmail'), 'error');
+  }
+}
+
+// Function to load email subscribers
+async function loadEmailSubscribers() {
+  const emailList = document.getElementById('email-list');
+  if (!emailList) return;
+
+  try {
+    const snapshot = await emailCollection.get();
+    emailList.innerHTML = '';
+    
+    snapshot.forEach(doc => {
+      const div = document.createElement('div');
+      div.className = 'email-item';
+      div.innerHTML = `
+        <span>${doc.data().email}</span>
+        <button onclick="removeEmailSubscriber('${doc.id}')">${t('remove')}</button>
+      `;
+      emailList.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error loading emails:', error);
+    showMessage(t('errorLoadingEmails'), 'error');
+  }
+}
+
+// Function to remove email subscriber
+async function removeEmailSubscriber(docId) {
+  try {
+    await emailCollection.doc(docId).delete();
+    showMessage(t('emailRemoved'), 'success');
+    loadEmailSubscribers();
+  } catch (error) {
+    console.error('Error removing email:', error);
+    showMessage(t('errorRemovingEmail'), 'error');
+  }
 }
 
 // Update the DOMContentLoaded event listener
@@ -764,11 +993,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tabSelector.value = 'general';
         const event = new Event('change');
         tabSelector.dispatchEvent(event);
-    }
-
-    const terminalInput = document.getElementById('terminal-input');
-    if (terminalInput) {
-        terminalInput.addEventListener('keypress', sendCommand);
     }
 
     // Initialize other event handlers

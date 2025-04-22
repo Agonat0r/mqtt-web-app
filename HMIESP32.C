@@ -17,6 +17,7 @@
 #include "bsp/esp-bsp.h"
 #include "lvgl.h"
 #include "esp_sntp.h"
+#include "cJSON.h"
 
 #define WIFI_SSID "Flugel"
 #define WIFI_PASS "dogecoin"
@@ -60,11 +61,15 @@ static esp_mqtt_client_handle_t mqtt_client = NULL;
 static bool mqtt_connected = false;
 static char term_buf[4096];
 static int term_pos = 0;
+static lv_obj_t *alert_terminal;
+static char alert_buf[4096];
+static int alert_pos = 0;
 
 void mqtt_start();
 void send_mqtt(const char *cmd);
 void btn_up_cb(lv_event_t *e);
 void btn_down_cb(lv_event_t *e);
+void handle_mqtt_alert(const char* type, const char* message, const char* timestamp);
 
 int _write(int fd, const char *data, int size) {
     if (fd == 1 && term_mutex) {
@@ -148,12 +153,35 @@ void wifi_init() {
     esp_wifi_start();
 }
 
+void handle_mqtt_alert(const char* type, const char* message, const char* timestamp) {
+    if (!alert_terminal) return;
+
+    // Format the alert message
+    char alert_msg[512];
+    snprintf(alert_msg, sizeof(alert_msg), "[%s] %s: %s\n", timestamp, type, message);
+
+    // Add to alert buffer
+    xSemaphoreTake(term_mutex, portMAX_DELAY);
+    int len = strlen(alert_msg);
+    if (alert_pos + len < sizeof(alert_buf)) {
+        memcpy(alert_buf + alert_pos, alert_msg, len);
+        alert_pos += len;
+        alert_buf[alert_pos] = '\0';
+    }
+    xSemaphoreGive(term_mutex);
+
+    // Update the LVGL terminal
+    lv_textarea_set_text(alert_terminal, alert_buf);
+    lv_obj_scroll_to_y(alert_terminal, LV_COORD_MAX, LV_ANIM_OFF);
+}
+
 void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     esp_mqtt_event_handle_t event = event_data;
     switch (event_id) {
         case MQTT_EVENT_CONNECTED:
             mqtt_connected = true;
             esp_mqtt_client_subscribe(mqtt_client, MQTT_TOPIC, 0);
+            esp_mqtt_client_subscribe(mqtt_client, "usf/alarms", 0); // Subscribe to alarms topic
             lv_label_set_text(label_status, "MQTT Connected!");
             break;
         case MQTT_EVENT_DISCONNECTED:
@@ -161,7 +189,23 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
             lv_label_set_text(label_status, "MQTT Disconnected");
             break;
         case MQTT_EVENT_DATA:
-            printf("\n📩 %.*s: %.*s\n", event->topic_len, event->topic, event->data_len, event->data);
+            if (strncmp(event->topic, "usf/alarms", event->topic_len) == 0) {
+                // Parse the JSON alert message
+                char *data = strndup(event->data, event->data_len);
+                cJSON *root = cJSON_Parse(data);
+                if (root) {
+                    cJSON *type = cJSON_GetObjectItem(root, "type");
+                    cJSON *message = cJSON_GetObjectItem(root, "message");
+                    cJSON *timestamp = cJSON_GetObjectItem(root, "timestamp");
+                    if (type && message && timestamp) {
+                        handle_mqtt_alert(type->valuestring, message->valuestring, timestamp->valuestring);
+                    }
+                    cJSON_Delete(root);
+                }
+                free(data);
+            } else {
+                printf("\n📩 %.*s: %.*s\n", event->topic_len, event->topic, event->data_len, event->data);
+            }
             break;
         case MQTT_EVENT_ERROR:
             lv_label_set_text(label_status, "MQTT Error");
@@ -273,6 +317,14 @@ void ui_init() {
     terminal = lv_textarea_create(tabs[1]);
     lv_obj_set_size(terminal, LV_HOR_RES - 140, LV_VER_RES - 40);
     lv_obj_align(terminal, LV_ALIGN_CENTER, 20, 0);
+
+    // Create alert terminal
+    alert_terminal = lv_textarea_create(tabs[1]); // Add to the Logs tab
+    lv_obj_set_size(alert_terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
+    lv_obj_align_to(alert_terminal, terminal, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_textarea_set_text(alert_terminal, "Waiting for alerts...\n");
+    lv_textarea_set_cursor_pos(alert_terminal, LV_TEXTAREA_CURSOR_LAST);
+    lv_obj_add_flag(alert_terminal, LV_OBJ_FLAG_READ_ONLY);
 
     // 'UP' control button in the Controls tab (sends COMMAND:UP over MQTT)
     lv_obj_t *btn_up = lv_btn_create(tabs[2]);

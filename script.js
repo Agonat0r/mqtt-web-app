@@ -256,6 +256,18 @@ function updateAllText() {
   if (logs.alert && logs.alert.textContent.includes('Waiting for alerts')) {
     logs.alert.textContent = t('waitingAlerts');
   }
+
+  // Update language selector options
+  const languageSelector = document.getElementById('languageSelector');
+  if (languageSelector) {
+    languageSelector.innerHTML = `
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+    `;
+    languageSelector.value = currentLang;
+  }
 }
 
 /**
@@ -264,6 +276,11 @@ function updateAllText() {
  */
 function switchLanguage(event) {
   const lang = event.target.value;
+  if (!translations[lang]) {
+    console.error('Translation not found for language:', lang);
+    return;
+  }
+  
   currentLang = lang;
   currentSettings.language = lang;
   saveSettings();
@@ -320,16 +337,26 @@ function applyTheme() {
   if (!themeSelector) return;
   
   const theme = themeSelector.value;
-  document.body.classList.remove('dark-mode', 'usf-mode');
+  console.log('Applying theme:', theme);
   
-  if (theme === 'dark') {
-    document.body.classList.add('dark-mode');
-  } else if (theme === 'usf') {
-    document.body.classList.add('usf-mode');
-  }
+  // Remove all theme classes first
+  document.body.classList.remove('theme-default', 'theme-dark', 'theme-usf');
+  
+  // Apply the selected theme class
+  document.body.classList.add('theme-' + theme);
+  
+  // Update status cards background for better visibility in different themes
+  const statusCards = document.querySelectorAll('.status-card, .telemetry-card');
+  statusCards.forEach(card => {
+    card.classList.remove('theme-default', 'theme-dark', 'theme-usf');
+    card.classList.add('theme-' + theme);
+  });
   
   currentSettings.theme = theme;
   saveSettings();
+  
+  // Show feedback message
+  showMessage(t('themeChanged'), 'success');
 }
 
 /**

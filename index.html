@@ -56,8 +56,9 @@
             <h2>General Terminal</h2>
             <pre id="messageLog" class="terminal">Waiting for messages...</pre>
             <div class="terminal-controls">
-              <button data-action="clear-log" data-log="messageLog">Clear</button>
-              <button data-action="export-logs">Export</button>
+              <button data-action="clear-log" data-target="messageLog">Clear Log</button>
+              <button data-action="export-log" data-target="messageLog">Export Log</button>
+              <button data-action="email-log" data-target="messageLog">Email Log</button>
             </div>
           </div>
 
@@ -67,7 +68,9 @@
             <pre id="command-log" class="terminal">Waiting for commands...</pre>
             <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input">
             <div class="terminal-controls">
-              <button data-action="clear-log" data-log="command-log">Clear</button>
+              <button data-action="clear-log" data-target="command-log">Clear Log</button>
+              <button data-action="export-log" data-target="command-log">Export Log</button>
+              <button data-action="email-log" data-target="command-log">Email Log</button>
             </div>
           </div>
         </div>
@@ -109,8 +112,10 @@
       <div id="commands-tab" class="tab-content hidden">
         <h2>Command Console</h2>
         <pre id="command-history" class="terminal">Command history will appear here...</pre>
-        <div class="command-controls">
-          <button data-action="clear-log" data-log="command-history">Clear History</button>
+        <div class="terminal-controls">
+          <button data-action="clear-log" data-target="command-history">Clear History</button>
+          <button data-action="export-log" data-target="command-history">Export History</button>
+          <button data-action="email-log" data-target="command-history">Email History</button>
         </div>
       </div>
 
@@ -118,8 +123,10 @@
       <div id="alerts-tab" class="tab-content hidden">
         <h2>Alert Console</h2>
         <pre id="alert-log" class="terminal">Waiting for alerts...</pre>
-        <div class="alert-controls">
-          <button data-action="clear-log" data-log="alert-log">Clear Alerts</button>
+        <div class="terminal-controls">
+          <button data-action="clear-log" data-target="alert-log">Clear Alerts</button>
+          <button data-action="export-log" data-target="alert-log">Export Alerts</button>
+          <button data-action="email-log" data-target="alert-log">Email Alerts</button>
         </div>
       </div>
 
@@ -144,11 +151,30 @@
             </select>
           </div>
           <div class="customization-card">
+            <h3>Language</h3>
+            <select id="languageSelector" data-action="switch-language">
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
+            </select>
+          </div>
+          <div class="customization-card">
             <h3>Show Borders</h3>
             <input type="checkbox" id="borderToggle" data-action="apply-borders">
           </div>
         </div>
         <button id="resetCustomizations" data-action="reset-customizations">Reset to Default</button>
+      </div>
+    </div>
+
+    <!-- Email Modal -->
+    <div id="emailModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Send Log via Email</h3>
+        <input type="email" id="emailInput" placeholder="Enter email address">
+        <div class="modal-buttons">
+          <button data-action="send-email">Send</button>
+          <button data-action="close-modal">Cancel</button>
+        </div>
       </div>
     </div>
   </div>

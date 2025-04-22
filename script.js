@@ -44,10 +44,31 @@ function handleAction(event) {
 
   switch (action) {
     case 'login':
-      handleLogin();
+      handleLogin(event);
       break;
     case 'switch-tab':
-      switchTab(target.value);
+      handleTabSwitch(event);
+      break;
+    case 'clear-log':
+      const targetId = target.getAttribute('data-target');
+      clearTerminal(targetId);
+      break;
+    case 'export-log':
+      const exportId = target.getAttribute('data-target');
+      exportLog(exportId);
+      break;
+    case 'email-log':
+      const emailId = target.getAttribute('data-target');
+      showEmailModal(emailId);
+      break;
+    case 'send-email':
+      sendLogEmail();
+      break;
+    case 'close-modal':
+      closeEmailModal();
+      break;
+    case 'switch-language':
+      switchLanguage(event);
       break;
     case 'apply-theme':
       applyTheme();
@@ -60,25 +81,6 @@ function handleAction(event) {
       break;
     case 'reset-customizations':
       resetCustomizations();
-      break;
-    case 'switch-language':
-      switchLanguage();
-      break;
-    case 'send-email':
-      sendEmail();
-      break;
-    case 'export-logs':
-      exportLogs();
-      break;
-    case 'save-logs':
-      saveLogsToFile();
-      break;
-    case 'load-log':
-      loadLogFromFile(event);
-      break;
-    case 'clear-log':
-      const logId = target.getAttribute('data-log');
-      if (logId) clearLog(logId);
       break;
   }
 }
@@ -252,12 +254,13 @@ function updateAllText() {
  * Switches the application language and updates the UI.
  * Saves the new language preference to settings.
  */
-function switchLanguage() {
-  const lang = document.getElementById('language-selector').value;
+function switchLanguage(event) {
+  const lang = event.target.value;
   currentLang = lang;
   currentSettings.language = lang;
   saveSettings();
   updateAllText();
+  showMessage(t('languageChanged'), 'success');
 }
 
 /**
@@ -279,7 +282,7 @@ function loadSettings() {
     if (borderToggle) borderToggle.checked = currentSettings.showBorders;
     if (languageSelector) languageSelector.value = currentSettings.language;
     
-    currentLang = currentSettings.language;
+    currentLang = currentSettings.language || 'en';
   }
 }
 
@@ -404,6 +407,30 @@ let topic = "usf/messages";
 let client;
 let loggedIn = false;
 
+// CA Certificate for MQTT WSS Connection
+const ca_cert = `-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
+CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
+nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
+43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
+T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
+gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
+BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
+TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
+DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
+hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
+06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
+PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
+YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
+-----END CERTIFICATE-----`;
+
 // DOM Elements
 const loginContainer = document.querySelector('.login-container');
 const mainApp = document.querySelector('#main-app');
@@ -416,12 +443,13 @@ const terminalInput = document.querySelector('#terminal-input');
 // Initialize MQTT Client
 function initializeMQTTClient() {
     client = mqtt.connect(brokerHost, {
-        username: 'usf-harmar',
-        password: 'harmar2025',
+        username: 'Carlos',
+        password: 'mqtt2025',
         clientId: 'mqtt-dashboard-' + Math.random().toString(16).substr(2, 8),
         clean: true,
         reconnectPeriod: 4000,
-        connectTimeout: 30000
+        connectTimeout: 30000,
+        ca: ca_cert
     });
 
     setupMQTTEventHandlers();
@@ -675,3 +703,90 @@ document.querySelectorAll('[data-action="export-log"]').forEach(button => {
         document.body.removeChild(a);
     });
 });
+
+// Initialize EmailJS
+emailjs.init("7osg1XmfdRC2z68Xt");
+
+/**
+ * Shows the email modal for sending logs
+ * @param {string} targetId - The ID of the log to email
+ */
+function showEmailModal(targetId) {
+    const modal = document.getElementById('emailModal');
+    modal.classList.remove('hidden');
+    modal.dataset.targetLog = targetId;
+}
+
+/**
+ * Closes the email modal
+ */
+function closeEmailModal() {
+    const modal = document.getElementById('emailModal');
+    modal.classList.add('hidden');
+    document.getElementById('emailInput').value = '';
+}
+
+/**
+ * Sends the log content via email
+ */
+async function sendLogEmail() {
+    const modal = document.getElementById('emailModal');
+    const targetId = modal.dataset.targetLog;
+    const emailInput = document.getElementById('emailInput');
+    const terminal = document.getElementById(targetId);
+    
+    if (!terminal || !emailInput.value) return;
+
+    try {
+        await emailjs.send("service_lsa1r4i", "template_vnrbr1d", {
+            to_email: emailInput.value,
+            log_content: terminal.innerText,
+            log_type: targetId
+        });
+        
+        showMessage(t('emailSent'), 'success');
+        closeEmailModal();
+    } catch (error) {
+        console.error('Email error:', error);
+        showMessage(t('emailError'), 'error');
+    }
+}
+
+/**
+ * Shows a temporary message to the user
+ * @param {string} message - The message to show
+ * @param {string} type - The type of message ('success' or 'error')
+ */
+function showMessage(message, type = 'success') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `${type}-message`;
+    messageDiv.textContent = message;
+    document.body.appendChild(messageDiv);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Update the exportLog function:
+
+function exportLog(targetId) {
+    const terminal = document.getElementById(targetId);
+    if (!terminal) return;
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${targetId}-${timestamp}.log`;
+    const logContent = terminal.innerText;
+    
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    showMessage(t('logExported'), 'success');
+}

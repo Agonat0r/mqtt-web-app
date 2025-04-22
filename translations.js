@@ -59,21 +59,27 @@ const translations = {
     showBorders: "Show Borders",
     reset: "Reset",
 
-    // Tools
-    enterEmail: "Enter your email...",
-    sendReport: "📤 Send Report",
-    exportLogs: "💾 Export Logs",
-    saveLogs: "📁 Save",
-    clearGeneral: "🧹 Clear General",
-    clearCommands: "🧹 Clear Commands",
-    clearAlerts: "🧹 Clear Alerts",
+    // Language
+    language: "Language",
+    languageChanged: "Language changed successfully!",
+
+    // Logs and Email
+    clearLog: "Clear Log",
+    exportLog: "Export Log",
+    emailLog: "Email Log",
+    logExported: "Log exported successfully!",
+    enterEmail: "Enter email address...",
+    sendEmail: "Send Email",
+    cancel: "Cancel",
+    emailSent: "Log sent successfully!",
+    emailError: "Failed to send email. Please try again.",
+    logCleared: "Log cleared...",
 
     // Connection Status
     connected: "✅ Connected to MQTT broker",
     subscribed: "🔔 Subscribed to topic: ",
     mqttError: "❌ MQTT Error: ",
-    reconnecting: "🔁 Reconnecting...",
-    logCleared: "Log cleared..."
+    reconnecting: "🔁 Reconnecting..."
   },
   de: {
     // Login
@@ -134,21 +140,27 @@ const translations = {
     showBorders: "Ränder anzeigen",
     reset: "Zurücksetzen",
 
-    // Tools
-    enterEmail: "E-Mail eingeben...",
-    sendReport: "📤 Bericht senden",
-    exportLogs: "💾 Logs exportieren",
-    saveLogs: "📁 Speichern",
-    clearGeneral: "🧹 Allgemein löschen",
-    clearCommands: "🧹 Befehle löschen",
-    clearAlerts: "🧹 Warnungen löschen",
+    // Language
+    language: "Sprache",
+    languageChanged: "Sprache erfolgreich geändert!",
+
+    // Logs and Email
+    clearLog: "Log löschen",
+    exportLog: "Log exportieren",
+    emailLog: "Log per E-Mail",
+    logExported: "Log erfolgreich exportiert!",
+    enterEmail: "E-Mail-Adresse eingeben...",
+    sendEmail: "E-Mail senden",
+    cancel: "Abbrechen",
+    emailSent: "Log erfolgreich gesendet!",
+    emailError: "E-Mail konnte nicht gesendet werden. Bitte erneut versuchen.",
+    logCleared: "Log gelöscht...",
 
     // Connection Status
     connected: "✅ Verbunden mit MQTT Broker",
     subscribed: "🔔 Abonniert Thema: ",
     mqttError: "❌ MQTT Fehler: ",
-    reconnecting: "🔁 Verbinde neu...",
-    logCleared: "Log gelöscht..."
+    reconnecting: "�� Verbinde neu..."
   },
   // Add other languages here with the same structure
 };

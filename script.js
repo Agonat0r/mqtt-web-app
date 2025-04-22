@@ -654,14 +654,6 @@ function handleLogin(event) {
         
         // Show success message
         showMessage(t('loginSuccess'), 'success');
-        
-        // Initialize MQTT client after successful login
-        if (typeof initializeMQTTClient === 'function') {
-            initializeMQTTClient();
-        } else {
-            console.warn('MQTT initialization function not found');
-            // Still proceed since MQTT might not be required immediately
-        }
     } else {
         loggedIn = false;
         showMessage(t('invalidCredentials'), 'error');

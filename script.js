@@ -4,14 +4,14 @@ import translations from './translations.js';
 /**
  * Initializes the application when the DOM is fully loaded.
  * Sets up event handlers, loads settings, applies UI customizations,
- * updates text translations, and establishes MQTT connection.
+ * updates text translations, but does NOT connect to MQTT until login.
  */
 document.addEventListener('DOMContentLoaded', () => {
   initializeEventHandlers();
   loadSettings();
   applySettings();
   updateAllText();
-  mqttHandler.connect();
+  // MQTT connection happens after login
 });
 
 /**
@@ -624,11 +624,13 @@ const mqttHandler = new MQTTHandler();
  * Validates credentials and shows/hides appropriate screens.
  */
 function handleLogin() {
-  const user = document.getElementById("login-username").value;
-  const pass = document.getElementById("login-password").value;
-  if (user === "Carlos" && pass === "mqtt2025") {
-    document.getElementById("login-screen").classList.add("hidden");
-    document.getElementById("main-app").classList.remove("hidden");
+  const username = document.getElementById("login-username").value;
+  const password = document.getElementById("login-password").value;
+  
+  if (username === "Carlos" && password === "mqtt2025") {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("main-app").style.display = "block";
+    loggedIn = true;
     mqttHandler.connect();
   } else {
     alert(t('invalidCredentials'));
@@ -705,10 +707,16 @@ function translatePrefix(text, lang) {
  * @param {string} tabId - The ID of the tab to switch to
  */
 function switchTab(tabId) {
-  document.querySelectorAll(".tab-content").forEach((tab) => {
-    tab.classList.add("hidden");
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    tab.classList.add('hidden');
   });
-  document.getElementById(`${tabId}-tab`)?.classList.remove("hidden");
+  
+  // Show selected tab
+  const selectedTab = document.getElementById(`${tabId}-tab`);
+  if (selectedTab) {
+    selectedTab.classList.remove('hidden');
+  }
 }
 
 // Event Listeners with null checks

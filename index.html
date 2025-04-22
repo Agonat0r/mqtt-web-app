@@ -19,93 +19,139 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <nav class="navbar">
-    <h1>VPL Monitoring Dashboard</h1>
-    <div class="status-indicator status-disconnected" id="connectionStatus">
-      Disconnected
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-container">
+    <div class="login-box">
+      <h2 id="login-title">🔐 USF Harmar MQTT Login</h2>
+      <input type="text" id="login-username" placeholder="Username" required>
+      <input type="password" id="login-password" placeholder="Password" required>
+      <button data-action="login" class="btn btn-primary">Login</button>
     </div>
-  </nav>
+  </div>
 
-  <main class="container">
-    <section class="status-section">
-      <h2>System Status</h2>
-      <div class="status-grid">
-        <div class="status-card">
-          <h3>Connection</h3>
-          <p id="mqttStatus">Not Connected</p>
-        </div>
-        <div class="status-card">
-          <h3>Last Update</h3>
-          <p id="lastUpdate">Never</p>
-        </div>
-        <div class="status-card">
-          <h3>VPL State</h3>
-          <p id="vplState">Unknown</p>
-        </div>
+  <!-- Main App (Initially Hidden) -->
+  <div id="main-app" class="hidden">
+    <nav class="navbar">
+      <h1 class="nav-title">VPL Monitoring Dashboard</h1>
+      <div class="nav-tabs">
+        <select data-action="switch-tab" class="tab-selector">
+          <option value="status">📊 Status</option>
+          <option value="general">📋 General</option>
+          <option value="commands">🧠 Commands</option>
+          <option value="alerts">🚨 Alerts</option>
+          <option value="customization">🍩 Customization</option>
+        </select>
       </div>
-    </section>
-
-    <section class="telemetry-section">
-      <h2>Telemetry Data</h2>
-      <div class="telemetry-grid">
-        <div class="telemetry-card">
-          <h3>Position</h3>
-          <p id="position">--</p>
-        </div>
-        <div class="telemetry-card">
-          <h3>Speed</h3>
-          <p id="speed">--</p>
-        </div>
-        <div class="telemetry-card">
-          <h3>Temperature</h3>
-          <p id="temperature">--</p>
-        </div>
+      <div class="status-indicator status-disconnected" id="connectionStatus">
+        Disconnected
       </div>
-    </section>
+    </nav>
 
-    <section class="log-section">
-      <h2>System Log</h2>
-      <div class="message-log" id="messageLog"></div>
-      <div class="log-controls">
-        <button id="clearLog" class="btn btn-secondary">Clear Log</button>
-        <button id="exportLog" class="btn btn-primary">Export Log</button>
-      </div>
-    </section>
+    <main class="container">
+      <!-- Status Tab -->
+      <section id="status-tab" class="tab-content">
+        <section class="status-section">
+          <h2>System Status</h2>
+          <div class="status-grid">
+            <div class="status-card">
+              <h3>Connection</h3>
+              <p id="mqttStatus">Not Connected</p>
+            </div>
+            <div class="status-card">
+              <h3>Last Update</h3>
+              <p id="lastUpdate">Never</p>
+            </div>
+            <div class="status-card">
+              <h3>VPL State</h3>
+              <p id="vplState">Unknown</p>
+            </div>
+          </div>
+        </section>
 
-    <section class="customization-section">
-      <h2>Customization</h2>
-      <div class="customization-grid">
-        <div class="customization-card">
-          <h3>Theme</h3>
-          <select id="themeSelector" class="form-select">
-            <option value="default">Default</option>
-            <option value="dark">Dark</option>
-            <option value="usf">USF Theme</option>
-          </select>
-        </div>
-        <div class="customization-card">
-          <h3>Font</h3>
-          <select id="fontSelector" class="form-select">
-            <option value="default">Default</option>
-            <option value="monospace">Monospace</option>
-            <option value="sans-serif">Sans Serif</option>
-          </select>
-        </div>
-        <div class="customization-card">
-          <h3>Borders</h3>
-          <label class="switch">
-            <input type="checkbox" id="borderToggle">
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-      <button id="resetCustomizations" class="btn btn-secondary">Reset to Default</button>
-    </section>
-  </main>
+        <section class="telemetry-section">
+          <h2>Telemetry Data</h2>
+          <div class="telemetry-grid">
+            <div class="telemetry-card">
+              <h3>Position</h3>
+              <p id="position">--</p>
+            </div>
+            <div class="telemetry-card">
+              <h3>Speed</h3>
+              <p id="speed">--</p>
+            </div>
+            <div class="telemetry-card">
+              <h3>Temperature</h3>
+              <p id="temperature">--</p>
+            </div>
+          </div>
+        </section>
+      </section>
 
-  <footer>
-    <p>&copy; 2024 VPL Monitoring System</p>
-  </footer>
+      <!-- General Tab -->
+      <section id="general-tab" class="tab-content hidden">
+        <h2 id="general-title">📋 General Console</h2>
+        <div class="message-log" id="messageLog"></div>
+        <div class="log-controls">
+          <button data-action="clear-log" data-log="messageLog" class="btn btn-secondary">Clear Log</button>
+          <button data-action="export-logs" class="btn btn-primary">Export Log</button>
+        </div>
+      </section>
+
+      <!-- Commands Tab -->
+      <section id="commands-tab" class="tab-content hidden">
+        <h2 id="commands-title">🧠 Command Console</h2>
+        <div class="message-log" id="command-log"></div>
+        <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input">
+        <div class="log-controls">
+          <button data-action="clear-log" data-log="command-log" class="btn btn-secondary">Clear Log</button>
+        </div>
+      </section>
+
+      <!-- Alerts Tab -->
+      <section id="alerts-tab" class="tab-content hidden">
+        <h2 id="alerts-title">🚨 Alert Console</h2>
+        <div class="message-log" id="alert-log"></div>
+        <div class="log-controls">
+          <button data-action="clear-log" data-log="alert-log" class="btn btn-secondary">Clear Log</button>
+        </div>
+      </section>
+
+      <!-- Customization Tab -->
+      <section id="customization-tab" class="tab-content hidden">
+        <h2 id="customization-title">🍩 Customization</h2>
+        <div class="customization-grid">
+          <div class="customization-card">
+            <h3>Theme</h3>
+            <select id="themeSelector" data-action="apply-theme" class="form-select">
+              <option value="default">Default</option>
+              <option value="dark">Dark</option>
+              <option value="usf">USF Theme</option>
+            </select>
+          </div>
+          <div class="customization-card">
+            <h3>Font</h3>
+            <select id="fontSelector" data-action="apply-font" class="form-select">
+              <option value="default">Default</option>
+              <option value="monospace">Monospace</option>
+              <option value="sans-serif">Sans Serif</option>
+            </select>
+          </div>
+          <div class="customization-card">
+            <h3>Borders</h3>
+            <label class="switch">
+              <input type="checkbox" id="borderToggle" data-action="apply-borders">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        <button id="resetCustomizations" data-action="reset-customizations" class="btn btn-secondary">Reset to Default</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2024 VPL Monitoring System</p>
+    </footer>
+  </div>
 
   <!-- Audio Elements -->
   <audio id="click-sound" src="sounds/click.mp3" preload="auto"></audio>

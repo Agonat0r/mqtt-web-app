@@ -1,5 +1,5 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
-import translations from './translations.js';
+import { translations } from './translations.js';
 
 /**
  * Initializes the application when the DOM is fully loaded.

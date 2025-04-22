@@ -111,7 +111,6 @@ A real-time monitoring dashboard for VPL (Vertical Platform Lift) systems using 
     - Return values
     - Examples where needed
 - sounds/: Audio files for notifications
-  - command.mp3: Command notification sound
   - click.mp3: Button click feedback sound
 
 ### 5. Settings Management

@@ -473,11 +473,6 @@ class MQTTHandler {
             this.updateStatus(payload.data);
           }
 
-          // Play command sound for command messages
-          if (payload.type === 'command' || message.toString().startsWith("COMMAND:")) {
-            document.getElementById("command-sound")?.play().catch(err => console.log('Command sound not loaded yet'));
-          }
-
           this.logMessage(`Received on ${receivedTopic}: ${message.toString()}`);
           this.updateLastUpdate();
         } catch (error) {

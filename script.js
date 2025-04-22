@@ -404,361 +404,274 @@ let topic = "usf/messages";
 let client;
 let loggedIn = false;
 
-/**
- * MQTT Handler Class
- * Manages all MQTT connections, subscriptions, and message handling.
- */
-class MQTTHandler {
-  /**
-   * Initializes a new MQTT handler with configuration.
-   */
-  constructor() {
-    this.client = null;
-    this.config = {
-      // Using WebSocket connection
-      protocol: 'wss',
-      hostname: 'lb88002c.ala.us-east-1.emqxsl.com',
-      port: 8084,
-      path: '/mqtt',
-      clientId: `vpl_dashboard_${Math.random().toString(16).slice(2, 10)}`,
-      username: 'usf-harmar',
-      password: 'harmar2025',
-      keepalive: 60,
-      clean: true,
-      reconnectPeriod: 4000,
-      connectTimeout: 30 * 1000,
-      rejectUnauthorized: false
-    };
-  }
+// DOM Elements
+const loginContainer = document.querySelector('.login-container');
+const mainApp = document.querySelector('#main-app');
+const tabSelector = document.querySelector('.tab-selector');
+const tabContents = document.querySelectorAll('.tab-content');
+const generalTerminal = document.querySelector('#general-terminal');
+const commandTerminal = document.querySelector('#command-terminal');
+const terminalInput = document.querySelector('#terminal-input');
 
-  /**
-   * Establishes connection to the MQTT broker and sets up event handlers.
-   */
-  connect() {
-    try {
-      // Use the brokerHost directly for connection
-      this.client = mqtt.connect(brokerHost, {
-        clientId: this.config.clientId,
-        username: this.config.username,
-        password: this.config.password,
-        keepalive: this.config.keepalive,
-        clean: this.config.clean,
-        reconnectPeriod: this.config.reconnectPeriod,
-        connectTimeout: this.config.connectTimeout,
-        rejectUnauthorized: this.config.rejectUnauthorized
-      });
+// Initialize MQTT Client
+function initializeMQTTClient() {
+    client = mqtt.connect(brokerHost, {
+        username: 'usf-harmar',
+        password: 'harmar2025',
+        clientId: 'mqtt-dashboard-' + Math.random().toString(16).substr(2, 8),
+        clean: true,
+        reconnectPeriod: 4000,
+        connectTimeout: 30000
+    });
 
-      this.client.on('connect', () => {
-        this.updateConnectionStatus(true);
-        this.logMessage('Connected to EMQX broker');
-        
-        // Subscribe to the authorized topic
-        this.client.subscribe(topic, (err) => {
-          if (err) {
-            this.logMessage(`Subscription error: ${err.message}`, 'error');
-          } else {
-            this.logMessage(`Subscribed to ${topic}`);
-          }
+    setupMQTTEventHandlers();
+}
+
+// Setup MQTT Event Handlers
+function setupMQTTEventHandlers() {
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        updateConnectionStatus('connected');
+        client.subscribe(topic, (err) => {
+            if (err) {
+                console.error('Subscription error:', err);
+                logToTerminal('Error subscribing to topic: ' + err.message, 'error');
+            } else {
+                logToTerminal('Subscribed to topic: ' + topic, 'success');
+            }
         });
-      });
+    });
 
-      this.client.on('message', (receivedTopic, message) => {
+    client.on('message', (topic, message) => {
         try {
-          const payload = JSON.parse(message.toString());
-          
-          // Check message type from payload
-          if (payload.type === 'telemetry') {
-            this.updateTelemetry(payload.data);
-          } else if (payload.type === 'status') {
-            this.updateStatus(payload.data);
-          }
-
-          this.logMessage(`Received on ${receivedTopic}: ${message.toString()}`);
-          this.updateLastUpdate();
-        } catch (error) {
-          this.logMessage(`Error handling message: ${error.message}`, 'error');
+            const payload = JSON.parse(message.toString());
+            handleMQTTMessage(payload);
+        } catch (e) {
+            logToTerminal('Error parsing message: ' + e.message, 'error');
         }
-      });
+    });
 
-      this.client.on('error', (error) => {
-        this.logMessage(`MQTT Error: ${error.message}`, 'error');
-        this.updateConnectionStatus(false);
-      });
+    client.on('error', (err) => {
+        console.error('MQTT Error:', err);
+        updateConnectionStatus('error');
+        logToTerminal('MQTT Error: ' + err.message, 'error');
+    });
 
-      this.client.on('close', () => {
-        this.logMessage('Connection closed', 'warn');
-        this.updateConnectionStatus(false);
-      });
+    client.on('close', () => {
+        console.log('Connection closed');
+        updateConnectionStatus('disconnected');
+        logToTerminal('Connection closed', 'warning');
+    });
 
-      this.client.on('reconnect', () => {
-        this.logMessage('Attempting to reconnect...', 'info');
-      });
+    client.on('reconnect', () => {
+        console.log('Attempting to reconnect...');
+        updateConnectionStatus('connecting');
+        logToTerminal('Attempting to reconnect...', 'info');
+    });
+}
 
-    } catch (error) {
-      this.logMessage(`Connection failed: ${error.message}`, 'error');
-      this.updateConnectionStatus(false);
+// Handle MQTT Messages
+function handleMQTTMessage(payload) {
+    switch (payload.type) {
+        case 'telemetry':
+            updateTelemetryData(payload.data);
+            logToTerminal('Telemetry: ' + JSON.stringify(payload.data), 'info');
+            break;
+        case 'status':
+            updateStatusData(payload.data);
+            logToTerminal('Status: ' + JSON.stringify(payload.data), 'info');
+            break;
+        case 'command':
+            logToCommandTerminal('Command: ' + JSON.stringify(payload.data), 'command');
+            break;
+        case 'alert':
+            handleAlert(payload.data);
+            break;
+        default:
+            logToTerminal('Unknown message type: ' + payload.type, 'warning');
     }
-  }
+}
 
-  /**
-   * Updates telemetry data in the UI.
-   * @param {Object} data - The telemetry data object
-   */
-  updateTelemetry(data) {
-    if (data.position !== undefined && elements.position) {
-      elements.position.textContent = `${data.position}mm`;
-    }
-    if (data.speed !== undefined && elements.speed) {
-      elements.speed.textContent = `${data.speed}mm/s`;
-    }
-    if (data.temperature !== undefined && elements.temperature) {
-      elements.temperature.textContent = `${data.temperature}°C`;
-    }
-  }
+// Update Connection Status
+function updateConnectionStatus(status) {
+    const statusIndicator = document.querySelector('.status-indicator');
+    if (!statusIndicator) return;
 
-  /**
-   * Updates VPL status in the UI.
-   * @param {Object} data - The status data object
-   */
-  updateStatus(data) {
-    if (data.state && elements.vplState) {
-      elements.vplState.textContent = data.state;
-      elements.vplState.className = `state-${data.state.toLowerCase()}`;
-    }
-  }
-
-  /**
-   * Updates connection status indicators in the UI.
-   * @param {boolean} connected - Whether the client is connected
-   */
-  updateConnectionStatus(connected) {
-    if (elements.connectionStatus) {
-      elements.connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
-      elements.connectionStatus.className = `status-indicator ${connected ? 'status-connected' : 'status-disconnected'}`;
-    }
-    if (elements.mqttStatus) {
-      elements.mqttStatus.textContent = connected ? 'Connected' : 'Not Connected';
-    }
-  }
-
-  /**
-   * Updates the last update timestamp in the UI.
-   */
-  updateLastUpdate() {
-    if (elements.lastUpdate) {
-      elements.lastUpdate.textContent = new Date().toLocaleTimeString();
-    }
-  }
-
-  /**
-   * Adds a message to the message log with timestamp.
-   * @param {string} message - The message to log
-   * @param {string} type - The type of message (info, error, etc.)
-   */
-  logMessage(message, type = 'info') {
-    if (!elements.messageLog) return;
+    statusIndicator.className = 'status-indicator';
+    statusIndicator.classList.add('status-' + status);
     
+    const statusText = {
+        connected: 'Connected',
+        disconnected: 'Disconnected',
+        connecting: 'Connecting...',
+        error: 'Connection Error'
+    };
+    
+    statusIndicator.textContent = statusText[status] || status;
+}
+
+// Log to Terminal
+function logToTerminal(message, type = 'info') {
+    if (!generalTerminal) return;
+
+    const timestamp = new Date().toLocaleTimeString();
     const logEntry = document.createElement('div');
-    logEntry.className = `log-entry log-${type}`;
-    logEntry.innerHTML = `
-      <span class="log-time">${new Date().toLocaleTimeString()}</span>
-      <span class="log-message">${message}</span>
-    `;
-    elements.messageLog.appendChild(logEntry);
-    elements.messageLog.scrollTop = elements.messageLog.scrollHeight;
-  }
+    logEntry.className = 'log-entry ' + type;
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    
+    generalTerminal.appendChild(logEntry);
+    generalTerminal.scrollTop = generalTerminal.scrollHeight;
+}
 
-  /**
-   * Disconnects from the MQTT broker.
-   */
-  disconnect() {
-    if (this.client) {
-      this.client.end();
-      this.client = null;
-      this.updateConnectionStatus(false);
-      this.logMessage('Disconnected from MQTT broker');
+// Log to Command Terminal
+function logToCommandTerminal(message, type = 'command') {
+    if (!commandTerminal) return;
+
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry ' + type;
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    
+    commandTerminal.appendChild(logEntry);
+    commandTerminal.scrollTop = commandTerminal.scrollHeight;
+}
+
+// Clear Terminal
+function clearTerminal(terminalId) {
+    const terminal = document.getElementById(terminalId);
+    if (terminal) {
+        terminal.innerHTML = '';
     }
-  }
+}
 
-  /**
-   * Subscribes to an MQTT topic.
-   * @param {string} topic - The topic to subscribe to
-   */
-  subscribe(topic) {
-    if (!this.client?.connected) {
-      this.client.subscribe(topic, (err) => {
-        if (err) {
-          console.error(`Failed to subscribe to ${topic}:`, err);
-          this.logMessage(`Failed to subscribe to ${topic}: ${err.message}`, 'error');
+// Handle Login
+function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    if (username === 'admin' && password === 'admin') {
+        loggedIn = true;
+        loginContainer.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        initializeMQTTClient();
+    } else {
+        alert('Invalid credentials. Please try again.');
+    }
+}
+
+// Handle Tab Switching
+function handleTabSwitch(event) {
+    const selectedTab = event.target.value;
+    tabContents.forEach(content => {
+        if (content.id === selectedTab) {
+            content.classList.remove('hidden');
         } else {
-          this.logMessage(`Subscribed to ${topic}`);
+            content.classList.add('hidden');
         }
-      });
+    });
+}
+
+// Send Command
+function sendCommand(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        const command = terminalInput.value.trim();
+        
+        if (command) {
+            const payload = {
+                type: 'command',
+                data: { command: command }
+            };
+            
+            client.publish(topic, JSON.stringify(payload), (err) => {
+                if (err) {
+                    logToCommandTerminal('Error sending command: ' + err.message, 'error');
+                } else {
+                    logToCommandTerminal('Command sent: ' + command, 'success');
+                }
+            });
+            
+            terminalInput.value = '';
+        }
     }
-  }
 }
 
-// UI Elements object with null checks
-const elements = {
-  connectionStatus: document.getElementById('connectionStatus') || null,
-  mqttStatus: document.getElementById('mqttStatus') || null,
-  lastUpdate: document.getElementById('lastUpdate') || null,
-  vplState: document.getElementById('vplState') || null,
-  position: document.getElementById('position') || null,
-  speed: document.getElementById('speed') || null,
-  temperature: document.getElementById('temperature') || null,
-  messageLog: document.getElementById('messageLog') || null,
-  clearLog: document.getElementById('clearLog') || null,
-  exportLog: document.getElementById('exportLog') || null,
-  themeSelector: document.getElementById('themeSelector') || null,
-  fontSelector: document.getElementById('fontSelector') || null,
-  borderToggle: document.getElementById('borderToggle') || null,
-  resetCustomizations: document.getElementById('resetCustomizations') || null,
-};
+// Update Status Data
+function updateStatusData(data) {
+    const statusGrid = document.querySelector('.status-grid');
+    if (!statusGrid) return;
 
-// Initialize MQTT Handler
-const mqttHandler = new MQTTHandler();
+    // Clear existing status cards
+    statusGrid.innerHTML = '';
 
-/**
- * Handles user login authentication.
- * Validates credentials and shows/hides appropriate screens.
- */
-function handleLogin() {
-  const username = document.getElementById("login-username").value;
-  const password = document.getElementById("login-password").value;
-  
-  if (username === "Carlos" && password === "mqtt2025") {
-    // Hide login screen
-    const loginScreen = document.getElementById("login-screen");
-    const mainApp = document.getElementById("main-app");
-    
-    if (loginScreen) {
-      loginScreen.classList.add("hidden");
-    }
-    
-    // Show main app and switch to status tab
-    if (mainApp) {
-      mainApp.classList.remove("hidden");
-      switchTab('status');
-    }
-    
-    loggedIn = true;
-    mqttHandler.connect();
-  } else {
-    alert(t('invalidCredentials'));
-  }
+    // Create new status cards
+    Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'status-card';
+        card.innerHTML = `
+            <h3>${key}</h3>
+            <p>${value}</p>
+        `;
+        statusGrid.appendChild(card);
+    });
 }
 
-/**
- * Logs a message to specified log and Firestore.
- * @param {string} id - The ID of the log element
- * @param {string} text - The message text
- * @param {string} type - The type of log entry
- * @param {string|null} rawCommand - The raw command if applicable
- */
-function log(id, text, type = "general", rawCommand = null) {
-  const timestamp = new Date();
-  const lang = document.getElementById("language-selector")?.value || "en";
-  const translated = `[${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}] ${translatePrefix(text, lang)}`;
-  const el = document.getElementById(id);
-  if (el) {
-    el.textContent += translated + "\n";
-    el.scrollTop = el.scrollHeight;
-  }
+// Update Telemetry Data
+function updateTelemetryData(data) {
+    const telemetryGrid = document.querySelector('.telemetry-grid');
+    if (!telemetryGrid) return;
 
-  db.collection("logs").add({
-    type,
-    tab: id,
-    message: text,
-    timestamp,
-    lang,
-    command: rawCommand || ""
-  }).catch(err => {
-    console.error("❌ Firestore write failed:", err);
-  });
+    // Clear existing telemetry cards
+    telemetryGrid.innerHTML = '';
+
+    // Create new telemetry cards
+    Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'telemetry-card';
+        card.innerHTML = `
+            <h3>${key}</h3>
+            <p>${typeof value === 'object' ? JSON.stringify(value) : value}</p>
+        `;
+        telemetryGrid.appendChild(card);
+    });
 }
 
-/**
- * Logs a message to all available logs.
- * @param {string} text - The message to log
- */
-function logToAll(text) {
-  ["general-log", "command-log", "alert-log"].forEach(id => log(id, text));
+// Handle Alert
+function handleAlert(data) {
+    logToTerminal('Alert: ' + JSON.stringify(data), 'alert');
+    // You can add additional alert handling here, such as showing a notification
 }
 
-/**
- * Translates message prefixes based on language.
- * @param {string} text - The text containing prefixes to translate
- * @param {string} lang - The target language
- * @returns {string} The text with translated prefixes
- */
-function translatePrefix(text, lang) {
-  const map = {
-    en: { '[SEND]': '[SEND]', '[RECV]': '[RECV]', '[WARN]': '[WARN]' },
-    es: { '[SEND]': '[ENVIADO]', '[RECV]': '[RECIBIDO]', '[WARN]': '[AVISO]' },
-    zh: { '[SEND]': '[发送]', '[RECV]': '[接收]', '[WARN]': '[警告]' },
-    hi: { '[SEND]': '[भेजा गया]', '[RECV]': '[प्राप्त]', '[WARN]': '[चेतावनी]' },
-    ar: { '[SEND]': '[مرسل]', '[RECV]': '[مستلم]', '[WARN]': '[تحذير]' },
-    bn: { '[SEND]': '[প্রেরিত]', '[RECV]': '[গৃহীত]', '[WARN]': '[সতর্কতা]' },
-    pt: { '[SEND]': '[ENVIADO]', '[RECV]': '[RECEBIDO]', '[WARN]': '[AVISO]' },
-    ru: { '[SEND]': '[ОТПРАВ]', '[RECV]': '[ПРИНЯТ]', '[WARN]': '[ПРЕД]' },
-    ja: { '[SEND]': '[送信]', '[RECV]': '[受信]', '[WARN]': '[警告]' },
-    de: { '[SEND]': '[GESENDET]', '[RECV]': '[EMPFANGEN]', '[WARN]': '[WARNUNG]' }
-  };
-  const dictionary = map[lang] || map.en;
-  for (const prefix in dictionary) {
-    if (text.includes(prefix)) {
-      return text.replace(prefix, dictionary[prefix]);
-    }
-  }
-  return text;
-}
+// Event Listeners
+document.getElementById('login-form').addEventListener('submit', handleLogin);
+tabSelector.addEventListener('change', handleTabSwitch);
+terminalInput.addEventListener('keypress', sendCommand);
 
-/**
- * Switches between different tabs in the UI.
- * @param {string} tabId - The ID of the tab to switch to
- */
-function switchTab(tabId) {
-  // Hide all tabs first
-  const tabs = document.querySelectorAll('.tab-content');
-  tabs.forEach(tab => tab.classList.add('hidden'));
-  
-  // Show the selected tab
-  const selectedTab = document.getElementById(`${tabId}-tab`);
-  if (selectedTab) {
-    selectedTab.classList.remove('hidden');
-    
-    // Update the tab selector if it exists
-    const tabSelector = document.querySelector('#tab-selector');
-    if (tabSelector) {
-      tabSelector.value = tabId;
-    }
-  }
-}
+// Clear log buttons
+document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
+    button.addEventListener('click', () => {
+        const terminalId = button.getAttribute('data-target');
+        clearTerminal(terminalId);
+    });
+});
 
-// Event Listeners with null checks
-if (elements.clearLog) {
-  elements.clearLog.addEventListener('click', () => {
-    if (elements.messageLog) {
-      elements.messageLog.innerHTML = '';
-      mqttHandler.logMessage('Log cleared');
-    }
-  });
-}
+// Export log buttons
+document.querySelectorAll('[data-action="export-log"]').forEach(button => {
+    button.addEventListener('click', () => {
+        const terminalId = button.getAttribute('data-target');
+        const terminal = document.getElementById(terminalId);
+        if (!terminal) return;
 
-if (elements.exportLog) {
-  elements.exportLog.addEventListener('click', () => {
-    if (!elements.messageLog) return;
-    
-    const logContent = elements.messageLog.innerText;
-    const blob = new Blob([logContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vpl-log-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-}
+        const logContent = terminal.innerText;
+        const blob = new Blob([logContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${terminalId}-${new Date().toISOString()}.log`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    });
+});

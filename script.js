@@ -467,177 +467,142 @@ function clearLog(id) {
 }
 
 // MQTT Configuration
-let brokerHost = "wss://lb88002c.ala.us-east-1.emqxsl.com:8084/mqtt";
-let topic = "usf/messages";
-let client;
-let loggedIn = false;
+const brokerConfig = {
+    host: 'lb88002c.ala.us-east-1.emqxsl.com',
+    port: 8084,
+    path: '/mqtt',
+    username: 'Carlos',
+    password: 'mqtt2025',
+    clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
+};
 
-// CA Certificate for MQTT WSS Connection
-const ca_cert = `-----BEGIN CERTIFICATE-----
-MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
-MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
-d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
-QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
-MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
-b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
-9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
-CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
-nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
-43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
-T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
-gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
-BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
-TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
-DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
-hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
-06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
-PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
-YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
-CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
------END CERTIFICATE-----`;
+// Terminal elements
+const messageLog = document.getElementById('messageLog');
+const commandLog = document.getElementById('command-log');
+const terminalInput = document.getElementById('terminal-input');
 
-// DOM Elements
-const loginContainer = document.querySelector('.login-container');
-const mainApp = document.querySelector('#main-app');
-const tabSelector = document.querySelector('.tab-selector');
-const tabContents = document.querySelectorAll('.tab-content');
-const generalTerminal = document.querySelector('#general-terminal');
-const commandTerminal = document.querySelector('#command-terminal');
-const terminalInput = document.querySelector('#terminal-input');
+// Connect to MQTT broker
+const client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
+    username: brokerConfig.username,
+    password: brokerConfig.password,
+    clientId: brokerConfig.clientId,
+    clean: true
+});
 
-// Initialize MQTT Client
-function initializeMQTTClient() {
-    client = mqtt.connect(brokerHost, {
-        username: 'Carlos',
-        password: 'mqtt2025',
-        clientId: 'mqtt-dashboard-' + Math.random().toString(16).substr(2, 8),
-        clean: true,
-        reconnectPeriod: 4000,
-        connectTimeout: 30000,
-        ca: ca_cert
-    });
-
-    setupMQTTEventHandlers();
-}
-
-// Setup MQTT Event Handlers
-function setupMQTTEventHandlers() {
-    client.on('connect', () => {
-        console.log('Connected to MQTT broker');
-        updateConnectionStatus('connected');
-        client.subscribe(topic, (err) => {
-            if (err) {
-                console.error('Subscription error:', err);
-                logToTerminal('Error subscribing to topic: ' + err.message, 'error');
-            } else {
-                logToTerminal('Subscribed to topic: ' + topic, 'success');
-            }
-        });
-    });
-
-    client.on('message', (topic, message) => {
-        try {
-            const payload = JSON.parse(message.toString());
-            handleMQTTMessage(payload);
-        } catch (e) {
-            logToTerminal('Error parsing message: ' + e.message, 'error');
+// MQTT connection handling
+client.on('connect', () => {
+    console.log('Connected to MQTT broker');
+    logToTerminal('Connected to MQTT broker', 'success');
+    
+    // Subscribe to the topic
+    client.subscribe('usf/messages', (err) => {
+        if (err) {
+            console.error('Subscription error:', err);
+            logToTerminal('Failed to subscribe to messages', 'error');
+        } else {
+            logToTerminal('Subscribed to messages', 'info');
         }
     });
+});
 
-    client.on('error', (err) => {
-        console.error('MQTT Error:', err);
-        updateConnectionStatus('error');
-        logToTerminal('MQTT Error: ' + err.message, 'error');
-    });
+client.on('error', (error) => {
+    console.error('MQTT Error:', error);
+    logToTerminal('MQTT Error: ' + error.message, 'error');
+});
 
-    client.on('close', () => {
-        console.log('Connection closed');
-        updateConnectionStatus('disconnected');
-        logToTerminal('Connection closed', 'warning');
-    });
-
-    client.on('reconnect', () => {
-        console.log('Attempting to reconnect...');
-        updateConnectionStatus('connecting');
-        logToTerminal('Attempting to reconnect...', 'info');
-    });
-}
-
-// Handle MQTT Messages
-function handleMQTTMessage(payload) {
-    switch (payload.type) {
-        case 'telemetry':
-            updateTelemetryData(payload.data);
-            logToTerminal('Telemetry: ' + JSON.stringify(payload.data), 'info');
-            break;
-        case 'status':
-            updateStatusData(payload.data);
-            logToTerminal('Status: ' + JSON.stringify(payload.data), 'info');
-            break;
-        case 'command':
-            logToCommandTerminal('Command: ' + JSON.stringify(payload.data), 'command');
-            break;
-        case 'red':
-        case 'amber':
-        case 'green':
+client.on('message', (topic, message) => {
+    console.log('Received message:', topic, message.toString());
+    try {
+        const payload = JSON.parse(message.toString());
+        
+        // Handle different message types
+        if (payload.type === 'alarm') {
             handleAlarm(payload);
-            break;
-        default:
-            logToTerminal('Unknown message type: ' + payload.type, 'warning');
+        } else if (payload.type === 'command') {
+            logToCommandTerminal(payload.message || 'Command received', payload.type);
+        } else {
+            // Default to general terminal for other messages
+            logToTerminal(payload.message || message.toString(), 'info');
+        }
+    } catch (e) {
+        console.error('Error parsing message:', e);
+        logToTerminal('Error parsing message: ' + message.toString(), 'error');
     }
-}
+});
 
-// Update Connection Status
-function updateConnectionStatus(status) {
-    const statusIndicator = document.querySelector('.status-indicator');
-    if (!statusIndicator) return;
-
-    statusIndicator.className = 'status-indicator';
-    statusIndicator.classList.add('status-' + status);
-    
-    const statusText = {
-        connected: 'Connected',
-        disconnected: 'Disconnected',
-        connecting: 'Connecting...',
-        error: 'Connection Error'
-    };
-    
-    statusIndicator.textContent = statusText[status] || status;
-}
-
-// Log to Terminal
+// Terminal logging functions
 function logToTerminal(message, type = 'info') {
-    if (!generalTerminal) return;
-
     const timestamp = new Date().toLocaleTimeString();
     const logEntry = document.createElement('div');
-    logEntry.className = 'log-entry ' + type;
-    logEntry.textContent = `[${timestamp}] ${message}`;
-    
-    generalTerminal.appendChild(logEntry);
-    generalTerminal.scrollTop = generalTerminal.scrollHeight;
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `[${timestamp}] ${message}`;
+    messageLog.appendChild(logEntry);
+    messageLog.scrollTop = messageLog.scrollHeight;
 }
 
-// Log to Command Terminal
 function logToCommandTerminal(message, type = 'command') {
-    if (!commandTerminal) return;
-
     const timestamp = new Date().toLocaleTimeString();
     const logEntry = document.createElement('div');
-    logEntry.className = 'log-entry ' + type;
-    logEntry.textContent = `[${timestamp}] ${message}`;
-    
-    commandTerminal.appendChild(logEntry);
-    commandTerminal.scrollTop = commandTerminal.scrollHeight;
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `[${timestamp}] ${message}`;
+    commandLog.appendChild(logEntry);
+    commandLog.scrollTop = commandLog.scrollHeight;
 }
 
-// Clear Terminal
-function clearTerminal(terminalId) {
-    const terminal = document.getElementById(terminalId);
-    if (terminal) {
-        terminal.innerHTML = '';
+function handleAlarm(alarm) {
+    const timestamp = new Date().toLocaleTimeString();
+    const alarmEntry = document.createElement('div');
+    alarmEntry.className = 'alarm-entry';
+    alarmEntry.innerHTML = `[${timestamp}] ${alarm.message}`;
+    
+    // Add to appropriate alarm section
+    const alarmType = alarm.severity?.toLowerCase() || 'amber';
+    const alarmContainer = document.getElementById(`${alarmType}Alarms`);
+    if (alarmContainer) {
+        alarmContainer.appendChild(alarmEntry);
+        // Also log to general terminal
+        logToTerminal(`[${alarmType.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
     }
 }
+
+// Terminal input handling
+terminalInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const command = terminalInput.value.trim();
+        if (command) {
+            // Log the command
+            logToCommandTerminal(`> ${command}`, 'command');
+            
+            // Publish the command to MQTT
+            const payload = {
+                type: 'command',
+                message: command,
+                timestamp: new Date().toISOString()
+            };
+            
+            client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+                if (err) {
+                    console.error('Failed to publish command:', err);
+                    logToCommandTerminal('Failed to send command', 'error');
+                }
+            });
+            
+            // Clear the input
+            terminalInput.value = '';
+        }
+    }
+});
+
+// Clear log buttons
+document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
+    button.addEventListener('click', () => {
+        const targetId = button.getAttribute('data-target');
+        const terminal = document.getElementById(targetId);
+        if (terminal) {
+            terminal.innerHTML = '';
+        }
+    });
+});
 
 // Handle Login
 function handleLogin(event) {
@@ -760,50 +725,6 @@ function updateTelemetryData(data) {
     });
 }
 
-// Update the handleAlarm function to save alerts to Firebase
-async function handleAlarm(payload) {
-    // Log to appropriate terminal
-    logToTerminal(`${payload.type.toUpperCase()} ALARM: ${payload.message}`, payload.type);
-    logToCommandTerminal(`${payload.type.toUpperCase()} ALARM: ${payload.message}`, 'alert');
-
-    // Save alert to Firebase
-    await saveAlertToFirebase(payload.type, payload.message);
-
-    // Update alarm tabs
-    const alarmDiv = document.getElementById(`${payload.type}Alarms`);
-    if (alarmDiv) {
-        const timestamp = new Date().toLocaleTimeString();
-        const alarmHtml = `<div class="alarm-entry ${payload.type}">[${timestamp}] ${payload.message}</div>`;
-        alarmDiv.innerHTML = alarmHtml + alarmDiv.innerHTML;
-    }
-
-    // For red alarms, notify email subscribers
-    if (payload.type === 'red') {
-        try {
-            const snapshot = await emailCollection.get();
-            snapshot.forEach(doc => {
-                const emailData = {
-                    to: doc.data().email,
-                    subject: 'RED ALARM - VPL System',
-                    text: `A red alarm has been detected:\n\n${payload.message}\n\nTimestamp: ${payload.timestamp}`,
-                    html: `
-                        <h2>VPL System Red Alarm</h2>
-                        <p>A red alarm has been detected:</p>
-                        <p style="color: red; font-weight: bold;">${payload.message}</p>
-                        <p>Timestamp: ${payload.timestamp}</p>
-                    `
-                };
-                
-                // Send email using EmailJS
-                emailjs.send("service_lsa1r4i", "template_vnrbr1d", emailData)
-                    .catch(error => console.error('Error sending email:', error));
-            });
-        } catch (error) {
-            console.error('Error processing red alarm:', error);
-        }
-    }
-}
-
 // Add CSS for alarm styling
 const style = document.createElement('style');
 style.textContent = `
@@ -883,39 +804,8 @@ Object.keys(translations).forEach(lang => {
     translations[lang] = { ...translations[lang], ...emailTranslations[lang] };
 });
 
-// Add a tab for email management
-document.addEventListener('DOMContentLoaded', () => {
-  const tabSelector = document.getElementById('tab-selector');
-  if (tabSelector) {
-    const emailOption = document.createElement('option');
-    emailOption.value = 'email-settings';
-    emailOption.textContent = t('emailSettings');
-    tabSelector.appendChild(emailOption);
-  }
-
-  // Add email settings tab content
-  const mainApp = document.getElementById('main-app');
-  if (mainApp) {
-    const emailTab = document.createElement('div');
-    emailTab.id = 'email-settings-tab';
-    emailTab.className = 'tab-content hidden';
-    emailTab.innerHTML = `
-      <h3>${t('emailSettings')}</h3>
-      <div class="email-form">
-        <input type="email" id="email-input" placeholder="${t('enterEmail')}">
-        <button onclick="addEmailSubscriber()">${t('addEmail')}</button>
-      </div>
-      <div id="email-list" class="email-list"></div>
-    `;
-    mainApp.appendChild(emailTab);
-  }
-
-  // Load existing email subscribers
-  loadEmailSubscribers();
-});
-
-// Function to add email subscriber
-async function addEmailSubscriber() {
+// Make email functions globally accessible
+window.addEmailSubscriber = async function() {
   const emailInput = document.getElementById('email-input');
   const email = emailInput.value.trim();
   
@@ -939,7 +829,55 @@ async function addEmailSubscriber() {
   }
 }
 
-// Function to load email subscribers
+window.removeEmailSubscriber = async function(docId) {
+  try {
+    await emailCollection.doc(docId).delete();
+    showMessage(t('emailRemoved'), 'success');
+    loadEmailSubscribers();
+  } catch (error) {
+    console.error('Error removing email:', error);
+    showMessage(t('errorRemovingEmail'), 'error');
+  }
+}
+
+// Update the email tab creation to use event delegation instead of inline onclick
+document.addEventListener('DOMContentLoaded', () => {
+  const tabSelector = document.getElementById('tab-selector');
+  if (tabSelector) {
+    const emailOption = document.createElement('option');
+    emailOption.value = 'email-settings';
+    emailOption.textContent = t('emailSettings');
+    tabSelector.appendChild(emailOption);
+  }
+
+  // Add email settings tab content
+  const mainApp = document.getElementById('main-app');
+  if (mainApp) {
+    const emailTab = document.createElement('div');
+    emailTab.id = 'email-settings-tab';
+    emailTab.className = 'tab-content hidden';
+    emailTab.innerHTML = `
+      <h3>${t('emailSettings')}</h3>
+      <div class="email-form">
+        <input type="email" id="email-input" placeholder="${t('enterEmail')}">
+        <button id="add-email-btn" data-action="add-email">${t('addEmail')}</button>
+      </div>
+      <div id="email-list" class="email-list"></div>
+    `;
+    mainApp.appendChild(emailTab);
+
+    // Add event listener for the add email button
+    const addEmailBtn = emailTab.querySelector('#add-email-btn');
+    if (addEmailBtn) {
+      addEmailBtn.addEventListener('click', window.addEmailSubscriber);
+    }
+  }
+
+  // Load existing email subscribers
+  loadEmailSubscribers();
+});
+
+// Update loadEmailSubscribers to use event delegation instead of inline onclick
 async function loadEmailSubscribers() {
   const emailList = document.getElementById('email-list');
   if (!emailList) return;
@@ -951,87 +889,27 @@ async function loadEmailSubscribers() {
     snapshot.forEach(doc => {
       const div = document.createElement('div');
       div.className = 'email-item';
+      const docId = doc.id;
       div.innerHTML = `
         <span>${doc.data().email}</span>
-        <button onclick="removeEmailSubscriber('${doc.id}')">${t('remove')}</button>
+        <button data-docid="${docId}" data-action="remove-email">${t('remove')}</button>
       `;
       emailList.appendChild(div);
+    });
+
+    // Add event listeners for remove buttons using event delegation
+    emailList.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('[data-action="remove-email"]');
+      if (removeBtn) {
+        const docId = removeBtn.dataset.docid;
+        window.removeEmailSubscriber(docId);
+      }
     });
   } catch (error) {
     console.error('Error loading emails:', error);
     showMessage(t('errorLoadingEmails'), 'error');
   }
 }
-
-// Function to remove email subscriber
-async function removeEmailSubscriber(docId) {
-  try {
-    await emailCollection.doc(docId).delete();
-    showMessage(t('emailRemoved'), 'success');
-    loadEmailSubscribers();
-  } catch (error) {
-    console.error('Error removing email:', error);
-    showMessage(t('errorRemovingEmail'), 'error');
-  }
-}
-
-// Update the DOMContentLoaded event listener
-document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('login-screen');
-    if (loginForm) {
-        const loginButton = loginForm.querySelector('[data-action="login"]');
-        if (loginButton) {
-            loginButton.addEventListener('click', handleLogin);
-        }
-    }
-
-    const tabSelector = document.getElementById('tab-selector');
-    if (tabSelector) {
-        tabSelector.addEventListener('change', handleTabSwitch);
-        
-        // Set initial tab
-        tabSelector.value = 'general';
-        const event = new Event('change');
-        tabSelector.dispatchEvent(event);
-    }
-
-    // Initialize other event handlers
-    initializeEventHandlers();
-    loadSettings();
-    applySettings();
-    updateAllText();
-});
-
-// Clear log buttons
-document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
-    button.addEventListener('click', () => {
-        const terminalId = button.getAttribute('data-target');
-        clearTerminal(terminalId);
-    });
-});
-
-// Export log buttons
-document.querySelectorAll('[data-action="export-log"]').forEach(button => {
-    button.addEventListener('click', () => {
-        const terminalId = button.getAttribute('data-target');
-        const terminal = document.getElementById(terminalId);
-        if (!terminal) return;
-
-        const logContent = terminal.innerText;
-        const blob = new Blob([logContent], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${terminalId}-${new Date().toISOString()}.log`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    });
-});
-
-// Initialize EmailJS
-emailjs.init("7osg1XmfdRC2z68Xt");
 
 /**
  * Shows the email modal for sending logs

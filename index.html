@@ -54,7 +54,7 @@
           <!-- General Terminal -->
           <div class="terminal-section">
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
-            <pre id="messageLog" class="terminal" data-translate="waitingMessages">Waiting for messages...</pre>
+            <pre id="messageLog" class="terminal"></pre>
             <div class="terminal-controls">
               <button data-action="clear-log" data-target="messageLog" data-translate="clearLog">Clear Log</button>
               <button data-action="export-log" data-target="messageLog" data-translate="exportLog">Export Log</button>
@@ -65,7 +65,7 @@
           <!-- Command Terminal -->
           <div class="terminal-section">
             <h2 id="commands-title" data-translate="commandConsole">Command Terminal</h2>
-            <pre id="command-log" class="terminal" data-translate="waitingCommands">Waiting for commands...</pre>
+            <pre id="command-log" class="terminal"></pre>
             <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
             <div class="terminal-controls">
               <button data-action="clear-log" data-target="command-log" data-translate="clearLog">Clear Log</button>
@@ -121,12 +121,19 @@
 
       <!-- Alerts Tab -->
       <div id="alerts-tab" class="tab-content hidden">
-        <h2>Alert Console</h2>
-        <pre id="alert-log" class="terminal" data-translate="waitingAlerts">Waiting for alerts...</pre>
-        <div class="terminal-controls">
-          <button data-action="clear-log" data-target="alert-log" data-translate="clearLog">Clear Alerts</button>
-          <button data-action="export-log" data-target="alert-log" data-translate="exportLog">Export Alerts</button>
-          <button data-action="email-log" data-target="alert-log" data-translate="emailLog">Email Alerts</button>
+        <div class="alerts-container">
+          <div class="alert-section">
+            <h3>Red Alarms</h3>
+            <div id="redAlarms" class="alert-list"></div>
+          </div>
+          <div class="alert-section">
+            <h3>Amber Alarms</h3>
+            <div id="amberAlarms" class="alert-list"></div>
+          </div>
+          <div class="alert-section">
+            <h3>Green Alarms</h3>
+            <div id="greenAlarms" class="alert-list"></div>
+          </div>
         </div>
       </div>
 

@@ -6,18 +6,63 @@
 #include "SPIFFS.h"
 #include <ESP_Mail_Client.h>
 #include <PubSubClient.h>  // Add MQTT client library
+#include <WebServer.h>  // Add WebServer library
+#include <WiFiClientSecure.h>  // Add WiFiClientSecure for SSL/TLS
 
 // ===== Login Configuration ===== //
-const char* www_username = "Carlos";     
-const char* www_password = "Pena";
+const char* www_username = "admin";     
+const char* www_password = "admin";
 
 // ===== WiFi and MQTT Configuration ===== //
 const char* ssid = "Flugel";
 const char* password = "dogecoin";
 const char* mqtt_server = "lb88002c.ala.us-east-1.emqxsl.com";
-const int mqtt_port = 8084;
+const int mqtt_port = 8883;  // MQTT over TLS/SSL Port
 const char* mqtt_username = "Carlos";
 const char* mqtt_password = "mqtt2025";
+
+// MQTT Topic
+const char* mqttTopic = "usf/messages";
+
+const char* generalLogTopic = "usf/logs/general";
+const char* commandLogTopic = "usf/logs/command";
+const char* alertLogTopic = "usf/logs/alerts";
+
+// --- Function Prototypes ---
+void addToLog(const String &message);
+void flushLogBuffer();
+void publishMessage(const String& message);
+void publishGeneralLog(const String& msg, const char* type);
+void publishCommandLog(const String& msg);
+void publishAlert(const char* level, const String& msg);
+void callback(char* topic, byte* payload, unsigned int length);
+void processLEDStatus(const String& tempStatus, unsigned long currentMillis);
+
+// EMQX Root CA Certificate
+static const char* root_ca PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
+CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
+nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
+43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
+T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
+gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
+BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
+TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
+DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
+hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
+06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
+PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
+YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
+-----END CERTIFICATE-----
+)EOF";
 
 WebServer server(80); // Initialized server on port 80
 
@@ -33,7 +78,8 @@ typedef struct struct_message {
 
 struct_message incomingDataStruct;
 
-
+unsigned long lastHealthCheck = 0;
+const unsigned long HEALTH_CHECK_INTERVAL = 10000; // 10 seconds
 // Timing Configuration (ms)
 unsigned long LIFT_MODE_DELAY = 200; // Set default delay for Lift Mode
 unsigned long ELEVATOR_MODE_DELAY = 200; // Set default delay for Elevator Mode
@@ -107,32 +153,212 @@ String lastAmberEmailSent = "";
 String lastGreenEmailSent = "";
 
 
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 
 // Topics for MQTT
 const char* alarmTopic = "usf/alarms";
 const char* statusTopic = "usf/status";
 
-// Function to publish alarm via MQTT
-void publishAlarm(const char* type, const String& message) {
-    if (!mqttClient.connected()) {
-        return;
+// Function declarations
+void stopUpMovement();
+void stopDownMovement();
+void stopMovement();
+void handleMovement(const char* direction);
+void applyBrake();
+void releaseBrake();
+
+// Get timestamp function
+String getTimestamp() {
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    return "Failed to obtain time";
+  }
+  char timeStringBuff[50];
+  strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%d %H:%M:%S", &timeinfo);
+  return String(timeStringBuff);
+}
+
+// Movement control functions
+void stopUpMovement() {
+  digitalWrite(UP_PIN, LOW);
+  if (currentDirection == "up") {
+    currentDirection = "none";
+    addToLog("Stopped upward movement");
+  }
+}
+
+void stopDownMovement() {
+  digitalWrite(DOWN_PIN, LOW);
+  if (currentDirection == "down") {
+    currentDirection = "none";
+    addToLog("Stopped downward movement");
+  }
+}
+
+void stopMovement() {
+  digitalWrite(UP_PIN, LOW);
+  digitalWrite(DOWN_PIN, LOW);
+  currentDirection = "none";
+  addToLog("All movement stopped");
+  publishCommandLog("Command executed: STOP");
+  publishGeneralLog("All movement stopped", "success");
+}
+
+void handleMovement(const char* direction) {
+  String dir = String(direction);
+  if (dir == "up") {
+    if (digitalRead(LIMIT_SWITCH_UP) == LOW) {
+      addToLog("Cannot move up: Upper limit switch activated");
+      return;
     }
+    digitalWrite(DOWN_PIN, LOW);
+    digitalWrite(UP_PIN, HIGH);
+    currentDirection = "up";
+    addToLog("Moving up");
+    publishCommandLog("Command executed: UP");
+    publishGeneralLog("Moving up", "info");
+  } else if (dir == "down") {
+    if (digitalRead(LIMIT_SWITCH_DOWN) == LOW) {
+      addToLog("Cannot move down: Lower limit switch activated");
+      return;
+    }
+    digitalWrite(UP_PIN, LOW);
+    digitalWrite(DOWN_PIN, HIGH);
+    currentDirection = "down";
+    addToLog("Moving down");
+    publishCommandLog("Command executed: DOWN");
+  publishGeneralLog("Moving down", "info");
+  }
+}
+
+void applyBrake() {
+  digitalWrite(BRAKE_PIN, HIGH);
+  addToLog("Brake applied");
+}
+
+void releaseBrake() {
+  digitalWrite(BRAKE_PIN, LOW);
+  addToLog("Brake released");
+}
+
+// Function to publish message via MQTT
+void publishMessage(const String& message) {
+  if (!mqttClient.connected()) return;
+  String payload = "{\"type\":\"info\",\"message\":\"" + message + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+  mqttClient.publish(mqttTopic, payload.c_str());
+  mqttClient.publish(generalLogTopic, payload.c_str()); // Also send to general log
+}
     
-    String payload = "{\"type\":\"" + String(type) + "\",\"message\":\"" + message + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
-    mqttClient.publish(alarmTopic, payload.c_str());
+  
+
+
+// General log (info, error, warning, success)
+void publishGeneralLog(const String& msg, const char* type) {
+  if (!mqttClient.connected()) return;
+  String payload = "{\"type\":\"" + String(type) + "\",\"message\":\"" + msg + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+  mqttClient.publish(generalLogTopic, payload.c_str());
+  mqttClient.publish(mqttTopic, payload.c_str()); // Also send to main topic
+}
+
+// Command log
+void publishCommandLog(const String& msg) {
+  if (!mqttClient.connected()) return;
+  String payload = "{\"type\":\"command\",\"message\":\"" + msg + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+  mqttClient.publish(commandLogTopic, payload.c_str());
+  mqttClient.publish(mqttTopic, payload.c_str()); // Also send to main topic
+}
+
+// Alert console log (red, amber, green)
+void publishAlert(const char* level, const String& msg) {
+  if (!mqttClient.connected()) return;
+  String payload = "{\"type\":\"" + String(level) + "\",\"message\":\"" + msg + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+  mqttClient.publish(alertLogTopic, payload.c_str());
+  mqttClient.publish(mqttTopic, payload.c_str()); // Also send to main topic
 }
 
 // Function to reconnect to MQTT broker
 void reconnectMQTT() {
-    while (!mqttClient.connected()) {
-        String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+    int attempts = 0;
+    while (!mqttClient.connected() && attempts < 3) {
+        Serial.println("\n----------- MQTT Connection Attempt -----------");
+        Serial.println("Server: " + String(mqtt_server));
+        Serial.println("Port: " + String(mqtt_port));
+        Serial.println("Username: " + String(mqtt_username));
+        Serial.println("Client ID: ESP32Client-" + String(random(0xffff), HEX));
+        
+if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected. Waiting for reconnection...");
+    int wifiWait = 0;
+    while (WiFi.status() != WL_CONNECTED && wifiWait < 10000) {
+        delay(500);
+        Serial.print(".");
+        wifiWait += 500;
+    }
+    Serial.println();
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi still not connected after waiting.");
+        return;
+    }
+}
+
+        Serial.println("WiFi connected to: " + String(WiFi.SSID()));
+        Serial.println("IP address: " + WiFi.localIP().toString());
+        
+        // Clear any existing connection
+        mqttClient.disconnect();
+        delay(1000);
+        
+        // Generate a unique client ID
+        String clientId = "mqtt-dashboard-ff95c7ff";
+        
+        Serial.println("Attempting MQTT connection...");
+        
+        // Attempt to connect with all credentials
         if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
-            mqttClient.subscribe(statusTopic);
+            Serial.println("Connected successfully to MQTT broker!");
+            
+            // Subscribe to all relevant topics
+            mqttClient.subscribe(mqttTopic);
+            mqttClient.subscribe(generalLogTopic);
+            mqttClient.subscribe(commandLogTopic);
+            mqttClient.subscribe(alertLogTopic);
+            
+            Serial.println("Subscribed to all topics");
+            
+            // Publish connection message
+            String connectMsg = "{\"type\":\"info\",\"message\":\"Device connected\",\"timestamp\":\"" + getTimestamp() + "\"}";
+            mqttClient.publish(mqttTopic, connectMsg.c_str());
+            
+            return;  // Connection successful, exit the function
         } else {
+            int state = mqttClient.state();
+            Serial.print("Connection failed, rc=");
+            Serial.print(state);
+            Serial.print(" (");
+            switch(state) {
+                case -4: Serial.print("MQTT_CONNECTION_TIMEOUT"); break;
+                case -3: Serial.print("MQTT_CONNECTION_LOST"); break;
+                case -2: Serial.print("MQTT_CONNECT_FAILED"); break;
+                case -1: Serial.print("MQTT_DISCONNECTED"); break;
+                case 1: Serial.print("MQTT_CONNECT_BAD_PROTOCOL"); break;
+                case 2: Serial.print("MQTT_CONNECT_BAD_CLIENT_ID"); break;
+                case 3: Serial.print("MQTT_CONNECT_UNAVAILABLE"); break;
+                case 4: Serial.print("MQTT_CONNECT_BAD_CREDENTIALS"); break;
+                case 5: Serial.print("MQTT_CONNECT_UNAUTHORIZED"); break;
+            }
+            Serial.println(")");
+        }
+        
+        attempts++;
+        if (attempts < 3) {
+            Serial.println("Retrying in 5 seconds...");
             delay(5000);
         }
+    }
+    
+    if (!mqttClient.connected()) {
+        Serial.println("Failed to connect to MQTT after 3 attempts");
     }
 }
 
@@ -502,527 +728,431 @@ function validateEmail(email) {
 )rawliteral";
 
 
+// Buffer sizes and optimization constants
+const size_t LOG_BUFFER_SIZE = 1024;  // 1KB buffer for logs
+const size_t MAX_LOG_SIZE = 2000;     // Maximum log size before truncation
+const unsigned long LOG_FLUSH_INTERVAL = 5000; // Flush log buffer every 5 seconds
+const size_t TIME_BUFFER_SIZE = 30;    // Buffer for timestamp strings
+
+// Buffers for string operations
+char timeBuffer[TIME_BUFFER_SIZE];     // Reusable buffer for timestamps
+char logBuffer[LOG_BUFFER_SIZE];       // Buffer for log messages
+size_t logBufferIndex = 0;            // Current position in log buffer
+unsigned long lastLogFlush = 0;        // Last time logs were written to SPIFFS
+
+// LED status optimization
+struct LEDState {
+    bool currentState;
+    bool lastState;
+    int changeCount;
+    unsigned long lastChange;
+};
+
+// LED states array
+LEDState redLEDStates[4];
+LEDState greenLEDStates[4];
+
+// Optimized addToLog function
 void addToLog(const String &message) {
-  struct tm timeinfo;
-  char timeString[30];
-
-  if (getLocalTime(&timeinfo)) {
-    strftime(timeString, sizeof(timeString), "[%Y-%m-%d %H:%M:%S] ", &timeinfo);
-  } else {
-    strcpy(timeString, "[time error] ");
-  }
-
-  String fullMessage = String(timeString) + message + "\n";
-  serialLogs += fullMessage;
- 
-  // Limit log size
-  if (serialLogs.length() > 2000) { // Limit Log size to 2000 characters
-    serialLogs = serialLogs.substring(serialLogs.length() - 1500); // Print logs to serial monitor
-  }
- 
-  // Also send to Serial
-  Serial.println(message);
-}
-
-String getTimestamp() {
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return "1970-01-01 00:00:00";
-  char buf[25];
-  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
-  return String(buf);
-}
-
-void logLedChangeToSPIFFS(const String& entry) {
-  File file = SPIFFS.open("/led_log.txt", FILE_APPEND);
-  if (!file) {
-    Serial.println("Failed to open log file for appending");
-    return;
-  }
-  file.println(entry);
-  file.close();
-}
-
-void pruneOldLogsSPIFFS() {
-  File file = SPIFFS.open("/led_log.txt", FILE_READ);
-  if (!file) return;
-
-  String nowStr = getTimestamp();  // "YYYY-MM-DD HH:MM:SS"
-  struct tm now;
-  strptime(nowStr.c_str(), "%Y-%m-%d %H:%M:%S", &now);
-  time_t nowEpoch = mktime(&now);
-
-  String updatedContent = "";
-
-  while (file.available()) {
-    String line = file.readStringUntil('\n');
-    if (line.length() < 20) continue;
-
-    String ts = line.substring(1, 20);  // from "[YYYY-MM-DD HH:MM:SS]"
-    struct tm t;
-    if (strptime(ts.c_str(), "%Y-%m-%d %H:%M:%S", &t)) {
-      time_t entryEpoch = mktime(&t);
-      double daysDiff = difftime(nowEpoch, entryEpoch) / (60 * 60 * 24);
-      if (daysDiff <= 30) {
-        updatedContent += line + "\n";
-      }
-    }
-  }
-  file.close();
-
-  File writeFile = SPIFFS.open("/led_log.txt", FILE_WRITE);
-  writeFile.print(updatedContent);
-  writeFile.close();
-}
-
-
-String escapeForJson(const String &input) { // Create an escape for " and \ and \n so it will not caused JSON an error
-  String output;
-  output.reserve(input.length() * 1.1); // Reserve slightly more space
- 
-  for (size_t i = 0; i < input.length(); i++) {
-    char c = input.charAt(i);
-    switch (c) {
-      case '"': output += "\\\""; break;
-      case '\\': output += "\\\\"; break;
-      case '\n': output += "\\n"; break;
-      case '\r': output += "\\r"; break;
-      case '\t': output += "\\t"; break;
-      default: output += c;
-    }
-  }
- 
-  return output;
-}
-
-
-// Turn off both UP_Pin and Down_Pin to prevent any movement
-// Replace your current stopMovement() function with these more specific functions
-void stopUpMovement() {
-  digitalWrite(UP_PIN, LOW);
-  if (currentDirection == "up") {
-    currentDirection = "none";
-    addToLog("Upward movement stopped");
-  }
-}
-
-void stopDownMovement() {
-  digitalWrite(DOWN_PIN, LOW);
-  if (currentDirection == "down") {
-    currentDirection = "none";
-    addToLog("Downward movement stopped");
-  }
-}
-
-void applyBrake() {
-  digitalWrite(BRAKE_PIN, HIGH);
-  addToLog("Brake applied");
-}
-
-void releaseBrake() {
-  digitalWrite(BRAKE_PIN, LOW);
-  addToLog("Brake released");
-}
-
-
-void stopMovement() {
-  stopUpMovement();
-  stopDownMovement();
-  applyBrake();
-  currentDirection = "none";
-  addToLog("Movement stopped and brake applied");
-}
-
-
-// Prevent Rapid activation by using a delay, Stops ongoing motion before moving to new direction, and log movement in serial log
-// Update your handleMovement function
-void handleMovement(String direction) {
-  unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY;
- 
-  if (millis() - lastActionTime < currentDelay) return;
- 
-  // Stop any current movement and release brake
-  stopMovement();
-  delay(50); // Brief delay to ensure brake is applied before releasing
-  releaseBrake();
-  delay(50); // Brief delay after releasing brake before moving
- 
-  if (direction == "up") {
-    digitalWrite(UP_PIN, HIGH);
-    currentDirection = "up";
-    addToLog("Moving UP (" + String(currentDelay) + "ms delay)");
-  } else {
-    digitalWrite(DOWN_PIN, HIGH);
-    currentDirection = "down";
-    addToLog("Moving DOWN (" + String(currentDelay) + "ms delay)");
-  }
- 
-  lastActionTime = millis();
-}
-
-
-// Device Output (LED Reading) Function
-void readDeviceOutputs() {
-  unsigned long currentMillis = millis();
-  String tempStatus = "";
-
-  for (int i = 0; i < numLEDs; i++) {
-    bool currentRed = digitalRead(redLEDs[i]);
-    bool currentGreen = digitalRead(greenLEDs[i]);
-
-    if (i == 0 && millis() - lastRedLED0Print >= redLED0Interval) {
-      Serial.println("Reading redLED[0]: " + String(currentRed));
-      lastRedLED0Print = millis();
-    }
-
-    tempStatus += "Red LED " + String(i) + ": " + (currentRed == HIGH ? "ON" : "OFF") + "\n";
-    tempStatus += "Green LED " + String(i) + ": " + (currentGreen == HIGH ? "ON" : "OFF") + "\n";
-
-    if (currentRed != lastStateRed[i]) {
-      changeCountRed[i]++;
-      lastStateRed[i] = currentRed;
-    }
-    if (currentGreen != lastStateGreen[i]) {
-      changeCountGreen[i]++;
-      lastStateGreen[i] = currentGreen;
-    }
-
-    yield();
-  }
-
-  if (currentMillis - previousMillis >= checkInterval) {
-    previousMillis = currentMillis;
-
     struct tm timeinfo;
-    char timeString[30];
-
     if (getLocalTime(&timeinfo)) {
-      strftime(timeString, sizeof(timeString), "[%Y-%m-%d %H:%M:%S] ", &timeinfo);
+        strftime(timeBuffer, TIME_BUFFER_SIZE, "[%Y-%m-%d %H:%M:%S] ", &timeinfo);
     } else {
-      strcpy(timeString, "[time error] ");
+        strcpy(timeBuffer, "[time error] ");
     }
 
-    String ledStateOnly = "";
-    tempStatus += "\n==== LED STATUS UPDATE ====\n";
-    tempStatus += String(timeString) + "\n";
+    // Calculate total length needed
+    size_t messageLen = strlen(timeBuffer) + message.length() + 2; // +2 for \n and null terminator
 
-    for (int i = 0; i < numLEDs; i++) {
-      if (changeCountRed[i] == 0) {
-        String redState = "Red LED " + String(i) + (lastStateRed[i] == HIGH ? " FINAL STATE: ON" : " FINAL STATE: OFF") + "\n";
-        tempStatus += redState;
-        ledStateOnly += redState;
-      } else if (changeCountRed[i] >= 2) {
-        String redFlashing = "Red LED " + String(i) + " FINAL STATE: FLASHING\n";
-        tempStatus += redFlashing;
-        ledStateOnly += redFlashing;
-      }
-
-      if (changeCountGreen[i] == 0) {
-        String greenState = "Green LED " + String(i) + (lastStateGreen[i] == HIGH ? " FINAL STATE: ON" : " FINAL STATE: OFF") + "\n";
-        tempStatus += greenState;
-        ledStateOnly += greenState;
-      } else if (changeCountGreen[i] >= 2) {
-        String greenFlashing = "Green LED " + String(i) + " FINAL STATE: FLASHING\n";
-        tempStatus += greenFlashing;
-        ledStateOnly += greenFlashing;
-      }
-
- 
+    // If buffer would overflow, flush it first
+    if (logBufferIndex + messageLen >= LOG_BUFFER_SIZE) {
+        flushLogBuffer();
     }
 
-    // ONLY update if the state has changed
+    // Add to buffer
+    strcpy(logBuffer + logBufferIndex, timeBuffer);
+    logBufferIndex += strlen(timeBuffer);
+    message.toCharArray(logBuffer + logBufferIndex, LOG_BUFFER_SIZE - logBufferIndex);
+    logBufferIndex += message.length();
+    logBuffer[logBufferIndex++] = '\n';
+    logBuffer[logBufferIndex] = '\0';
+
+    // Also send to Serial immediately
+    Serial.println(message);
+
+    // Check if it's time to flush the buffer
+    if (millis() - lastLogFlush >= LOG_FLUSH_INTERVAL) {
+        flushLogBuffer();
+    }
+}
+
+// New function to flush log buffer
+void flushLogBuffer() {
+    if (logBufferIndex == 0) return;  // Nothing to flush
+
+    // Append to serialLogs with size limit
+    if (serialLogs.length() + logBufferIndex > MAX_LOG_SIZE) {
+        serialLogs = serialLogs.substring(serialLogs.length() - (MAX_LOG_SIZE - logBufferIndex));
+    }
+    serialLogs += String(logBuffer);
+
+    // Reset buffer
+    logBufferIndex = 0;
+    lastLogFlush = millis();
+}
+
+// Optimized LED reading function
+void readDeviceOutputs() {
+    unsigned long currentMillis = millis();
+    static String tempStatus;
+    tempStatus.reserve(500); // Pre-allocate memory for status string
+    
+    // Only update LED states at specified interval
+    if (currentMillis - previousMillis >= LED_CHECK_DELAY) {
+        tempStatus = "";
+        bool stateChanged = false;
+
+ for (int i = 0; i < numLEDs; i++) {
+            // Read current states
+            redLEDStates[i].currentState = digitalRead(redLEDs[i]);
+            greenLEDStates[i].currentState = digitalRead(greenLEDs[i]);
+
+            // Check for state changes
+            if (redLEDStates[i].currentState != redLEDStates[i].lastState) {
+                redLEDStates[i].changeCount++;
+                redLEDStates[i].lastState = redLEDStates[i].currentState;
+                stateChanged = true;
+            }
+
+            if (greenLEDStates[i].currentState != greenLEDStates[i].lastState) {
+                greenLEDStates[i].changeCount++;
+                greenLEDStates[i].lastState = greenLEDStates[i].currentState;
+                stateChanged = true;
+            }
+
+            // Build status string
+            tempStatus += "Red LED " + String(i) + ": " +
+                          (redLEDStates[i].currentState ? "ON" : "OFF") + "\n";
+            tempStatus += "Green LED " + String(i) + ": " +
+                          (greenLEDStates[i].currentState ? "ON" : "OFF") + "\n";
+        }
+
+
+        // Only update status and process alarms if there were changes
+        if (stateChanged) {
+            processLEDStatus(tempStatus, currentMillis);
+        }
+
+        previousMillis = currentMillis;
+    }
+}
+
+// New function to process LED status
+void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        strftime(timeBuffer, TIME_BUFFER_SIZE, "[%Y-%m-%d %H:%M:%S] ", &timeinfo);
+    } else {
+        strcpy(timeBuffer, "[time error] ");
+    }
+
+    String ledStateOnly;
+    ledStateOnly.reserve(200);  // Pre-allocate memory
+
+    // === Declare shorthand LED state variables ===
+    bool r0 = redLEDStates[0].lastState;
+    bool r1 = redLEDStates[1].lastState;
+    bool r2 = redLEDStates[2].lastState;
+    bool r3 = redLEDStates[3].lastState;
+
+    bool g0 = greenLEDStates[0].lastState;
+    bool g1 = greenLEDStates[1].lastState;
+    bool g2 = greenLEDStates[2].lastState;
+    bool g3 = greenLEDStates[3].lastState;
+
+    // === Detect Flashing Based on State Changes ===
+    bool r0f = redLEDStates[0].changeCount >= 2;
+    bool r1f = redLEDStates[1].changeCount >= 2;
+    bool r2f = redLEDStates[2].changeCount >= 2;
+    bool r3f = redLEDStates[3].changeCount >= 2;
+
+    bool g0f = greenLEDStates[0].changeCount >= 2;
+    bool g1f = greenLEDStates[1].changeCount >= 2;
+    bool g2f = greenLEDStates[2].changeCount >= 2;
+    bool g3f = greenLEDStates[3].changeCount >= 2;
+
+    // === Amber Conditions Per LED ===
+    // Steady Amber = both Red and Green are ON
+    bool a0 = r0 && g0;
+    bool a1 = r1 && g1;
+    bool a2 = r2 && g2;
+    bool a3 = r3 && g3;
+
+    // Flashing Amber = both Red and Green flashing or mixed with one flashing
+    bool a0f = (r0f && g0f) || (r0f && g0) || (r0 && g0f);
+    bool a1f = (r1f && g1f) || (r1f && g1) || (r1 && g1f);
+    bool a2f = (r2f && g2f) || (r2f && g2) || (r2 && g2f);
+    bool a3f = (r3f && g3f) || (r3f && g3) || (r3 && g3f);
+
+    // === Combination-based alarm detection ===
+    greenAlarms = "";
+    amberAlarms = "";
+    redAlarms = "";
+
+    // RED ALARMS - Critical Safety Conditions
+    if (!r0 && !r1 && !r2 && !r3) {
+        redAlarms = "Red Alarm: All RED LEDs are OFF";
+    }
+
+    if (r0 && r1 && r2 && r3) {
+        redAlarms = "Red Alarm: ALARM Rqt #2\n E-Stop is OFF - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0 && r1 && r2 && !r3) {
+        redAlarms = "Red Alarm: ALARM Rqt #15\n OSG has tripped or Pit Switch is OFF - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0 && r1 && !r2 && !r3) {
+        redAlarms = "Red Alarm: ALARM Rqt #23\nLanding Door Lock Failure - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0 && !r1 && r2 && r3) {
+        redAlarms = "Red Alarm: ALARM Rqt #22\nLanding Door is Open - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && !r1f && !r2f && !r3f) {
+        redAlarms = "Red Alarm: No FLASHING RED LEDs DETECTED - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && r1f && !r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #31\nOut of Service (lift must be inspected / serviced) for safety reasons – Flood switch Activated) - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && r1f && r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #36\nOut of Service – periodic maintenance Needed - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0f && !r1f && !r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #37\nOut of Service (travel time up > 2 x Average) - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && r1f && !r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #7\nDrive Train, Belt Failure (if present) - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0f && r1f && r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #3\nDrive Nut Friction block (assuming an ACME screw drive) fails and contacts the safety nut, rendering the lift unable to lift the payload 2 - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0f && !r1f && !r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #27\n Drive Train Alignment - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0f && r1f && r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #10\n Final Limit [2.09.03, Ref. 1] - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && !r1f && r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #11\nLanding Switch (Top) failure - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && r1f && r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #12\nLanding Switch (Mid) failure - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (r0f && !r1f && r2f && !r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #13\nLanding Switch (Bottom) failure - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && !r1f && r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #24\nDrive Train Motor Failure - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    if (!r0f && !r1f && !r2f && r3f) {
+        redAlarms = "Red Alarm: Alarm Rqt #5\nDrive Train Motor Failure\nMotor temperature T > 110˚ C (230˚ F) - Movement Locked";
+        stopUpMovement();
+        stopDownMovement();
+    }
+
+    // GREEN ALARMS - Status and Operational Conditions
+    if (!g0 && !g1 && !g2 && !g3) {
+        greenAlarms = "Green Alarm: All GREEN LEDs are OFF";
+    }
+
+    if (g0 && g1 && g2 && g3) {
+        greenAlarms = "Green Alarm: No exceptions found";
+    }
+
+    if (!g0f && !g1f && !g2f && !g3f) {
+        greenAlarms = "Green Alarm: No FLASHING GREEN LEDs DETECTED";
+    }
+
+    if (g0f && g1f && g2f && !g3f) {
+        greenAlarms = "Green Alarm: On Battery Power";
+    }
+
+    if (g0f && g1f && g2f && g3f) {
+        greenAlarms = "Green Alarm: Bypass Jumpers not removed after working on lift /n Service Switch is active, so jumpers not used";
+    }
+
+    // AMBER ALARMS - Warning Conditions
+    if (!a0 && !a1 && !a2 && !a3) {
+        amberAlarms = "Amber Alarm: ALL AMBER LEDs are OFF";
+    }
+
+    if (a0 && a1 && a2 && !a3) {
+        amberAlarms = "Amber Alarm Rqt #4\n Power Failure to the Lift";
+    }
+
+    if (!a0 && a1 && a2 && a3) {
+        amberAlarms = "Amber Alarm Rqt #39\n Power Failure to the Lift";
+    }
+
+    if (a0 && !a1 && !a2 && !a3) {
+        amberAlarms = "Amber Alarm Rqt #30\nService Required - Flood switch as true)";
+    }
+
+    if (!a0 && a1 && !a2 && !a3) {
+        amberAlarms = "Amber Alarm Rqt #33\nService Required – travel time change";
+    }
+
+    if (a0 && a1 && !a2 && !a3) {
+        amberAlarms = "Amber Alarm Rqt #34\nService Required – periodic maintenance Needed";
+    }
+
+    if (!a0 && !a1 && a2 && !a3) {
+        amberAlarms = "Amber Alarm Rqt #35\nService Required – Service hours";
+    }
+
+    if (!a0 && !a1 && a2 && a3) {
+        amberAlarms = "Amber Alarm: Service Required – Charger/Battery";
+    }
+
+    if (a0 && !a1 && !a2 && a3) {
+        amberAlarms = "Amber Alarm: Service Required - Inverter or Drive Train Alignment  ";
+    }
+
+    if (!a0f && !a1f && !a2f && !a3f) {
+        amberAlarms = "Amber Alarm: ALL FLASHING AMBER LEDs are OFF";
+    }
+
+    if (a0f && a1f && a2f && !a3f) {
+        amberAlarms = "Amber Alarm Rqt #32 \n Power Failure to the Lift - UP Movement Locked";
+        stopUpMovement();
+    }
+
+    if (!a0f && a1f && a2f && a3f) {
+        amberAlarms = "Amber Alarm Rqt #40 \n Power Failure to the Lift";
+    }
+
+    if (!a0f && !a1f && a2f && !a3f) {
+        amberAlarms = "Amber Alarm Rqt #6 \n Drive Train Motor Failure - UP Movement Locked";
+        stopUpMovement();
+    }
+
+    if (a0f && !a1f && !a2f && a3f) {
+        amberAlarms = "Amber Alarm Rqt #8 \n Anti-Rock – too tight / binding of carriage - UP Movement Locked ";
+        stopUpMovement();
+    }
+
+    if (a0f && a1f && !a2f && !a3f) {
+        amberAlarms = "Amber Alarm Rqt #14 \n Control System Limit Switch[2.09.02, 2.10.03.0; Ref. 1] \n Safety Pan (Bottom Final Limit) - DOWN Movement Locked";
+        stopDownMovement();
+    }
+
+    if (!a0f && a1f && !a2f && !a3f) {
+        amberAlarms = "Amber Alarm Rqt #16 \n Do not allow the platform to descend into flood waters - DOWN Movement Locked";
+        stopDownMovement();
+    }
+
+    if (!a0f && a1f && a2f && !a3f) {
+        amberAlarms = "Amber Alarm Rqt #38 \nMotor Temperature monitoring lost";
+    }
+
+    if (greenAlarms == "") greenAlarms = "No green alarms.";
+    if (amberAlarms == "") amberAlarms = "No amber alarms.";
+    if (redAlarms == "") redAlarms = "No red alarms.";
+
+    // Only update if state has changed
     if (ledStateOnly != lastLedSnapshot) {
-      lastLedSnapshot = ledStateOnly;
+        lastLedSnapshot = ledStateOnly;
+        String fullEntry = String(timeBuffer) + tempStatus + "\n";
+        ledStatus = tempStatus;
 
-      String timestampLine;
-      if (getLocalTime(&timeinfo)) {
-        strftime(timeString, sizeof(timeString), "[%Y-%m-%d %H:%M:%S] ", &timeinfo);
-        timestampLine = String(timeString);
-      } else {
-        timestampLine = "[time error] ";
-      }
+        // Update LED history with pre-allocated string
+        String newHistory = fullEntry;
+        if (ledStatusHistory.length() > 0) {
+            newHistory += ledStatusHistory.substring(0, 3000);
+        }
+        ledStatusHistory = newHistory;
 
-      String fullEntry = timestampLine + tempStatus + "\n";
-      ledStatus = tempStatus;
+        // Log to SPIFFS in larger chunks
+        static String spiffsBuffer;
+        spiffsBuffer += fullEntry;
+        if (spiffsBuffer.length() >= 1024) {
+            File file = SPIFFS.open("/led_log.txt", FILE_APPEND);
+            if (file) {
+                file.print(spiffsBuffer);
+                file.close();
+                spiffsBuffer = "";
+            }
+        }
 
-      ledStatusHistory += fullEntry;
-      if (ledStatusHistory.length() > 4000) {
-        ledStatusHistory = ledStatusHistory.substring(ledStatusHistory.length() - 3000);
-      }
-
-      logLedChangeToSPIFFS(fullEntry);
-// === Declare shorthand LED state variables ===
-bool r0 = lastStateRed[0];
-bool r1 = lastStateRed[1];
-bool r2 = lastStateRed[2];
-bool r3 = lastStateRed[3];
-
-bool g0 = lastStateGreen[0];
-bool g1 = lastStateGreen[1];
-bool g2 = lastStateGreen[2];
-bool g3 = lastStateGreen[3];
-
-// === Detect Flashing Based on State Changes ===
-bool r0f = changeCountRed[0] >= 2;
-bool r1f = changeCountRed[1] >= 2;
-bool r2f = changeCountRed[2] >= 2;
-bool r3f = changeCountRed[3] >= 2;
-
-bool g0f = changeCountGreen[0] >= 2;
-bool g1f = changeCountGreen[1] >= 2;
-bool g2f = changeCountGreen[2] >= 2;
-bool g3f = changeCountGreen[3] >= 2;
-
-// === Amber Conditions Per LED ===
-// Steady Amber = both Red and Green are ON
-bool a0 = r0 && g0;
-bool a1 = r1 && g1;
-bool a2 = r2 && g2;
-bool a3 = r3 && g3;
-
-// Flashing Amber = both Red and Green flashing or mixed with one flashing
-bool a0f = (r0f && g0f) || (r0f && g0) || (r0 && g0f);
-bool a1f = (r1f && g1f) || (r1f && g1) || (r1 && g1f);
-bool a2f = (r2f && g2f) || (r2f && g2) || (r2 && g2f);
-bool a3f = (r3f && g3f) || (r3f && g3) || (r3 && g3f);
-
-
-// === Combination-based alarm detection ===
-greenAlarms = "";
-amberAlarms = "";
-redAlarms = "";
-
-
-if (!r0 && !r1 && !r2 && !r3) {
-  redAlarms = "Red Alarm: All RED LEDs are OFF";
-}
-
-if (r0 && r1 && r2 && r3) {
-  redAlarms = "Red Alarm: ALARM Rqt #2\n E-Stop is OFF - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0 && r1 && r2 && !r3) {
-  redAlarms = "Red Alarm: ALARM Rqt #15\n OSG has tripped or Pit Switch is OFF - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0 && r1 && !r2 && !r3) {
-  redAlarms = "Red Alarm: ALARM Rqt #23\nLanding Door Lock Failure - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0 && !r1 && r2 && r3) {
-  redAlarms = "Red Alarm: ALARM Rqt #22\nLanding Door is Open - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && !r1f && !r2f && !r3f) {
-  redAlarms = "Red Alarm: No FLASHING RED LEDs DETECTED - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && r1f && !r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #31\nOut of Service (lift must be inspected / serviced) for safety reasons – Flood switch Activated) - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && r1f && r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #36\nOut of Service – periodic maintenance Needed - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0f && !r1f && !r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #37\nOut of Service (travel time up > 2 x Average) - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && r1f && !r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #7\nDrive Train, Belt Failure (if present) - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0f && r1f && r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #3\nDrive Nut Friction block (assuming an ACME screw drive) fails and contacts the safety nut, rendering the lift unable to lift the payload 2 - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0f && !r1f && !r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #27\n Drive Train Alignment - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0f && r1f && r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #10\n Final Limit [2.09.03, Ref. 1] - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && !r1f && r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #11\nLanding Switch (Top) failure - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && r1f && r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #12\nLanding Switch (Mid) failure - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (r0f && !r1f && r2f && !r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #13\nLanding Switch (Bottom) failure - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && !r1f && r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #24\nDrive Train Motor Failure - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!r0f && !r1f && !r2f && r3f) {
-  redAlarms = "Red Alarm: Alarm Rqt #5\nDrive Train Motor Failure\nMotor temperature T > 110˚ C (230˚ F) - Movement Locked";
-  stopUpMovement();
-  stopDownMovement();
-}
-
-if (!g0 && !g1 && !g2 && !g3) {
-  greenAlarms = "Green Alarm: All GREEN LEDs are OFF";
-}
-
-if (g0 && g1 && g2 && g3) {
-  greenAlarms = "Green Alarm: No exceptions found";
-}
-
-if (!g0f && !g1f && !g2f && !g3f) {
-  greenAlarms = "Green Alarm: No FLASHING GREEN LEDs DETECTED";
-}
-
-if (g0f && g1f && g2f && !g3f) {
-  greenAlarms = "Green Alarm: On Battery Power";
-}
-
-if (g0f && g1f && g2f && g3f) {
-  greenAlarms = "Green Alarm: Bypass Jumpers not removed after working on lift /n Service Switch is active, so jumpers not used";
-}
-
-if (!a0 && !a1 && !a2 && !a3) {
-  amberAlarms = "Amber Alarm: ALL AMBER LEDs are OFF";
-}
-
-if (a0 && a1 && a2 && !a3) {
-  amberAlarms = "Amber Alarm Rqt #4\n Power Failure to the Lift";
-}
-
-if (!a0 && a1 && a2 && a3) {
-  amberAlarms = "Amber Alarm Rqt #39\n Power Failure to the Lift";
-}
-
-if (a0 && !a1 && !a2 && !a3) {
-  amberAlarms = "Amber Alarm Rqt #30\nService Required - Flood switch as true)";
-}
-
-if (!a0 && a1 && !a2 && !a3) {
-  amberAlarms = "Amber Alarm Rqt #33\nService Required – travel time change";
-}
-
-if (a0 && a1 && !a2 && !a3) {
-  amberAlarms = "Amber Alarm Rqt #34\nService Required – periodic maintenance Needed";
-}
-
-if (!a0 && !a1 && a2 && !a3) {
-  amberAlarms = "Amber Alarm Rqt #35\nService Required – Service hours";
-}
-
-if (!a0 && !a1 && a2 && a3) {
-  amberAlarms = "Amber Alarm: Service Required – Charger/Battery";
-}
-
-if (a0 && !a1 && !a2 && a3) {
-  amberAlarms = "Amber Alarm: Service Required - Inverter or Drive Train Alignment  ";
-}
-
-if (!a0f && !a1f && !a2f && !a3f) {
-  amberAlarms = "Amber Alarm: ALL FLASHING AMBER LEDs are OFF";
-}
-
-if (a0f && a1f && a2f && !a3f) {
-  amberAlarms = "Amber Alarm Rqt #32 \n Power Failure to the Lift - UP Movement Locked";
-  stopUpMovement();
-}
-
-if (!a0f && a1f && a2f && a3f) {
-  amberAlarms = "Amber Alarm Rqt #40 \n Power Failure to the Lift";
-
-}
-
-if (!a0f && !a1f && a2f && !a3f) {
-  amberAlarms = "Amber Alarm Rqt #6 \n Drive Train Motor Failure - UP Movement Locked";
-  stopUpMovement();
-}
-
-if (a0f && !a1f && !a2f && a3f) {
-  amberAlarms = "Amber Alarm Rqt #8 \n Anti-Rock – too tight / binding of carriage - UP Movement Locked ";
-  stopUpMovement();
-}
-
-if (a0f && a1f && !a2f && !a3f) {
-  amberAlarms = "Amber Alarm Rqt #14 \n Control System Limit Switch[2.09.02, 2.10.03.0; Ref. 1] \n Safety Pan (Bottom Final Limit) - DOWN Movement Locked";
-  stopDownMovement();
-}
-
-if (!a0f && a1f && !a2f && !a3f) {
-  amberAlarms = "Amber Alarm Rqt #16 \n Do not allow the platform to descend into flood waters - DOWN Movement Locked";
-  stopDownMovement();
-}
-
-if (!a0f && a1f && a2f && !a3f) {
-  amberAlarms = "Amber Alarm Rqt #38 \nMotor Temperature monitoring lost";
-}
-
-if (greenAlarms == "") greenAlarms = "No green alarms.";
-if (amberAlarms == "") amberAlarms = "No amber alarms.";
-if (redAlarms == "") redAlarms = "No red alarms.";
-// Reset change counters AFTER evaluating flashing conditions
-for (int i = 0; i < numLEDs; i++) {
-  changeCountRed[i] = 0;
-  changeCountGreen[i] = 0;
-}
-    }
-if (redAlarms != "No red alarms." && redAlarms != lastRedEmailSent) {
-  publishAlarm("red", redAlarms);
-  lastRedEmailSent = redAlarms;
+        // Send alarm emails if needed
+        if (redAlarms != "No red alarms." && redAlarms != lastRedEmailSent) {
+    publishAlert("red", redAlarms);
+    lastRedEmailSent = redAlarms;
 }
 
 if (amberAlarms != "No amber alarms." && amberAlarms != lastAmberEmailSent) {
-  publishAlarm("amber", amberAlarms);
-  lastAmberEmailSent = amberAlarms;
+    publishAlert("amber", amberAlarms);
+    lastAmberEmailSent = amberAlarms;
 }
 
 if (greenAlarms != "No green alarms." && greenAlarms != lastGreenEmailSent) {
-  publishAlarm("green", greenAlarms);
-  lastGreenEmailSent = greenAlarms;
+    publishAlert("green", greenAlarms);
+    lastGreenEmailSent = greenAlarms;
 }
 
-    tempStatus += "============================\n";
-  }
-
-  delay(LED_CHECK_DELAY);
+    // Reset change counters
+    for (int i = 0; i < numLEDs; i++) {
+        redLEDStates[i].changeCount = 0;
+        greenLEDStates[i].changeCount = 0;
+    }
 }
-
-
+}
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
   // Print sender MAC address
   char macStr[18];
@@ -1062,23 +1192,33 @@ bool isAuthenticated() {
   return true;
 }
 
+
+
+
+
 void setup() {
   Serial.begin(115200);
   
   // Initialize SPIFFS
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS Mount Failed");
+  if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
   }
 
   // Initialize LED pins
   for (int i = 0; i < numLEDs; i++) {
     pinMode(redLEDs[i], INPUT);
     pinMode(greenLEDs[i], INPUT);
+    // Initialize LED states
+    redLEDStates[i] = {false, false, 0, 0};
+    greenLEDStates[i] = {false, false, 0, 0};
   }
 
-  // Initialize GPIO
+  // Initialize GPIO with explicit states
   pinMode(UP_PIN, OUTPUT);
+  digitalWrite(UP_PIN, LOW);
   pinMode(DOWN_PIN, OUTPUT);
+  digitalWrite(DOWN_PIN, LOW);
   pinMode(UP_BUTTON, INPUT_PULLUP);
   pinMode(DOWN_BUTTON, INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_UP, INPUT_PULLUP);
@@ -1086,19 +1226,47 @@ void setup() {
   pinMode(BRAKE_PIN, OUTPUT);
   digitalWrite(BRAKE_PIN, HIGH);
 
-  // Connect to WiFi
+  // Connect to WiFi with status check
+  Serial.println("\nConnecting to WiFi...");
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  int wifiAttempts = 0;
+  while (WiFi.status() != WL_CONNECTED && wifiAttempts < 20) {
     delay(500);
     Serial.print(".");
+    wifiAttempts++;
   }
-  Serial.println("\nConnected to WiFi");
-
-  // Setup MQTT
-  mqttClient.setServer(mqtt_server, mqtt_port);
   
-  // Initialize NTP
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi connected successfully!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nFailed to connect to WiFi!");
+    return;
+  }
+
+  // Setup MQTT with SSL/TLS
+  Serial.println("\nSetting up MQTT with SSL/TLS...");
+  espClient.setCACert(root_ca);
+  Serial.println("SSL/TLS certificate loaded");
+  
+  mqttClient.setServer(mqtt_server, mqtt_port);
+  mqttClient.setCallback(callback);
+  
+  // Initial MQTT connection attempt
+  Serial.println("Attempting initial MQTT connection...");
+  reconnectMQTT();
+  
+  // Initialize NTP with local time cache
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+  // Ensure time is synced before TLS handshake
+struct tm timeinfo;
+while (!getLocalTime(&timeinfo)) {
+  Serial.println("Waiting for time to sync...");
+  delay(1000);
+}
+Serial.println("Time is synced!");
 }
 
 void loop() {
@@ -1138,6 +1306,12 @@ void loop() {
       stopMovement();
     }
   }
+
+  if (millis() - lastHealthCheck >= HEALTH_CHECK_INTERVAL) {
+  publishGeneralLog("ESP32 is working", "info");
+  publishMessage("ESP32 is working");
+  lastHealthCheck = millis();
+}
   delay(1);
 }
 
@@ -1177,8 +1351,13 @@ void updateEmails() {
   saveEmailsToSPIFFS();
 }
 
-
-
-
-
-
+// Add MQTT callback function
+void callback(char* topic, byte* payload, unsigned int length) {
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (int i = 0; i < length; i++) {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
+}

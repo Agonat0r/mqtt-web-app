@@ -25,7 +25,7 @@ function initializeEventHandlers() {
 
   const terminalInput = document.getElementById('terminal-input');
   if (terminalInput) {
-    terminalInput.addEventListener('keydown', handleTerminalInput);
+    terminalInput.addEventListener('keydown', sendCommand);
   }
 }
 
@@ -574,14 +574,28 @@ function clearTerminal(terminalId) {
 
 // Handle Login
 function handleLogin(event) {
+    if (!event) return; // Guard against undefined event
     event.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+    
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    
+    if (!usernameInput || !passwordInput) {
+        console.error('Login form elements not found');
+        return;
+    }
+
+    const username = usernameInput.value;
+    const password = passwordInput.value;
 
     if (username === 'admin' && password === 'admin') {
         loggedIn = true;
-        loginContainer.classList.add('hidden');
-        mainApp.classList.remove('hidden');
+        const loginContainer = document.querySelector('.login-container');
+        const mainApp = document.getElementById('main-app');
+        
+        if (loginContainer) loginContainer.classList.add('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
+        
         initializeMQTTClient();
     } else {
         alert('Invalid credentials. Please try again.');
@@ -672,9 +686,28 @@ function handleAlert(data) {
 }
 
 // Event Listeners
-document.getElementById('login-form').addEventListener('submit', handleLogin);
-tabSelector.addEventListener('change', handleTabSwitch);
-terminalInput.addEventListener('keypress', sendCommand);
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
+    const tabSelector = document.querySelector('.tab-selector');
+    if (tabSelector) {
+        tabSelector.addEventListener('change', handleTabSwitch);
+    }
+
+    const terminalInput = document.getElementById('terminal-input');
+    if (terminalInput) {
+        terminalInput.addEventListener('keypress', sendCommand);
+    }
+
+    // Initialize other event handlers
+    initializeEventHandlers();
+    loadSettings();
+    applySettings();
+    updateAllText();
+});
 
 // Clear log buttons
 document.querySelectorAll('[data-action="clear-log"]').forEach(button => {

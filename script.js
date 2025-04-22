@@ -1,6 +1,10 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
 import { translations } from './translations.js';
 
+// Global state
+let loggedIn = false;
+let currentLang = 'en';
+
 /**
  * Initializes the application when the DOM is fully loaded.
  * Sets up event handlers, loads settings, applies UI customizations,
@@ -84,9 +88,6 @@ function handleAction(event) {
       break;
   }
 }
-
-// Current language
-let currentLang = 'en';
 
 // ✅ Firebase Configuration
 const firebaseConfig = {
@@ -606,7 +607,10 @@ document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
 
 // Handle Login
 function handleLogin(event) {
-    if (!event) return; // Guard against undefined event
+    if (!event) {
+        console.error('Login event is undefined');
+        return;
+    }
     event.preventDefault();
     
     const usernameInput = document.getElementById('login-username');
@@ -614,23 +618,48 @@ function handleLogin(event) {
     
     if (!usernameInput || !passwordInput) {
         console.error('Login form elements not found');
+        showMessage(t('loginError'), 'error');
         return;
     }
 
-    const username = usernameInput.value;
-    const password = passwordInput.value;
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password) {
+        showMessage(t('enterCredentials'), 'error');
+        return;
+    }
 
     if (username === 'admin' && password === 'admin') {
         loggedIn = true;
         const loginContainer = document.querySelector('.login-container');
         const mainApp = document.getElementById('main-app');
         
-        if (loginContainer) loginContainer.classList.add('hidden');
-        if (mainApp) mainApp.classList.remove('hidden');
+        if (!loginContainer || !mainApp) {
+            console.error('Required DOM elements not found');
+            return;
+        }
+
+        loginContainer.classList.add('hidden');
+        mainApp.classList.remove('hidden');
         
-        initializeMQTTClient();
+        // Clear the form
+        usernameInput.value = '';
+        passwordInput.value = '';
+        
+        // Show success message
+        showMessage(t('loginSuccess'), 'success');
+        
+        // Initialize MQTT client after successful login
+        if (typeof initializeMQTTClient === 'function') {
+            initializeMQTTClient();
+        } else {
+            console.warn('MQTT initialization function not found');
+            // Still proceed since MQTT might not be required immediately
+        }
     } else {
-        alert('Invalid credentials. Please try again.');
+        loggedIn = false;
+        showMessage(t('invalidCredentials'), 'error');
     }
 }
 

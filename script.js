@@ -634,12 +634,6 @@ function handleTabSwitch(event) {
             console.log('Hiding tab:', content.id);
         }
     });
-
-    // Update active state in the selector
-    const tabSelector = document.querySelector('.nav-tabs select');
-    if (tabSelector) {
-        tabSelector.value = selectedTab;
-    }
 }
 
 // Send Command
@@ -715,22 +709,22 @@ function handleAlert(data) {
 
 // Update the DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('login-form');
+    const loginForm = document.getElementById('login-screen');
     if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
+        const loginButton = loginForm.querySelector('[data-action="login"]');
+        if (loginButton) {
+            loginButton.addEventListener('click', handleLogin);
+        }
     }
 
-    const tabSelector = document.querySelector('.nav-tabs select');
+    const tabSelector = document.getElementById('tab-selector');
     if (tabSelector) {
         tabSelector.addEventListener('change', handleTabSwitch);
         
-        // Set initial tab if none is selected
-        if (!tabSelector.value) {
-            tabSelector.value = 'status';
-            // Show initial tab content
-            const event = new Event('change');
-            tabSelector.dispatchEvent(event);
-        }
+        // Set initial tab
+        tabSelector.value = 'general';
+        const event = new Event('change');
+        tabSelector.dispatchEvent(event);
     }
 
     const terminalInput = document.getElementById('terminal-input');

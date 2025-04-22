@@ -22,10 +22,10 @@
   <!-- Login Screen -->
   <div id="login-screen" class="login-container">
     <div class="login-box">
-      <h2 id="login-title">🔐 USF Harmar MQTT Login</h2>
-      <input type="text" id="login-username" placeholder="Username" required>
-      <input type="password" id="login-password" placeholder="Password" required>
-      <button data-action="login" class="btn btn-primary">Login</button>
+      <h2 id="login-title" data-translate="loginTitle">🔐 USF Harmar MQTT Login</h2>
+      <input type="text" id="login-username" placeholder="Username" required data-translate="username">
+      <input type="password" id="login-password" placeholder="Password" required data-translate="password">
+      <button data-action="login" class="btn btn-primary" data-translate="loginButton">Login</button>
     </div>
   </div>
 
@@ -33,13 +33,13 @@
   <div id="main-app" class="hidden">
     <!-- Navigation Bar -->
     <nav class="navbar">
-      <div class="nav-title">VPL Monitoring Dashboard</div>
+      <div class="nav-title" data-translate="dashboard">VPL Monitoring Dashboard</div>
       <select id="tab-selector" data-action="switch-tab" class="tab-selector">
-        <option value="general">General</option>
-        <option value="status">Status</option>
-        <option value="commands">Commands</option>
-        <option value="alerts">Alerts</option>
-        <option value="customization">Customization</option>
+        <option value="general" data-translate="general">General</option>
+        <option value="status" data-translate="status">Status</option>
+        <option value="commands" data-translate="commands">Commands</option>
+        <option value="alerts" data-translate="alerts">Alerts</option>
+        <option value="customization" data-translate="customization">Customization</option>
       </select>
       <div id="connectionStatus" class="status-indicator status-disconnected">
         Disconnected
@@ -53,24 +53,24 @@
         <div class="terminal-container">
           <!-- General Terminal -->
           <div class="terminal-section">
-            <h2>General Terminal</h2>
-            <pre id="messageLog" class="terminal">Waiting for messages...</pre>
+            <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
+            <pre id="messageLog" class="terminal" data-translate="waitingMessages">Waiting for messages...</pre>
             <div class="terminal-controls">
-              <button data-action="clear-log" data-target="messageLog">Clear Log</button>
-              <button data-action="export-log" data-target="messageLog">Export Log</button>
-              <button data-action="email-log" data-target="messageLog">Email Log</button>
+              <button data-action="clear-log" data-target="messageLog" data-translate="clearLog">Clear Log</button>
+              <button data-action="export-log" data-target="messageLog" data-translate="exportLog">Export Log</button>
+              <button data-action="email-log" data-target="messageLog" data-translate="emailLog">Email Log</button>
             </div>
           </div>
 
           <!-- Command Terminal -->
           <div class="terminal-section">
-            <h2>Command Terminal</h2>
-            <pre id="command-log" class="terminal">Waiting for commands...</pre>
-            <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input">
+            <h2 id="commands-title" data-translate="commandConsole">Command Terminal</h2>
+            <pre id="command-log" class="terminal" data-translate="waitingCommands">Waiting for commands...</pre>
+            <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
             <div class="terminal-controls">
-              <button data-action="clear-log" data-target="command-log">Clear Log</button>
-              <button data-action="export-log" data-target="command-log">Export Log</button>
-              <button data-action="email-log" data-target="command-log">Email Log</button>
+              <button data-action="clear-log" data-target="command-log" data-translate="clearLog">Clear Log</button>
+              <button data-action="export-log" data-target="command-log" data-translate="exportLog">Export Log</button>
+              <button data-action="email-log" data-target="command-log" data-translate="emailLog">Email Log</button>
             </div>
           </div>
         </div>
@@ -80,30 +80,30 @@
       <div id="status-tab" class="tab-content hidden">
         <div class="status-grid">
           <div class="status-card">
-            <h3>Connection Status</h3>
-            <p id="mqttStatus">Not Connected</p>
+            <h3 data-translate="connectionStatus">Connection Status</h3>
+            <p id="mqttStatus" data-translate="notConnected">Not Connected</p>
           </div>
           <div class="status-card">
-            <h3>Last Update</h3>
-            <p id="lastUpdate">Never</p>
+            <h3 data-translate="lastUpdate">Last Update</h3>
+            <p id="lastUpdate" data-translate="never">Never</p>
           </div>
           <div class="status-card">
-            <h3>VPL State</h3>
-            <p id="vplState">Unknown</p>
+            <h3 data-translate="vplState">VPL State</h3>
+            <p id="vplState" data-translate="unknown">Unknown</p>
           </div>
         </div>
         <div class="telemetry-grid">
           <div class="telemetry-card">
-            <h3>Position</h3>
-            <p id="position">--</p>
+            <h3 data-translate="position">Position</h3>
+            <p id="position">-</p>
           </div>
           <div class="telemetry-card">
-            <h3>Speed</h3>
-            <p id="speed">--</p>
+            <h3 data-translate="speed">Speed</h3>
+            <p id="speed">-</p>
           </div>
           <div class="telemetry-card">
-            <h3>Temperature</h3>
-            <p id="temperature">--</p>
+            <h3 data-translate="temperature">Temperature</h3>
+            <p id="temperature">-</p>
           </div>
         </div>
       </div>
@@ -113,67 +113,67 @@
         <h2>Command Console</h2>
         <pre id="command-history" class="terminal">Command history will appear here...</pre>
         <div class="terminal-controls">
-          <button data-action="clear-log" data-target="command-history">Clear History</button>
-          <button data-action="export-log" data-target="command-history">Export History</button>
-          <button data-action="email-log" data-target="command-history">Email History</button>
+          <button data-action="clear-log" data-target="command-history" data-translate="clearLog">Clear History</button>
+          <button data-action="export-log" data-target="command-history" data-translate="exportLog">Export History</button>
+          <button data-action="email-log" data-target="command-history" data-translate="emailLog">Email History</button>
         </div>
       </div>
 
       <!-- Alerts Tab -->
       <div id="alerts-tab" class="tab-content hidden">
         <h2>Alert Console</h2>
-        <pre id="alert-log" class="terminal">Waiting for alerts...</pre>
+        <pre id="alert-log" class="terminal" data-translate="waitingAlerts">Waiting for alerts...</pre>
         <div class="terminal-controls">
-          <button data-action="clear-log" data-target="alert-log">Clear Alerts</button>
-          <button data-action="export-log" data-target="alert-log">Export Alerts</button>
-          <button data-action="email-log" data-target="alert-log">Email Alerts</button>
+          <button data-action="clear-log" data-target="alert-log" data-translate="clearLog">Clear Alerts</button>
+          <button data-action="export-log" data-target="alert-log" data-translate="exportLog">Export Alerts</button>
+          <button data-action="email-log" data-target="alert-log" data-translate="emailLog">Email Alerts</button>
         </div>
       </div>
 
       <!-- Customization Tab -->
       <div id="customization-tab" class="tab-content hidden">
-        <h2>Customization</h2>
+        <h2 id="customization-title" data-translate="customization">Customization</h2>
         <div class="customization-grid">
           <div class="customization-card">
-            <h3>Theme</h3>
+            <h3 data-translate="theme">Theme</h3>
             <select id="themeSelector" data-action="apply-theme">
-              <option value="default">Default</option>
-              <option value="dark">Dark</option>
-              <option value="usf">USF Theme</option>
+              <option value="default" data-translate="themeDefault">Default</option>
+              <option value="dark" data-translate="themeDark">Dark</option>
+              <option value="usf" data-translate="themeUsf">USF Theme</option>
             </select>
           </div>
           <div class="customization-card">
-            <h3>Font</h3>
+            <h3 data-translate="font">Font</h3>
             <select id="fontSelector" data-action="apply-font">
-              <option value="default">Default</option>
-              <option value="monospace">Monospace</option>
-              <option value="sans-serif">Sans Serif</option>
+              <option value="default" data-translate="fontDefault">Default</option>
+              <option value="monospace" data-translate="fontMonospace">Monospace</option>
+              <option value="sans-serif" data-translate="fontSansSerif">Sans Serif</option>
             </select>
           </div>
           <div class="customization-card">
-            <h3>Language</h3>
+            <h3 data-translate="language">Language</h3>
             <select id="languageSelector" data-action="switch-language">
               <option value="en">English</option>
               <option value="de">Deutsch</option>
             </select>
           </div>
           <div class="customization-card">
-            <h3>Show Borders</h3>
+            <h3 data-translate="showBorders">Show Borders</h3>
             <input type="checkbox" id="borderToggle" data-action="apply-borders">
           </div>
         </div>
-        <button id="resetCustomizations" data-action="reset-customizations">Reset to Default</button>
+        <button id="resetCustomizations" data-action="reset-customizations" data-translate="reset">Reset to Default</button>
       </div>
     </div>
 
     <!-- Email Modal -->
     <div id="emailModal" class="modal hidden">
       <div class="modal-content">
-        <h3>Send Log via Email</h3>
-        <input type="email" id="emailInput" placeholder="Enter email address">
+        <h3 data-translate="emailModalTitle">Send Log via Email</h3>
+        <input type="email" id="emailInput" placeholder="Enter email address" data-translate="emailPlaceholder">
         <div class="modal-buttons">
-          <button data-action="send-email">Send</button>
-          <button data-action="close-modal">Cancel</button>
+          <button data-action="send-email" data-translate="sendEmail">Send</button>
+          <button data-action="close-modal" data-translate="cancel">Cancel</button>
         </div>
       </div>
     </div>

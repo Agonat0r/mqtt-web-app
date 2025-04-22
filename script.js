@@ -134,140 +134,152 @@ function t(key) {
 
 /**
  * Updates all text content in the UI to the current language.
- * Handles login screen, navigation, status panel, console tabs,
- * customization panel, and tools panel text.
+ * Ensures every text element in the application is translated.
  */
 function updateAllText() {
-  // Login screen
-  const loginElements = {
-    title: document.getElementById('login-title'),
-    username: document.getElementById('login-username'),
-    password: document.getElementById('login-password'),
-    button: document.querySelector('#login-screen button')
-  };
+    const currentLang = localStorage.getItem('language') || 'en';
+    const texts = translations[currentLang];
 
-  if (loginElements.title) loginElements.title.textContent = t('loginTitle');
-  if (loginElements.username) loginElements.username.placeholder = t('username');
-  if (loginElements.password) loginElements.password.placeholder = t('password');
-  if (loginElements.button) loginElements.button.textContent = t('loginButton');
+    // Update all elements with data-translate attribute
+    document.querySelectorAll('[data-translate]').forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (texts[key]) {
+            if (element.tagName === 'INPUT' && element.type === 'text') {
+                element.placeholder = texts[key];
+            } else if (element.tagName === 'SELECT') {
+                Array.from(element.options).forEach(option => {
+                    const optionKey = option.getAttribute('data-translate');
+                    if (optionKey && texts[optionKey]) {
+                        option.textContent = texts[optionKey];
+                    }
+                });
+            } else {
+                element.textContent = texts[key];
+            }
+        }
+    });
 
-  // Navigation
-  const navTitle = document.querySelector('.nav-title');
-  if (navTitle) navTitle.textContent = t('dashboard');
-  
-  // Update tab selector options
-  const tabSelector = document.querySelector('.nav-tabs select');
-  if (tabSelector) {
-    tabSelector.innerHTML = `
-      <option value="status">${t('status')}</option>
-      <option value="general">${t('general')}</option>
-      <option value="commands">${t('commands')}</option>
-      <option value="alerts">${t('alerts')}</option>
-      <option value="customization">${t('customization')}</option>
-    `;
+    // Login screen
+    updateElementText('login-title', 'loginTitle');
+    updateElementPlaceholder('login-username', 'username');
+    updateElementPlaceholder('login-password', 'password');
+    updateElementText('[data-action="login"]', 'loginButton');
+
+    // Navigation
+    updateElementText('.nav-title', 'dashboard');
     
-    // Set initial tab if none is selected
-    if (!tabSelector.value) {
-      tabSelector.value = 'status';
-      // Trigger the change event to show initial tab
-      const event = new Event('change');
-      tabSelector.dispatchEvent(event);
+    // Status section
+    updateElementText('#status-title', 'liftSystemStatus');
+    updateElementText('#mqttStatus', translations[currentLang].notConnected);
+    updateElementText('#lastUpdate', translations[currentLang].never);
+    updateElementText('#vplState', translations[currentLang].unknown);
+
+    // Terminal sections
+    updateElementText('#general-title', 'generalConsole');
+    updateElementText('#commands-title', 'commandConsole');
+    updateElementText('#alerts-title', 'alertConsole');
+    updateElementPlaceholder('#terminal-input', 'typeCommand');
+
+    // Customization section
+    updateElementText('#customization-title', 'customization');
+    updateElementText('label[for="themeSelector"]', 'theme');
+    updateElementText('label[for="fontSelector"]', 'font');
+    updateElementText('label[for="borderToggle"]', 'showBorders');
+    updateElementText('#resetCustomizations', 'reset');
+
+    // Update all buttons
+    document.querySelectorAll('[data-action="clear-log"]').forEach(btn => 
+        btn.textContent = translations[currentLang].clearLog);
+    document.querySelectorAll('[data-action="export-log"]').forEach(btn => 
+        btn.textContent = translations[currentLang].exportLog);
+    document.querySelectorAll('[data-action="email-log"]').forEach(btn => 
+        btn.textContent = translations[currentLang].emailLog);
+
+    // Update selectors
+    updateSelector('themeSelector', {
+        'default': 'themeDefault',
+        'dark': 'themeDark',
+        'usf': 'themeUsf'
+    });
+
+    updateSelector('fontSelector', {
+        'default': 'fontDefault',
+        'monospace': 'fontMonospace',
+        'sans-serif': 'fontSansSerif'
+    });
+
+    // Update language selector
+    const languageSelector = document.getElementById('languageSelector');
+    if (languageSelector) {
+        languageSelector.innerHTML = `
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+        `;
+        languageSelector.value = currentLang;
     }
-  }
 
-  // Status panel
-  const statusTitle = document.getElementById('status-title');
-  if (statusTitle) statusTitle.textContent = t('liftSystemStatus');
+    // Update initial terminal messages if empty
+    updateInitialTerminalMessages();
+}
 
-  // Update status section labels
-  document.querySelectorAll('.status-section p').forEach(p => {
-    const label = p.querySelector('span:first-child');
-    if (label) {
-      const key = label.textContent.replace(':', '').toLowerCase();
-      label.textContent = t(key) + ':';
+/**
+ * Helper function to update element text content
+ */
+function updateElementText(selector, key) {
+    const element = typeof selector === 'string' ? 
+        document.querySelector(selector) : selector;
+    if (element && translations[currentLang]?.[key]) {
+        element.textContent = translations[currentLang][key];
     }
-  });
+}
 
-  // Console tabs
-  const consoleElements = {
-    general: document.getElementById('general-title'),
-    terminal: document.getElementById('terminal-input'),
-    commands: document.getElementById('commands-title'),
-    alerts: document.getElementById('alerts-title')
-  };
+/**
+ * Helper function to update input placeholder text
+ */
+function updateElementPlaceholder(selector, key) {
+    const element = typeof selector === 'string' ? 
+        document.getElementById(selector) : selector;
+    if (element && translations[currentLang]?.[key]) {
+        element.placeholder = translations[currentLang][key];
+    }
+}
 
-  if (consoleElements.general) consoleElements.general.textContent = t('generalConsole');
-  if (consoleElements.terminal) consoleElements.terminal.placeholder = t('typeCommand');
-  if (consoleElements.commands) consoleElements.commands.textContent = t('commandConsole');
-  if (consoleElements.alerts) consoleElements.alerts.textContent = t('alertConsole');
+/**
+ * Helper function to update select options
+ */
+function updateSelector(id, options) {
+    const selector = document.getElementById(id);
+    if (selector) {
+        Object.entries(options).forEach(([value, key]) => {
+            const option = selector.querySelector(`option[value="${value}"]`);
+            if (option) {
+                option.textContent = translations[currentLang][key];
+            }
+        });
+    }
+}
 
-  // Customization panel
-  const customElements = {
-    title: document.getElementById('customization-title'),
-    themeLabel: document.querySelector('label[for="themeSelector"]'),
-    fontLabel: document.querySelector('label[for="fontSelector"]'),
-    borderLabel: document.querySelector('label[for="borderToggle"]'),
-    resetButton: document.querySelector('#resetCustomizations')
-  };
+/**
+ * Updates initial terminal messages if they're in their default state
+ */
+function updateInitialTerminalMessages() {
+    const terminals = {
+        messageLog: 'waitingMessages',
+        'command-log': 'waitingCommands',
+        'alert-log': 'waitingAlerts'
+    };
 
-  if (customElements.title) customElements.title.textContent = t('customization');
-  if (customElements.themeLabel) customElements.themeLabel.textContent = t('theme') + ':';
-  if (customElements.fontLabel) customElements.fontLabel.textContent = t('font') + ':';
-  if (customElements.borderLabel) customElements.borderLabel.textContent = t('showBorders');
-  if (customElements.resetButton) customElements.resetButton.textContent = t('reset');
-
-  // Update theme selector options
-  const themeSelector = document.getElementById('themeSelector');
-  if (themeSelector) {
-    themeSelector.innerHTML = `
-      <option value="default">${t('themeDefault')}</option>
-      <option value="dark">${t('themeDark')}</option>
-      <option value="usf">${t('themeUsf')}</option>
-    `;
-  }
-
-  // Update font selector options
-  const fontSelector = document.getElementById('fontSelector');
-  if (fontSelector) {
-    fontSelector.innerHTML = `
-      <option value="default">${t('fontDefault')}</option>
-      <option value="monospace">${t('fontMonospace')}</option>
-      <option value="sans-serif">${t('fontSansSerif')}</option>
-    `;
-  }
-
-  // Update initial log messages
-  const logs = {
-    general: document.getElementById('messageLog'),
-    terminal: document.getElementById('terminal-log'),
-    command: document.getElementById('command-log'),
-    alert: document.getElementById('alert-log')
-  };
-
-  if (logs.general && logs.general.textContent.includes('Waiting for messages')) {
-    logs.general.textContent = t('waitingMessages');
-  }
-  if (logs.terminal && logs.terminal.textContent.includes('[Terminal Initialized]')) {
-    logs.terminal.textContent = t('terminalInitialized');
-  }
-  if (logs.command && logs.command.textContent.includes('Waiting for commands')) {
-    logs.command.textContent = t('waitingCommands');
-  }
-  if (logs.alert && logs.alert.textContent.includes('Waiting for alerts')) {
-    logs.alert.textContent = t('waitingAlerts');
-  }
-
-  // Update language selector options
-  const languageSelector = document.getElementById('languageSelector');
-  if (languageSelector) {
-    languageSelector.innerHTML = `
-      <option value="en">English</option>
-      <option value="es">Español</option>
-      <option value="fr">Français</option>
-      <option value="de">Deutsch</option>
-    `;
-    languageSelector.value = currentLang;
-  }
+    Object.entries(terminals).forEach(([id, key]) => {
+        const terminal = document.getElementById(id);
+        if (terminal && (
+            terminal.textContent.includes('Waiting for') || 
+            terminal.textContent.trim() === ''
+        )) {
+            terminal.textContent = translations[currentLang][key];
+        }
+    });
 }
 
 /**
@@ -880,3 +892,17 @@ function exportLog(targetId) {
     
     showMessage(t('logExported'), 'success');
 }
+
+// Add event listener for language changes
+document.getElementById('languageSelector').addEventListener('change', function(e) {
+    const selectedLang = e.target.value;
+    localStorage.setItem('language', selectedLang);
+    updateAllText();
+});
+
+// Call updateAllText on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const savedLang = localStorage.getItem('language') || 'en';
+    document.getElementById('languageSelector').value = savedLang;
+    updateAllText();
+});

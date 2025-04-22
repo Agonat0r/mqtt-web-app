@@ -356,14 +356,56 @@ body.theme-dark {
 
 /* USF theme */
 body.theme-usf {
-    --bg-color: #003c6c;  /* USF Blue */
-    --text-color: #ffffff;
+    --bg-color: #ffffff;  /* White background */
+    --text-color: #006747;  /* USF Green */
     --primary-color: #006747; /* USF Green */
-    --secondary-color: #004a80;
-    --border-color: #ffffff;
-    --card-bg: #004a80;
-    --terminal-bg: #002342;
-    --terminal-text: #ffffff;
+    --secondary-color: #CFC493; /* USF Gold */
+    --border-color: #006747;
+    --card-bg: #ffffff;
+    --terminal-bg: #006747;
+    --terminal-text: #CFC493;
+    --nav-bg: #006747;
+    --nav-text: #ffffff;
+    --button-bg: #006747;
+    --button-text: #ffffff;
+    --button-hover: #00593d;
+}
+
+/* Update USF theme specific elements */
+body.theme-usf .navbar {
+    background-color: var(--nav-bg);
+    color: var(--nav-text);
+    border-bottom: 2px solid var(--secondary-color);
+}
+
+body.theme-usf .status-card,
+body.theme-usf .telemetry-card,
+body.theme-usf .customization-card {
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    color: var(--text-color);
+}
+
+body.theme-usf button {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--secondary-color);
+}
+
+body.theme-usf button:hover {
+    background-color: var(--button-hover);
+}
+
+body.theme-usf .terminal {
+    background-color: var(--terminal-bg);
+    color: var(--terminal-text);
+    border: 1px solid var(--secondary-color);
+}
+
+body.theme-usf .tab-selector {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
 }
 
 /* Apply theme colors */

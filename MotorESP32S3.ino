@@ -1308,10 +1308,9 @@ void loop() {
   }
 
   if (millis() - lastHealthCheck >= HEALTH_CHECK_INTERVAL) {
-  publishGeneralLog("ESP32 is working", "info");
-  publishMessage("ESP32 is working");
-  lastHealthCheck = millis();
-}
+    publishAlert("green", "ESP32 is working");  // This will show in both alert tab and general console
+    lastHealthCheck = millis();
+  }
   delay(1);
 }
 

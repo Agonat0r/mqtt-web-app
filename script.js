@@ -500,14 +500,17 @@ client.on('connect', () => {
     console.log('Connected to MQTT broker');
     logToTerminal('Connected to MQTT broker', 'success');
     
-    // Subscribe to the topic
-    client.subscribe('usf/messages', (err) => {
-        if (err) {
-            console.error('Subscription error:', err);
-            logToTerminal('Failed to subscribe to messages', 'error');
-        } else {
-            logToTerminal('Subscribed to messages', 'info');
-        }
+    // Subscribe to all relevant topics
+    const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];
+    topics.forEach(topic => {
+        client.subscribe(topic, (err) => {
+            if (err) {
+                console.error('Subscription error for ' + topic + ':', err);
+                logToTerminal('Failed to subscribe to ' + topic, 'error');
+            } else {
+                logToTerminal('Subscribed to ' + topic, 'info');
+            }
+        });
     });
 });
 
@@ -522,7 +525,7 @@ client.on('message', (topic, message) => {
         const payload = JSON.parse(message.toString());
         
         // Handle different message types
-        if (payload.type === 'alarm') {
+        if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
             handleAlarm(payload);
         } else if (payload.type === 'command') {
             logToCommandTerminal(payload.message || 'Command received', payload.type);
@@ -558,16 +561,16 @@ function logToCommandTerminal(message, type = 'command') {
 function handleAlarm(alarm) {
     const timestamp = new Date().toLocaleTimeString();
     const alarmEntry = document.createElement('div');
-    alarmEntry.className = 'alarm-entry';
+    alarmEntry.className = `alarm-entry ${alarm.type}`; // Use the type directly from ESP32
     alarmEntry.innerHTML = `[${timestamp}] ${alarm.message}`;
     
-    // Add to appropriate alarm section
-    const alarmType = alarm.severity?.toLowerCase() || 'amber';
-    const alarmContainer = document.getElementById(`${alarmType}Alarms`);
+    // Add to appropriate alarm section based on the type from ESP32
+    const alarmContainer = document.getElementById(`${alarm.type}Alarms`);
     if (alarmContainer) {
         alarmContainer.appendChild(alarmEntry);
+        alarmContainer.scrollTop = alarmContainer.scrollHeight;
         // Also log to general terminal
-        logToTerminal(`[${alarmType.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
+        logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
     }
 }
 

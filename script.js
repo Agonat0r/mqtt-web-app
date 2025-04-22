@@ -628,8 +628,20 @@ function handleLogin() {
   const password = document.getElementById("login-password").value;
   
   if (username === "Carlos" && password === "mqtt2025") {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("main-app").style.display = "block";
+    // Hide login screen
+    const loginScreen = document.getElementById("login-screen");
+    const mainApp = document.getElementById("main-app");
+    
+    if (loginScreen) {
+      loginScreen.classList.add("hidden");
+    }
+    
+    // Show main app and switch to status tab
+    if (mainApp) {
+      mainApp.classList.remove("hidden");
+      switchTab('status');
+    }
+    
     loggedIn = true;
     mqttHandler.connect();
   } else {
@@ -707,15 +719,20 @@ function translatePrefix(text, lang) {
  * @param {string} tabId - The ID of the tab to switch to
  */
 function switchTab(tabId) {
-  // Hide all tabs
-  document.querySelectorAll('.tab-content').forEach(tab => {
-    tab.classList.add('hidden');
-  });
+  // Hide all tabs first
+  const tabs = document.querySelectorAll('.tab-content');
+  tabs.forEach(tab => tab.classList.add('hidden'));
   
-  // Show selected tab
+  // Show the selected tab
   const selectedTab = document.getElementById(`${tabId}-tab`);
   if (selectedTab) {
     selectedTab.classList.remove('hidden');
+    
+    // Update the tab selector if it exists
+    const tabSelector = document.querySelector('#tab-selector');
+    if (tabSelector) {
+      tabSelector.value = tabId;
+    }
   }
 }
 

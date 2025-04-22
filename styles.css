@@ -265,16 +265,46 @@ pre::-webkit-scrollbar-thumb:hover {
   min-width: 120px;
 }
 
-/* === Login Panel === */
-#login-screen {
-  max-width: 400px;
-  margin: 100px auto;
-  background: #fff;
-  padding: 30px 20px;
+/* === Login Screen === */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  animation: fadeInScale 0.5s ease-out;
+}
+
+.login-box h2 {
+  margin-bottom: 2rem;
+  color: var(--text-color);
+}
+
+.login-box input {
+  margin-bottom: 1rem;
+}
+
+.login-box button {
+  margin-top: 2rem;
+}
+
+/* === Main App === */
+#main-app {
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+#main-app.hidden {
+  display: none;
 }
 
 /* === Border Toggle === */

@@ -165,6 +165,14 @@ function updateAllText() {
       <option value="alerts">${t('alerts')}</option>
       <option value="customization">${t('customization')}</option>
     `;
+    
+    // Set initial tab if none is selected
+    if (!tabSelector.value) {
+      tabSelector.value = 'status';
+      // Trigger the change event to show initial tab
+      const event = new Event('change');
+      tabSelector.dispatchEvent(event);
+    }
   }
 
   // Status panel
@@ -605,13 +613,33 @@ function handleLogin(event) {
 // Handle Tab Switching
 function handleTabSwitch(event) {
     const selectedTab = event.target.value;
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // First verify we have both the selected value and tab contents
+    if (!selectedTab || !tabContents.length) {
+        console.error('Tab switching error: Missing elements');
+        return;
+    }
+
+    // Log for debugging
+    console.log('Switching to tab:', selectedTab);
+
+    // Show selected tab content and hide others
     tabContents.forEach(content => {
-        if (content.id === selectedTab) {
+        if (content.id === selectedTab + '-tab') {
             content.classList.remove('hidden');
+            console.log('Showing tab:', content.id);
         } else {
             content.classList.add('hidden');
+            console.log('Hiding tab:', content.id);
         }
     });
+
+    // Update active state in the selector
+    const tabSelector = document.querySelector('.nav-tabs select');
+    if (tabSelector) {
+        tabSelector.value = selectedTab;
+    }
 }
 
 // Send Command
@@ -685,16 +713,24 @@ function handleAlert(data) {
     // You can add additional alert handling here, such as showing a notification
 }
 
-// Event Listeners
+// Update the DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
 
-    const tabSelector = document.querySelector('.tab-selector');
+    const tabSelector = document.querySelector('.nav-tabs select');
     if (tabSelector) {
         tabSelector.addEventListener('change', handleTabSwitch);
+        
+        // Set initial tab if none is selected
+        if (!tabSelector.value) {
+            tabSelector.value = 'status';
+            // Show initial tab content
+            const event = new Event('change');
+            tabSelector.dispatchEvent(event);
+        }
     }
 
     const terminalInput = document.getElementById('terminal-input');

@@ -1,6 +1,11 @@
 // === Full script.js with Firestore logging, timestamps, translations, and MQTT handling ===
 import { translations } from './translations.js';
 
+// Initialize EmailJS
+(function() {
+    emailjs.init("7osg1XmfdRC2z68Xt"); // Replace with your actual EmailJS public key
+})();
+
 // Global state
 let loggedIn = false;
 let currentLang = 'en';
@@ -960,28 +965,52 @@ function closeEmailModal() {
 }
 
 /**
- * Sends the log content via email
+ * Sends the log content via email using EmailJS
+ * Requires EmailJS to be initialized with your public key
+ * Uses the template "template_vnrbr1d" from service "service_lsa1r4i"
  */
 async function sendLogEmail() {
     const modal = document.getElementById('emailModal');
     const targetId = modal.dataset.targetLog;
     const emailInput = document.getElementById('emailInput');
     const terminal = document.getElementById(targetId);
+    const submitButton = document.querySelector('[data-action="send-email"]');
     
-    if (!terminal || !emailInput.value) return;
+    if (!terminal || !emailInput.value) {
+        showMessage(t('invalidEmailOrContent'), 'error');
+        return;
+    }
 
     try {
-        await emailjs.send("service_lsa1r4i", "template_vnrbr1d", {
-            to_email: emailInput.value,
-            log_content: terminal.innerText,
-            log_type: targetId
-        });
+        // Disable submit button and show loading state
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = t('sending');
+        }
+
+        // Send email using EmailJS
+        await emailjs.send(
+            "service_lsa1r4i", 
+            "template_vnrbr1d",
+            {
+                to_email: emailInput.value,
+                log_content: terminal.innerText,
+                log_type: targetId,
+                timestamp: new Date().toLocaleString()
+            }
+        );
         
         showMessage(t('emailSent'), 'success');
         closeEmailModal();
     } catch (error) {
         console.error('Email error:', error);
-        showMessage(t('emailError'), 'error');
+        showMessage(t('emailError') + ': ' + error.message, 'error');
+    } finally {
+        // Re-enable submit button and restore text
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = t('sendEmail');
+        }
     }
 }
 

@@ -577,18 +577,19 @@ function handleAlarm(alarm) {
 // Terminal input handling
 terminalInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-        const command = terminalInput.value.trim();
+        const command = terminalInput.value.trim().toUpperCase();
         if (command) {
-            // Log the command
+            // Log the command to the command terminal
             logToCommandTerminal(`> ${command}`, 'command');
             
-            // Publish the command to MQTT
+            // Create command payload
             const payload = {
                 type: 'command',
                 message: command,
                 timestamp: new Date().toISOString()
             };
             
+            // Publish to both general and command topics
             client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
                 if (err) {
                     console.error('Failed to publish command:', err);
@@ -596,11 +597,79 @@ terminalInput.addEventListener('keypress', (e) => {
                 }
             });
             
+            // Handle specific lift commands
+            if (command === 'UP' || command === 'DOWN' || command === 'STOP') {
+                const liftPayload = {
+                    type: 'command',
+                    message: `COMMAND:${command}`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Send to motor control topic
+                client.publish('usf/messages', JSON.stringify(liftPayload), { qos: 1 }, (err) => {
+                    if (err) {
+                        console.error('Failed to send lift command:', err);
+                        logToCommandTerminal('Failed to send lift command', 'error');
+                    }
+                });
+            }
+            
             // Clear the input
             terminalInput.value = '';
         }
     }
 });
+
+// Add helper buttons for lift control
+const terminalContainer = document.getElementById('command-log').parentElement;
+const controlButtonsDiv = document.createElement('div');
+controlButtonsDiv.className = 'terminal-controls';
+controlButtonsDiv.innerHTML = `
+    <button onclick="sendLiftCommand('UP')">UP</button>
+    <button onclick="sendLiftCommand('DOWN')">DOWN</button>
+    <button onclick="sendLiftCommand('STOP')">STOP</button>
+`;
+terminalContainer.insertBefore(controlButtonsDiv, terminalInput);
+
+// Add styles for the control buttons
+document.head.querySelector('style').textContent += `
+    .terminal-controls {
+        margin: 10px 0;
+        display: flex;
+        gap: 10px;
+    }
+    .terminal-controls button {
+        padding: 5px 15px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .terminal-controls button:hover {
+        background-color: #45a049;
+    }
+`;
+
+// Function to send lift commands
+window.sendLiftCommand = function(command) {
+    const payload = {
+        type: 'command',
+        message: `COMMAND:${command}`,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Log the command
+    logToCommandTerminal(`> ${command}`, 'command');
+    
+    // Send to motor control topic
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send lift command:', err);
+            logToCommandTerminal('Failed to send lift command', 'error');
+        }
+    });
+};
 
 // Clear log buttons
 document.querySelectorAll('[data-action="clear-log"]').forEach(button => {

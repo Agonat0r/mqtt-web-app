@@ -64,11 +64,19 @@ static int term_pos = 0;
 static lv_obj_t *alert_terminal;
 static char alert_buf[4096];
 static int alert_pos = 0;
+static bool elevator_mode = true;  // true = elevator mode, false = lift mode
+static lv_obj_t *mode_switch;
+static lv_obj_t *mode_label;
 
 void mqtt_start();
 void send_mqtt(const char *cmd);
-void btn_up_cb(lv_event_t *e);
-void btn_down_cb(lv_event_t *e);
+void btn_up_press_cb(lv_event_t *e);
+void btn_up_release_cb(lv_event_t *e);
+void btn_down_press_cb(lv_event_t *e);
+void btn_down_release_cb(lv_event_t *e);
+void btn_up_click_cb(lv_event_t *e);
+void btn_down_click_cb(lv_event_t *e);
+void mode_switch_cb(lv_event_t *e);
 void handle_mqtt_alert(const char* type, const char* message, const char* timestamp);
 
 int _write(int fd, const char *data, int size) {
@@ -256,18 +264,76 @@ void mqtt_start() {
     esp_mqtt_client_start(mqtt_client);
 }
 
-void btn_up_cb(lv_event_t *e) {
-    send_mqtt("COMMAND:UP");
+void btn_up_press_cb(lv_event_t *e) {
+    if (!elevator_mode) {
+        send_mqtt("COMMAND:UP");
+    }
 }
 
-void btn_down_cb(lv_event_t *e) {
-    send_mqtt("COMMAND:DOWN");
+void btn_up_release_cb(lv_event_t *e) {
+    if (!elevator_mode) {
+        send_mqtt("COMMAND:STOP");
+    }
+}
+
+void btn_down_press_cb(lv_event_t *e) {
+    if (!elevator_mode) {
+        send_mqtt("COMMAND:DOWN");
+    }
+}
+
+void btn_down_release_cb(lv_event_t *e) {
+    if (!elevator_mode) {
+        send_mqtt("COMMAND:STOP");
+    }
+}
+
+void btn_up_click_cb(lv_event_t *e) {
+    if (elevator_mode) {
+        send_mqtt("COMMAND:UP");
+    }
+}
+
+void btn_down_click_cb(lv_event_t *e) {
+    if (elevator_mode) {
+        send_mqtt("COMMAND:DOWN");
+    }
+}
+
+void mode_switch_cb(lv_event_t *e) {
+    lv_obj_t *sw = lv_event_get_target(e);
+    elevator_mode = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    lv_label_set_text(mode_label, elevator_mode ? "Elevator Mode" : "Lift Mode");
 }
 
 void send_mqtt(const char *cmd) {
     if (mqtt_connected) {
-        int msg_id = esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, cmd, 0, 1, 0);
+        // Create JSON object for the command
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "type", "command");
+        cJSON_AddStringToObject(root, "message", cmd);
+        
+        // Get current time for timestamp
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        char timestamp[64];
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+        cJSON_AddStringToObject(root, "timestamp", timestamp);
+        
+        // Convert to string
+        char *json_str = cJSON_Print(root);
+        
+        // Publish to both general and command topics
+        esp_mqtt_client_publish(mqtt_client, MQTT_TOPIC, json_str, 0, 1, 0);
+        esp_mqtt_client_publish(mqtt_client, "usf/logs/command", json_str, 0, 1, 0);  // Send to command console
+        
         lv_label_set_text_fmt(label_status, "Sent: %s", cmd);
+        
+        // Cleanup
+        free(json_str);
+        cJSON_Delete(root);
     } else {
         lv_label_set_text(label_status, "MQTT Not Connected");
     }
@@ -346,7 +412,9 @@ void ui_init() {
     terminal = lv_textarea_create(tabs[1]);
     lv_obj_set_size(terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
     lv_obj_align(terminal, LV_ALIGN_TOP_MID, 20, 10);
-    lv_obj_add_flag(terminal, LV_OBJ_FLAG_READ_ONLY);
+   lv_textarea_set_cursor_click_pos(terminal, false);
+lv_textarea_set_password_mode(terminal, true);
+lv_textarea_set_text_selection(terminal, false);
     lv_textarea_set_text(terminal, "=== Command and Alert Terminal ===\n");
     lv_textarea_set_placeholder_text(terminal, "Waiting for messages...");
     
@@ -360,7 +428,9 @@ void ui_init() {
     alert_terminal = lv_textarea_create(tabs[1]);
     lv_obj_set_size(alert_terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
     lv_obj_align_to(alert_terminal, terminal, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
-    lv_obj_add_flag(alert_terminal, LV_OBJ_FLAG_READ_ONLY);
+lv_textarea_set_cursor_click_pos(alert_terminal, false);
+
+lv_obj_clear_flag(alert_terminal, LV_OBJ_FLAG_CLICKABLE);
     lv_textarea_set_text(alert_terminal, "=== Alerts Only Terminal ===\n");
     lv_textarea_set_placeholder_text(alert_terminal, "Waiting for alerts...");
     
@@ -370,23 +440,41 @@ void ui_init() {
     lv_obj_set_style_border_color(alert_terminal, lv_color_hex(0x404040), LV_PART_MAIN);
     lv_obj_set_style_border_width(alert_terminal, 2, LV_PART_MAIN);
 
-    // 'UP' control button in the Controls tab (sends COMMAND:UP over MQTT)
+    // Add mode switch and label in the Controls tab
+    mode_label = lv_label_create(tabs[2]);
+    lv_label_set_text(mode_label, "Elevator Mode");
+    lv_obj_align(mode_label, LV_ALIGN_TOP_MID, 0, 10);
+
+    mode_switch = lv_switch_create(tabs[2]);
+    lv_obj_add_state(mode_switch, LV_STATE_CHECKED);
+    lv_obj_align_to(mode_switch, mode_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_add_event_cb(mode_switch, mode_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    // Create UP button with multiple event handlers
     lv_obj_t *btn_up = lv_btn_create(tabs[2]);
     lv_obj_set_size(btn_up, 100, 60);
-    lv_obj_align(btn_up, LV_ALIGN_TOP_MID, 40, 40);
+    lv_obj_align(btn_up, LV_ALIGN_TOP_MID, 40, 80);
     lv_obj_t *up_lbl = lv_label_create(btn_up);
     lv_label_set_text(up_lbl, "UP");
     lv_obj_center(up_lbl);
-    lv_obj_add_event_cb(btn_up, btn_up_cb, LV_EVENT_CLICKED, NULL);
+    
+    // Add all event handlers for UP button
+    lv_obj_add_event_cb(btn_up, btn_up_click_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_up, btn_up_press_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(btn_up, btn_up_release_cb, LV_EVENT_RELEASED, NULL);
 
-    // 'DOWN' control button in the Controls tab (sends COMMAND:DOWN over MQTT)
+    // Create DOWN button with multiple event handlers
     lv_obj_t *btn_down = lv_btn_create(tabs[2]);
     lv_obj_set_size(btn_down, 100, 60);
     lv_obj_align(btn_down, LV_ALIGN_BOTTOM_MID, 40, -40);
     lv_obj_t *down_lbl = lv_label_create(btn_down);
     lv_label_set_text(down_lbl, "DOWN");
     lv_obj_center(down_lbl);
-    lv_obj_add_event_cb(btn_down, btn_down_cb, LV_EVENT_CLICKED, NULL);
+    
+    // Add all event handlers for DOWN button
+    lv_obj_add_event_cb(btn_down, btn_down_click_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_down, btn_down_press_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(btn_down, btn_down_release_cb, LV_EVENT_RELEASED, NULL);
 
     // Label in Settings tab for introducing language selection
     lv_obj_t *settings_label = lv_label_create(tabs[3]);

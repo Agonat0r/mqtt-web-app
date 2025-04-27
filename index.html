@@ -206,5 +206,110 @@
 
   <!-- App Script -->
   <script type="module" src="script.js"></script>
+
+  <script>
+    function startAction(direction) {
+        // Get current timestamp
+        const timestamp = new Date().toISOString();
+        
+        // Create command message
+        const command = `COMMAND:${direction.toUpperCase()}`;
+        
+        // Add to command terminal
+        const commandLog = document.getElementById('command-log');
+        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
+        commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Create MQTT message
+        const mqttMessage = {
+            type: "command",
+            message: command,
+            timestamp: timestamp
+        };
+
+        // Publish to MQTT topic
+        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+    }
+
+    function stopAction() {
+        // Get current timestamp
+        const timestamp = new Date().toISOString();
+        
+        // Create command message
+        const command = "COMMAND:STOP";
+        
+        // Add to command terminal
+        const commandLog = document.getElementById('command-log');
+        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
+        commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Create MQTT message
+        const mqttMessage = {
+            type: "command",
+            message: command,
+            timestamp: timestamp
+        };
+
+        // Publish to MQTT topic
+        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+    }
+
+    function applyBrake() {
+        // Get current timestamp
+        const timestamp = new Date().toISOString();
+        
+        // Create command message
+        const command = "COMMAND:BRAKE";
+        
+        // Add to command terminal
+        const commandLog = document.getElementById('command-log');
+        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
+        commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Create MQTT message
+        const mqttMessage = {
+            type: "command",
+            message: command,
+            timestamp: timestamp
+        };
+
+        // Publish to MQTT topic
+        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+    }
+
+    function releaseBrake() {
+        // Get current timestamp
+        const timestamp = new Date().toISOString();
+        
+        // Create command message
+        const command = "COMMAND:RELEASE";
+        
+        // Add to command terminal
+        const commandLog = document.getElementById('command-log');
+        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
+        commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Create MQTT message
+        const mqttMessage = {
+            type: "command",
+            message: command,
+            timestamp: timestamp
+        };
+
+        // Publish to MQTT topic
+        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+    }
+
+    // Helper function to publish MQTT messages
+    function publishToMQTT(topic, message) {
+        // This function should be defined in your MQTT client setup
+        // It will use the MQTT.js client to publish the message
+        if (window.mqttClient && window.mqttClient.connected) {
+            window.mqttClient.publish(topic, message);
+        } else {
+            console.error('MQTT client not connected');
+        }
+    }
+  </script>
 </body>
 </html>

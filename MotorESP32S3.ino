@@ -326,32 +326,34 @@ void callback(char* topic, byte* payload, unsigned int length) {
     const char* msg = doc["message"];
     const char* timestamp = doc["timestamp"];
 
-    // Only print for command messages with UP, DOWN, or STOP
+    // Only print for command messages
     if (type && strcmp(type, "command") == 0 && msg && timestamp) {
-        if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
-            // Print as a single compressed line
-            Serial.print("[COMMAND] ");
-            if (strcmp(msg, "COMMAND:UP") == 0) {
-                Serial.print("UP");
-                // Control output pins (commented out for future use)
-                // digitalWrite(COMMAND_UP_PIN, HIGH);
-                // digitalWrite(COMMAND_DOWN_PIN, LOW);
-            }
-            else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-                Serial.print("DOWN");
-                // Control output pins (commented out for future use)
-                // digitalWrite(COMMAND_UP_PIN, LOW);
-                // digitalWrite(COMMAND_DOWN_PIN, HIGH);
-            }
-            else if (strcmp(msg, "COMMAND:STOP") == 0) {
-                Serial.print("STOP");
-                // Control output pins (commented out for future use)
-                // digitalWrite(COMMAND_UP_PIN, LOW);
-                // digitalWrite(COMMAND_DOWN_PIN, LOW);
-            }
-            Serial.print(" at ");
-            Serial.println(timestamp);
+        // Print as a single compressed line
+        Serial.print("[COMMAND] ");
+        
+        if (strcmp(msg, "COMMAND:UP") == 0) {
+            Serial.print("UP");
+            handleMovement("up");
         }
+        else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+            Serial.print("DOWN");
+            handleMovement("down");
+        }
+        else if (strcmp(msg, "COMMAND:STOP") == 0) {
+            Serial.print("STOP");
+            stopMovement();
+        }
+        else if (strcmp(msg, "COMMAND:BRAKE") == 0) {
+            Serial.print("BRAKE");
+            applyBrake();
+        }
+        else if (strcmp(msg, "COMMAND:RELEASE") == 0) {
+            Serial.print("RELEASE");
+            releaseBrake();
+        }
+        
+        Serial.print(" at ");
+        Serial.println(timestamp);
     }
 }
 

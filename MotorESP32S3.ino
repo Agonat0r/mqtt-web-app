@@ -331,9 +331,24 @@ void callback(char* topic, byte* payload, unsigned int length) {
         if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
             // Print as a single compressed line
             Serial.print("[COMMAND] ");
-            if (strcmp(msg, "COMMAND:UP") == 0) Serial.print("UP");
-            else if (strcmp(msg, "COMMAND:DOWN") == 0) Serial.print("DOWN");
-            else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
+            if (strcmp(msg, "COMMAND:UP") == 0) {
+                Serial.print("UP");
+                // Control output pins (commented out for future use)
+                // digitalWrite(COMMAND_UP_PIN, HIGH);
+                // digitalWrite(COMMAND_DOWN_PIN, LOW);
+            }
+            else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+                Serial.print("DOWN");
+                // Control output pins (commented out for future use)
+                // digitalWrite(COMMAND_UP_PIN, LOW);
+                // digitalWrite(COMMAND_DOWN_PIN, HIGH);
+            }
+            else if (strcmp(msg, "COMMAND:STOP") == 0) {
+                Serial.print("STOP");
+                // Control output pins (commented out for future use)
+                // digitalWrite(COMMAND_UP_PIN, LOW);
+                // digitalWrite(COMMAND_DOWN_PIN, LOW);
+            }
             Serial.print(" at ");
             Serial.println(timestamp);
         }

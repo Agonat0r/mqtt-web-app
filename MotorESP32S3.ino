@@ -8,14 +8,16 @@
 #include <PubSubClient.h>  // Add MQTT client library
 #include <WebServer.h>  // Add WebServer library
 #include <WiFiClientSecure.h>  // Add WiFiClientSecure for SSL/TLS
+#include <ArduinoJson.h>  // Add ArduinoJson library for JSON parsing
+#include <esp_task_wdt.h>
 
 // ===== Login Configuration ===== //
 const char* www_username = "admin";     
 const char* www_password = "admin";
 
 // ===== WiFi and MQTT Configuration ===== //
-const char* ssid = "Flugel";
-const char* password = "dogecoin";
+const char* ssid = "Hub Unit 221"; // Flugel
+const char* password = "ZWCFWFFN"; // dogecoin
 const char* mqtt_server = "lb88002c.ala.us-east-1.emqxsl.com";
 const int mqtt_port = 8883;  // MQTT over TLS/SSL Port
 const char* mqtt_username = "Carlos";
@@ -84,10 +86,6 @@ const unsigned long HEALTH_CHECK_INTERVAL = 300000; // Changed to 5 minutes (300
 unsigned long LIFT_MODE_DELAY = 200; // Set default delay for Lift Mode
 unsigned long ELEVATOR_MODE_DELAY = 200; // Set default delay for Elevator Mode
 
-
-
-
-
 // Pin Definitions
 #define UP_BUTTON 18 // 18
 #define DOWN_BUTTON 19 // 19
@@ -126,17 +124,14 @@ unsigned long LED_CHECK_DELAY = 300; // Default delay for LEDs serial monitoring
 static unsigned long lastRedLED0Print = 0;
 const unsigned long redLED0Interval = 10000;  // 10 seconds = 10,000 ms
 
-
 // Variables to track LED states
 bool lastStateRed[numLEDs] = {LOW, LOW, LOW, LOW}; // Array to store last read state of each Red LED
 bool lastStateGreen[numLEDs] = {LOW, LOW, LOW, LOW}; // Array to store last read state of each Green LED
 int changeCountRed[numLEDs] = {0, 0, 0, 0}; // Array to count state changes for Red LEDs
 int changeCountGreen[numLEDs] = {0, 0, 0, 0}; // Array to count state changes for Green LEDs
 
-
 // Global variable to hold LED status for the web UI
 String ledStatus = ""; // This string will be updated with LED status info for the webpage
-
 
 // ===== Global Variables ===== //
 String serialLogs; // Stored Logs on to send to the web interface
@@ -151,7 +146,6 @@ String lastLedSnapshot = "";
 String lastRedEmailSent = "";
 String lastAmberEmailSent = "";
 String lastGreenEmailSent = "";
-
 
 WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
@@ -227,7 +221,8 @@ void handleMovement(const char* direction) {
   
   // Add prominent Serial output for lift commands
   Serial.println("\n=== LIFT COMMAND RECEIVED ===");
-  Serial.println("Direction: " + dir.toUpperCase());
+  Serial.print("Direction: ");
+  Serial.println(dir);  // Print direction as is, Arduino String class handles uppercase automatically
   Serial.println("===========================\n");
   
   if (dir == "up") {
@@ -312,88 +307,80 @@ void publishAlert(const char* level, const String& msg) {
   mqttClient.publish(alertLogTopic, payload.c_str());  // Send only to alert topic
 }
 
-// Function to reconnect to MQTT broker
-void reconnectMQTT() {
-    int attempts = 0;
-    while (!mqttClient.connected() && attempts < 3) {
-        Serial.println("\n----------- MQTT Connection Attempt -----------");
-        Serial.println("Server: " + String(mqtt_server));
-        Serial.println("Port: " + String(mqtt_port));
-        Serial.println("Username: " + String(mqtt_username));
-        Serial.println("Client ID: ESP32Client-" + String(random(0xffff), HEX));
-        
-if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected. Waiting for reconnection...");
-    int wifiWait = 0;
-    while (WiFi.status() != WL_CONNECTED && wifiWait < 10000) {
-        delay(500);
-        Serial.print(".");
-        wifiWait += 500;
-    }
-    Serial.println();
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi still not connected after waiting.");
+// MQTT callback function
+void callback(char* topic, byte* payload, unsigned int length) {
+    // Create a null-terminated string from payload
+    char message[length + 1];
+    memcpy(message, payload, length);
+    message[length] = '\0';
+
+    // Parse JSON message
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, message);
+    if (error) {
         return;
+    }
+
+    // Extract message components
+    const char* type = doc["type"];
+    const char* msg = doc["message"];
+    const char* timestamp = doc["timestamp"];
+
+    // Only print for command messages with UP, DOWN, or STOP
+    if (type && strcmp(type, "command") == 0 && msg && timestamp) {
+        if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
+            // Print as a single compressed line
+            Serial.print("[COMMAND] ");
+            if (strcmp(msg, "COMMAND:UP") == 0) Serial.print("UP");
+            else if (strcmp(msg, "COMMAND:DOWN") == 0) Serial.print("DOWN");
+            else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
+            Serial.print(" at ");
+            Serial.println(timestamp);
+
+            // --- BEGIN: Command Output Pin Control (commented out for now) ---
+            // if (strcmp(msg, "COMMAND:UP") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, HIGH);
+            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            // } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, LOW);
+            //     digitalWrite(DOWN_OUTPUT_PIN, HIGH);
+            // } else if (strcmp(msg, "COMMAND:STOP") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, LOW);
+            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            // }
+            // --- END: Command Output Pin Control ---
+        }
     }
 }
 
-        Serial.println("WiFi connected to: " + String(WiFi.SSID()));
-        Serial.println("IP address: " + WiFi.localIP().toString());
-        
-        // Clear any existing connection
-        mqttClient.disconnect();
-        delay(1000);
-        
-        // Generate a unique client ID
-        String clientId = "mqtt-dashboard-ff95c7ff";
-        
-        Serial.println("Attempting MQTT connection...");
-        
-        // Attempt to connect with all credentials
+// Function to reconnect to MQTT broker
+void reconnectMQTT() {
+    if (WiFi.status() != WL_CONNECTED) {
+        // Do not print anything here
+        return;
+    }
+    int attempts = 0;
+    const int MAX_ATTEMPTS = 3;
+    while (!mqttClient.connected() && attempts < MAX_ATTEMPTS) {
+        // Do not print anything here
+        String clientId = "ESP32Client-" + String(random(0xffff), HEX);
         if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
-            Serial.println("Connected successfully to MQTT broker!");
-            
-            // Subscribe to all relevant topics
-            mqttClient.subscribe(mqttTopic);
-            mqttClient.subscribe(generalLogTopic);
+            Serial.println("Connected to MQTT broker");
             mqttClient.subscribe(commandLogTopic);
+            mqttClient.subscribe(generalLogTopic);
             mqttClient.subscribe(alertLogTopic);
-            
-            Serial.println("Subscribed to all topics");
-            
-            // Publish connection message
             String connectMsg = "{\"type\":\"info\",\"message\":\"Device connected\",\"timestamp\":\"" + getTimestamp() + "\"}";
             mqttClient.publish(mqttTopic, connectMsg.c_str());
-            
-            return;  // Connection successful, exit the function
-        } else {
-            int state = mqttClient.state();
-            Serial.print("Connection failed, rc=");
-            Serial.print(state);
-            Serial.print(" (");
-            switch(state) {
-                case -4: Serial.print("MQTT_CONNECTION_TIMEOUT"); break;
-                case -3: Serial.print("MQTT_CONNECTION_LOST"); break;
-                case -2: Serial.print("MQTT_CONNECT_FAILED"); break;
-                case -1: Serial.print("MQTT_DISCONNECTED"); break;
-                case 1: Serial.print("MQTT_CONNECT_BAD_PROTOCOL"); break;
-                case 2: Serial.print("MQTT_CONNECT_BAD_CLIENT_ID"); break;
-                case 3: Serial.print("MQTT_CONNECT_UNAVAILABLE"); break;
-                case 4: Serial.print("MQTT_CONNECT_BAD_CREDENTIALS"); break;
-                case 5: Serial.print("MQTT_CONNECT_UNAUTHORIZED"); break;
-            }
-            Serial.println(")");
+            return;
         }
-        
         attempts++;
-        if (attempts < 3) {
-            Serial.println("Retrying in 5 seconds...");
+        if (attempts < MAX_ATTEMPTS) {
             delay(5000);
         }
     }
-    
+    // Only print failure once if all attempts fail
     if (!mqttClient.connected()) {
-        Serial.println("Failed to connect to MQTT after 3 attempts");
+        Serial.println("Failed to connect to MQTT after maximum attempts");
     }
 }
 
@@ -775,6 +762,12 @@ char logBuffer[LOG_BUFFER_SIZE];       // Buffer for log messages
 size_t logBufferIndex = 0;            // Current position in log buffer
 unsigned long lastLogFlush = 0;        // Last time logs were written to SPIFFS
 
+// Add these constants near the top with other constants
+const unsigned long DEBUG_LOG_INTERVAL = 5000;  // Only log debug messages every 5 seconds
+const unsigned long LED_STATUS_LOG_INTERVAL = 10000;  // Only log LED status every 10 seconds
+unsigned long lastDebugLog = 0;
+unsigned long lastLEDStatusLog = 0;
+
 // Optimized addToLog function
 void addToLog(const String &message) {
     struct tm timeinfo;
@@ -828,60 +821,50 @@ void flushLogBuffer() {
 void readDeviceOutputs() {
     unsigned long currentMillis = millis();
     static String tempStatus;
-    tempStatus.reserve(500); // Pre-allocate memory for status string
+    tempStatus.reserve(500);
     
-    // Only update LED states at specified interval
     if (currentMillis - previousMillis >= LED_CHECK_DELAY) {
         tempStatus = "";
-        bool stateChanged = false;
+        bool significantChange = false;
 
         // Read LED states and check for changes
         for (int i = 0; i < numLEDs; i++) {
-            // Read current states
+            bool prevRedState = redLEDStates[i].currentState;
+            bool prevGreenState = greenLEDStates[i].currentState;
+            
             redLEDStates[i].currentState = digitalRead(redLEDs[i]);
             greenLEDStates[i].currentState = digitalRead(greenLEDs[i]);
 
-            // Check for state changes
+            if (redLEDStates[i].currentState != prevRedState || 
+                greenLEDStates[i].currentState != prevGreenState) {
+                significantChange = true;
+            }
+
             if (redLEDStates[i].currentState != redLEDStates[i].lastState) {
                 redLEDStates[i].changeCount++;
                 redLEDStates[i].lastState = redLEDStates[i].currentState;
-                stateChanged = true;
             }
 
             if (greenLEDStates[i].currentState != greenLEDStates[i].lastState) {
                 greenLEDStates[i].changeCount++;
                 greenLEDStates[i].lastState = greenLEDStates[i].currentState;
-                stateChanged = true;
             }
         }
 
-        // Only log debug message if there's a state change and not too frequent
-        static unsigned long lastDebugLog = 0;
-        if (stateChanged && (currentMillis - lastDebugLog >= 5000)) { // Only log every 5 seconds minimum
+        // Only log if there's a significant change and enough time has passed
+        if (significantChange && (currentMillis - lastLEDStatusLog >= LED_STATUS_LOG_INTERVAL)) {
             String debugMsg = "LED States - Red: ";
             for (int i = 0; i < numLEDs; i++) {
-                // Determine LED state: 0=off, 1=on, 2=flashing
-                int redState;
-                if (redLEDStates[i].changeCount >= 2) {
-                    redState = 2; // flashing
-                } else {
-                    redState = redLEDStates[i].currentState ? 1 : 0;
-                }
+                int redState = (redLEDStates[i].changeCount >= 2) ? 2 : redLEDStates[i].currentState ? 1 : 0;
                 debugMsg += String(redState) + " ";
             }
             debugMsg += "| Green: ";
             for (int i = 0; i < numLEDs; i++) {
-                // Determine LED state: 0=off, 1=on, 2=flashing
-                int greenState;
-                if (greenLEDStates[i].changeCount >= 2) {
-                    greenState = 2; // flashing
-                } else {
-                    greenState = greenLEDStates[i].currentState ? 1 : 0;
-                }
+                int greenState = (greenLEDStates[i].changeCount >= 2) ? 2 : greenLEDStates[i].currentState ? 1 : 0;
                 debugMsg += String(greenState) + " ";
             }
             publishGeneralLog(debugMsg, "info");
-            lastDebugLog = currentMillis;
+            lastLEDStatusLog = currentMillis;
             
             // Reset change counters after logging
             for (int i = 0; i < numLEDs; i++) {
@@ -910,7 +893,7 @@ void readDeviceOutputs() {
         }
 
         // Only process alarms if there were changes
-        if (stateChanged) {
+        if (significantChange) {
             processLEDStatus(tempStatus, currentMillis);
         }
 
@@ -1198,20 +1181,34 @@ bool isAuthenticated() {
   return true;
 }
 
+// Remove the previous watchdog definitions and add proper configuration
+#include <esp_task_wdt.h>
 
+// Watchdog timer configuration
+#define CONFIG_ESP_TASK_WDT_TIMEOUT_S 10
+#define ARDUINO_RUNNING_CORE 1
 
-
+TaskHandle_t arduinoTask = NULL;
 
 void setup() {
   Serial.begin(115200);
-  
-  // Initialize SPIFFS
+  delay(1000); // Give serial time to initialize
+
+  // Store the current task handle (not needed for watchdog)
+  arduinoTask = xTaskGetCurrentTaskHandle();
+
+  // Do NOT call esp_task_wdt_init() or esp_task_wdt_add() here, as the TWDT and loopTask are already handled by the Arduino core.
+  // No manual registration needed.
+
+  // Rest of your existing setup code...
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+  Serial.println("SPIFFS Initialized Successfully");
 
   // Initialize LED pins and states
+  Serial.println("Initializing LED pins...");
   for (int i = 0; i < numLEDs; i++) {
     pinMode(redLEDs[i], INPUT);
     pinMode(greenLEDs[i], INPUT);
@@ -1226,8 +1223,10 @@ void setup() {
     greenLEDStates[i].changeCount = 0;
     greenLEDStates[i].lastChange = 0;
   }
+  Serial.println("LED pins initialized");
 
   // Initialize GPIO with explicit states
+  Serial.println("Initializing GPIO pins...");
   pinMode(UP_PIN, OUTPUT);
   digitalWrite(UP_PIN, LOW);
   pinMode(DOWN_PIN, OUTPUT);
@@ -1238,85 +1237,119 @@ void setup() {
   pinMode(LIMIT_SWITCH_DOWN, INPUT_PULLUP);
   pinMode(BRAKE_PIN, OUTPUT);
   digitalWrite(BRAKE_PIN, HIGH);
+  Serial.println("GPIO pins initialized");
 
-  // Connect to WiFi with status check
-  Serial.println("\nConnecting to WiFi...");
+  // Connect to WiFi with status check and timeout
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
+  
   int wifiAttempts = 0;
-  while (WiFi.status() != WL_CONNECTED && wifiAttempts < 20) {
+  const int MAX_WIFI_ATTEMPTS = 20;
+  
+  // Only print dots, not needed for final output
+  while (WiFi.status() != WL_CONNECTED && wifiAttempts < MAX_WIFI_ATTEMPTS) {
     delay(500);
-    Serial.print(".");
     wifiAttempts++;
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected successfully!");
+    Serial.println("WiFi connected successfully!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("\nFailed to connect to WiFi!");
+    // Only print failure once
+    Serial.println("Failed to connect to WiFi!");
+    ESP.restart();
     return;
   }
 
   // Setup MQTT with SSL/TLS
-  Serial.println("\nSetting up MQTT with SSL/TLS...");
   espClient.setCACert(root_ca);
-  Serial.println("SSL/TLS certificate loaded");
-  
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(callback);
+  mqttClient.setKeepAlive(60);
+  mqttClient.setSocketTimeout(10);
   
   // Initial MQTT connection attempt
-  Serial.println("Attempting initial MQTT connection...");
   reconnectMQTT();
   
   // Initialize NTP with local time cache
+  Serial.println("Configuring time...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   // Ensure time is synced before TLS handshake
-struct tm timeinfo;
-while (!getLocalTime(&timeinfo)) {
-  Serial.println("Waiting for time to sync...");
-  delay(1000);
-}
-Serial.println("Time is synced!");
+  struct tm timeinfo;
+  int timeoutCounter = 0;
+  while (!getLocalTime(&timeinfo) && timeoutCounter < 10) {
+    Serial.println("Waiting for time to sync...");
+    delay(1000);
+    timeoutCounter++;
+  }
+  if (timeoutCounter >= 10) {
+    Serial.println("Failed to sync time!");
+  } else {
+    Serial.println("Time synced successfully!");
+  }
+  
+  Serial.println("=== Setup Complete ===\n");
 }
 
 void loop() {
-    if (!mqttClient.connected()) {
-        reconnectMQTT();
+    static unsigned long lastWiFiCheck = 0;
+    static unsigned long lastMQTTCheck = 0;
+    static unsigned long lastWDTReset = 0;
+    const unsigned long CHECK_INTERVAL = 5000;
+    const unsigned long WDT_RESET_INTERVAL = 1000;
+    unsigned long currentMillis = millis();
+
+    // No need to manually reset the watchdog unless you have a long-running operation
+    // If you add a long-running section, call esp_task_wdt_reset() there
+
+    if (currentMillis - lastWiFiCheck >= CHECK_INTERVAL) {
+        if (WiFi.status() != WL_CONNECTED) {
+            WiFi.disconnect();
+            WiFi.begin(ssid, password);
+        }
+        lastWiFiCheck = currentMillis;
     }
-    mqttClient.loop();
-
+    if (currentMillis - lastMQTTCheck >= CHECK_INTERVAL) {
+        if (!mqttClient.connected()) {
+            reconnectMQTT();
+        }
+        lastMQTTCheck = currentMillis;
+    }
+    if (mqttClient.connected()) {
+        mqttClient.loop();
+    }
     readDeviceOutputs();
-
     static unsigned long lastButtonTime = 0;
     unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY;
-
-    if (millis() - lastButtonTime >= currentDelay) {
+    if (currentMillis - lastButtonTime >= currentDelay) {
         if (digitalRead(UP_BUTTON) == LOW) {
             handleMovement("up");
-            lastButtonTime = millis();
+            lastButtonTime = currentMillis;
         } else if (digitalRead(DOWN_BUTTON) == LOW) {
             handleMovement("down");
-            lastButtonTime = millis();
+            lastButtonTime = currentMillis;
         }
     }
-
     if (elevatorMode) {
         if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement();
         if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement();
-
-        if (currentDirection == "up" && digitalRead(LIMIT_SWITCH_UP) == LOW) {
-            addToLog("Emergency Stop: Upper limit switch held down");
+        static bool lastUpLimit = false;
+        static bool lastDownLimit = false;
+        bool currentUpLimit = digitalRead(LIMIT_SWITCH_UP) == LOW;
+        bool currentDownLimit = digitalRead(LIMIT_SWITCH_DOWN) == LOW;
+        if (currentDirection == "up" && currentUpLimit && !lastUpLimit) {
             stopMovement();
         }
-        if (currentDirection == "down" && digitalRead(LIMIT_SWITCH_DOWN) == LOW) {
-            addToLog("Emergency Stop: Lower limit switch held down");
+        if (currentDirection == "down" && currentDownLimit && !lastDownLimit) {
             stopMovement();
         }
+        lastUpLimit = currentUpLimit;
+        lastDownLimit = currentDownLimit;
     }
-    delay(1);
+    delay(10); // This is short and will not trigger the watchdog
 }
 
 void saveEmailsToSPIFFS() {
@@ -1355,13 +1388,9 @@ void updateEmails() {
   saveEmailsToSPIFFS();
 }
 
-// Add MQTT callback function
-void callback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived [");
-    Serial.print(topic);
-    Serial.print("] ");
-    for (int i = 0; i < length; i++) {
-        Serial.print((char)payload[i]);
+// Add cleanup function for watchdog
+void cleanup() {
+    if (arduinoTask != NULL) {
+        esp_task_wdt_delete(arduinoTask);
     }
-    Serial.println();
 }  

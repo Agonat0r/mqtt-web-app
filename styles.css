@@ -129,9 +129,9 @@ body {
 
 /* Status Indicators */
 .status-indicator {
-  padding: 0.5rem 1rem;
+  padding: 5px 10px;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .status-connected {
@@ -460,4 +460,83 @@ body {
 .status-card.theme-usf, .telemetry-card.theme-usf {
     background-color: #004a80;
     color: white;
+}
+
+/* Lift Controls */
+.lift-controls {
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.mode-selector {
+    margin-bottom: 20px;
+}
+
+.mode-selector select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.control-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.up-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.up-btn:hover {
+    background-color: #45a049;
+}
+
+.stop-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.stop-btn:hover {
+    background-color: #da190b;
+}
+
+.down-btn {
+    background-color: #2196F3;
+    color: white;
+}
+
+.down-btn:hover {
+    background-color: #0b7dda;
+}
+
+.command-feedback {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.command-feedback span:first-child {
+    font-weight: bold;
+    margin-right: 10px;
 }

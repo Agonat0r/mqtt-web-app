@@ -10,6 +10,10 @@ import { translations } from './translations.js';
 let loggedIn = false;
 let currentLang = 'en';
 
+// Control variables
+let currentMode = 'elevator';
+let lastCommand = '';
+
 /**
  * Initializes the application when the DOM is fully loaded.
  * Sets up event handlers, loads settings, applies UI customizations,
@@ -1129,4 +1133,124 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedLang = localStorage.getItem('language') || 'en';
     document.getElementById('languageSelector').value = savedLang;
     updateAllText();
+});
+
+// Function to handle control button clicks
+function handleControlCommand(command) {
+    if (!client.isConnected()) {
+        showAlert('Error: MQTT not connected. Please wait for connection.', 'error');
+        return;
+    }
+
+    const modePrefix = currentMode === 'elevator' ? 'E' : 'L';
+    const fullCommand = `${modePrefix}${command}`;
+    
+    // Publish command to MQTT
+    client.publish('lift/command', fullCommand, {
+        qos: 1,
+        retain: false
+    });
+
+    // Update UI feedback
+    lastCommand = fullCommand;
+    document.getElementById('last-command').textContent = lastCommand;
+    
+    // Log the command
+    console.log(`Sent command: ${fullCommand}`);
+}
+
+// Event listeners for control buttons
+document.getElementById('up-btn').addEventListener('click', () => handleControlCommand('UP'));
+document.getElementById('stop-btn').addEventListener('click', () => handleControlCommand('STOP'));
+document.getElementById('down-btn').addEventListener('click', () => handleControlCommand('DOWN'));
+
+// Mode selector handler
+document.getElementById('mode-select').addEventListener('change', (e) => {
+    currentMode = e.target.value;
+    console.log(`Mode changed to: ${currentMode}`);
+});
+
+// Subscribe to lift status updates
+client.subscribe('lift/status', { qos: 1 });
+
+// Handle incoming status messages
+client.on('message', function (topic, message) {
+    if (topic === 'lift/status') {
+        const status = message.toString();
+        document.getElementById('last-command').textContent = `Last Status: ${status}`;
+    }
+});
+
+// Lift Controls
+const modeSelect = document.getElementById('mode-select');
+const upButton = document.getElementById('up-btn');
+const stopButton = document.getElementById('stop-btn');
+const downButton = document.getElementById('down-btn');
+const lastCommandSpan = document.getElementById('last-command');
+
+let currentMode = 'elevator'; // Default mode
+
+modeSelect.addEventListener('change', (e) => {
+    currentMode = e.target.value;
+    console.log(`Mode changed to: ${currentMode}`);
+});
+
+function updateLastCommand(command) {
+    lastCommandSpan.textContent = command;
+}
+
+function sendLiftCommand(command) {
+    const topic = currentMode === 'elevator' ? 'elevator/command' : 'lift/command';
+    const message = {
+        command: command,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Send MQTT message
+    client.publish(topic, JSON.stringify(message), (error) => {
+        if (error) {
+            console.error('Error publishing message:', error);
+            return;
+        }
+        console.log(`Sent ${command} command to ${topic}`);
+        updateLastCommand(command);
+    });
+}
+
+upButton.addEventListener('click', () => {
+    sendLiftCommand('UP');
+});
+
+stopButton.addEventListener('click', () => {
+    sendLiftCommand('STOP');
+});
+
+downButton.addEventListener('click', () => {
+    sendLiftCommand('DOWN');
+});
+
+// Subscribe to status topics
+client.subscribe('elevator/status', (error) => {
+    if (error) {
+        console.error('Error subscribing to elevator status:', error);
+    }
+});
+
+client.subscribe('lift/status', (error) => {
+    if (error) {
+        console.error('Error subscribing to lift status:', error);
+    }
+});
+
+// Handle incoming status messages
+client.on('message', (topic, message) => {
+    if (topic === 'elevator/status' || topic === 'lift/status') {
+        try {
+            const status = JSON.parse(message.toString());
+            console.log(`Received status for ${topic}:`, status);
+            // Handle status updates here if needed
+        } catch (error) {
+            console.error('Error parsing status message:', error);
+        }
+    }
 });

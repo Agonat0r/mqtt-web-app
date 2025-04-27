@@ -38,6 +38,7 @@
         <option value="general" data-translate="general">General</option>
         <option value="status" data-translate="status">Status</option>
         <option value="commands" data-translate="commands">Commands</option>
+        <option value="controls" data-translate="controls">Controls</option>
         <option value="alerts" data-translate="alerts">Alerts</option>
         <option value="customization" data-translate="customization">Customization</option>
       </select>
@@ -49,149 +50,57 @@
     <!-- Main Content Area -->
     <div class="container">
       <!-- General Tab (Default) -->
-      <div id="general-tab" class="tab-content">
-        <div class="terminal-container">
-          <!-- General Terminal -->
-          <div class="terminal-section">
-            <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
-            <pre id="messageLog" class="terminal"></pre>
-            <div class="terminal-controls">
-              <button data-action="clear-log" data-target="messageLog" data-translate="clearLog">Clear Log</button>
-              <button data-action="export-log" data-target="messageLog" data-translate="exportLog">Export Log</button>
-              <button data-action="email-log" data-target="messageLog" data-translate="emailLog">Email Log</button>
-            </div>
-          </div>
-
-          <!-- Command Terminal -->
-          <div class="terminal-section">
-            <h2 id="commands-title" data-translate="commandConsole">Command Terminal</h2>
-            <pre id="command-log" class="terminal"></pre>
-            <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
-            <div class="terminal-controls">
-              <button data-action="clear-log" data-target="command-log" data-translate="clearLog">Clear Log</button>
-              <button data-action="export-log" data-target="command-log" data-translate="exportLog">Export Log</button>
-              <button data-action="email-log" data-target="command-log" data-translate="emailLog">Email Log</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- ... existing code for general tab ... -->
 
       <!-- Status Tab -->
-      <div id="status-tab" class="tab-content hidden">
-        <div class="status-grid">
-          <div class="status-card">
-            <h3 data-translate="connectionStatus">Connection Status</h3>
-            <p id="mqttStatus" data-translate="notConnected">Not Connected</p>
-          </div>
-          <div class="status-card">
-            <h3 data-translate="lastUpdate">Last Update</h3>
-            <p id="lastUpdate" data-translate="never">Never</p>
-          </div>
-          <div class="status-card">
-            <h3 data-translate="vplState">VPL State</h3>
-            <p id="vplState" data-translate="unknown">Unknown</p>
-          </div>
-        </div>
-        <div class="telemetry-grid">
-          <div class="telemetry-card">
-            <h3 data-translate="position">Position</h3>
-            <p id="position">-</p>
-          </div>
-          <div class="telemetry-card">
-            <h3 data-translate="speed">Speed</h3>
-            <p id="speed">-</p>
-          </div>
-          <div class="telemetry-card">
-            <h3 data-translate="temperature">Temperature</h3>
-            <p id="temperature">-</p>
-          </div>
-        </div>
-      </div>
+      <!-- ... existing code for status tab ... -->
 
       <!-- Commands Tab -->
-      <div id="commands-tab" class="tab-content hidden">
-        <h2>Command Console</h2>
-        <pre id="command-history" class="terminal">Command history will appear here...</pre>
-        <div class="terminal-controls">
-          <button data-action="clear-log" data-target="command-history" data-translate="clearLog">Clear History</button>
-          <button data-action="export-log" data-target="command-history" data-translate="exportLog">Export History</button>
-          <button data-action="email-log" data-target="command-history" data-translate="emailLog">Email History</button>
+      <!-- ... existing code for commands tab ... -->
+
+      <!-- Controls Tab -->
+      <div id="controls-tab" class="tab-content hidden">
+        <div class="lift-controls">
+          <h2 data-i18n="lift.title">Lift Controls</h2>
+          
+          <div class="mode-selector">
+            <label for="mode-select" data-i18n="lift.mode">Mode:</label>
+            <select id="mode-select" class="mode-select">
+              <option value="elevator" data-i18n="lift.elevator">Elevator</option>
+              <option value="lift" data-i18n="lift.lift">Lift</option>
+            </select>
+          </div>
+          
+          <div class="control-buttons">
+            <button id="up-btn" class="control-btn up-btn" data-i18n="lift.up" data-command="UP">UP</button>
+            <button id="stop-btn" class="control-btn stop-btn" data-i18n="lift.stop" data-command="STOP">STOP</button>
+            <button id="down-btn" class="control-btn down-btn" data-i18n="lift.down" data-command="DOWN">DOWN</button>
+          </div>
+          
+          <div class="command-feedback">
+            <p><span data-i18n="lift.lastCommand">Last Command:</span> <span id="last-command" class="command-status">None</span></p>
+          </div>
+
+          <div class="lift-status">
+            <p><span data-i18n="lift.currentPosition">Current Position:</span> <span id="current-position" class="position-status">Unknown</span></p>
+            <p><span data-i18n="lift.currentState">Current State:</span> <span id="current-state" class="state-status">Idle</span></p>
+          </div>
         </div>
       </div>
 
       <!-- Alerts Tab -->
-      <div id="alerts-tab" class="tab-content hidden">
-        <div class="alerts-container">
-          <div class="alert-section">
-            <h3>Red Alarms</h3>
-            <div id="redAlarms" class="alert-list"></div>
-          </div>
-          <div class="alert-section">
-            <h3>Amber Alarms</h3>
-            <div id="amberAlarms" class="alert-list"></div>
-          </div>
-          <div class="alert-section">
-            <h3>Green Alarms</h3>
-            <div id="greenAlarms" class="alert-list"></div>
-          </div>
-        </div>
-      </div>
+      <!-- ... existing code for alerts tab ... -->
 
       <!-- Customization Tab -->
-      <div id="customization-tab" class="tab-content hidden">
-        <h2 id="customization-title" data-translate="customization">Customization</h2>
-        <div class="customization-grid">
-          <div class="customization-card">
-            <h3 data-translate="theme">Theme</h3>
-            <select id="themeSelector" data-action="apply-theme">
-              <option value="default" data-translate="themeDefault">Default</option>
-              <option value="dark" data-translate="themeDark">Dark</option>
-              <option value="usf" data-translate="themeUsf">USF Theme</option>
-            </select>
-          </div>
-          <div class="customization-card">
-            <h3 data-translate="font">Font</h3>
-            <select id="fontSelector" data-action="apply-font">
-              <option value="default" data-translate="fontDefault">Default</option>
-              <option value="monospace" data-translate="fontMonospace">Monospace</option>
-              <option value="sans-serif" data-translate="fontSansSerif">Sans Serif</option>
-            </select>
-          </div>
-          <div class="customization-card">
-            <h3 data-translate="language">Language</h3>
-            <select id="languageSelector" data-action="switch-language">
-              <option value="en">English</option>
-              <option value="es">Español</option>
-              <option value="fr">Français</option>
-              <option value="de">Deutsch</option>
-            </select>
-          </div>
-          <div class="customization-card">
-            <h3 data-translate="showBorders">Show Borders</h3>
-            <input type="checkbox" id="borderToggle" data-action="apply-borders">
-          </div>
-        </div>
-        <button id="resetCustomizations" data-action="reset-customizations" data-translate="reset">Reset to Default</button>
-      </div>
-    </div>
-
-    <!-- Email Modal -->
-    <div id="emailModal" class="modal hidden">
-      <div class="modal-content">
-        <h3 data-translate="emailModalTitle">Send Log via Email</h3>
-        <input type="email" id="emailInput" placeholder="Enter email address" data-translate="emailPlaceholder">
-        <div class="modal-buttons">
-          <button data-action="send-email" data-translate="sendEmail">Send</button>
-          <button data-action="close-modal" data-translate="cancel">Cancel</button>
-        </div>
-      </div>
+      <!-- ... existing code for customization tab ... -->
     </div>
   </div>
 
   <!-- Audio Elements -->
   <audio id="click-sound" src="sounds/click.mp3" preload="auto"></audio>
 
-  <!-- App Script -->
-  <script type="module" src="script.js"></script>
+  <!-- App Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

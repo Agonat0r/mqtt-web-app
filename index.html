@@ -37,6 +37,7 @@
       <select id="tab-selector" data-action="switch-tab" class="tab-selector">
         <option value="general" data-translate="general">General</option>
         <option value="status" data-translate="status">Status</option>
+        <option value="controls" data-translate="controls">Controls</option>
         <option value="commands" data-translate="commands">Commands</option>
         <option value="alerts" data-translate="alerts">Alerts</option>
         <option value="customization" data-translate="customization">Customization</option>
@@ -116,6 +117,18 @@
           <button data-action="clear-log" data-target="command-history" data-translate="clearLog">Clear History</button>
           <button data-action="export-log" data-target="command-history" data-translate="exportLog">Export History</button>
           <button data-action="email-log" data-target="command-history" data-translate="emailLog">Email History</button>
+        </div>
+      </div>
+
+      <!-- Controls Tab -->
+      <div id="controls-tab" class="tab-content hidden">
+        <h2>VPL Controls</h2>
+        <div class="control-buttons">
+          <button onclick="startAction('up')" class="control-btn">UP</button>
+          <button onclick="stopAction()" class="control-btn">STOP</button>
+          <button onclick="startAction('down')" class="control-btn">DOWN</button>
+          <button onclick="applyBrake()" class="control-btn">APPLY BRAKE</button>
+          <button onclick="releaseBrake()" class="control-btn">RELEASE BRAKE</button>
         </div>
       </div>
 

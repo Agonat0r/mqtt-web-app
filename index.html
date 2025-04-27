@@ -208,108 +208,104 @@
   <script type="module" src="script.js"></script>
 
   <script>
-    function startAction(direction) {
-        // Get current timestamp
-        const timestamp = new Date().toISOString();
-        
-        // Create command message
-        const command = `COMMAND:${direction.toUpperCase()}`;
-        
-        // Add to command terminal
-        const commandLog = document.getElementById('command-log');
-        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
-        commandLog.scrollTop = commandLog.scrollHeight;
+    function startAction(dir) {
+      const timestamp = new Date().toISOString();
+      const command = `COMMAND:${dir.toUpperCase()}`;
+      
+      // Create message in the same format as HMIESP32.C
+      const msg = {
+        type: "command",
+        message: command,
+        timestamp: timestamp
+      };
 
-        // Add single-line command output
-        console.log(`[COMMAND] ${direction.toUpperCase()} at ${timestamp}`);
+      // Add to command terminal
+      const terminalMsg = `[${timestamp}] ${command}\n`;
+      const terminal = document.getElementById('serialMonitor');
+      terminal.textContent += terminalMsg;
+      terminal.scrollTop = terminal.scrollHeight;
 
-        // Create MQTT message
-        const mqttMessage = {
-            type: "command",
-            message: command,
-            timestamp: timestamp
-        };
+      // Send via MQTT
+      if (mqtt_connected) {
+        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      }
 
-        // Publish to MQTT topic
-        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+      fetch('/' + dir + '_start').catch(e => console.error(e));
     }
 
     function stopAction() {
-        // Get current timestamp
-        const timestamp = new Date().toISOString();
-        
-        // Create command message
-        const command = "COMMAND:STOP";
-        
-        // Add to command terminal
-        const commandLog = document.getElementById('command-log');
-        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
-        commandLog.scrollTop = commandLog.scrollHeight;
+      const timestamp = new Date().toISOString();
+      const command = "COMMAND:STOP";
+      
+      // Create message in the same format as HMIESP32.C
+      const msg = {
+        type: "command",
+        message: command,
+        timestamp: timestamp
+      };
 
-        // Add single-line command output
-        console.log(`[COMMAND] STOP at ${timestamp}`);
+      // Add to command terminal
+      const terminalMsg = `[${timestamp}] ${command}\n`;
+      const terminal = document.getElementById('serialMonitor');
+      terminal.textContent += terminalMsg;
+      terminal.scrollTop = terminal.scrollHeight;
 
-        // Create MQTT message
-        const mqttMessage = {
-            type: "command",
-            message: command,
-            timestamp: timestamp
-        };
+      // Send via MQTT
+      if (mqtt_connected) {
+        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      }
 
-        // Publish to MQTT topic
-        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+      fetch('/stop').catch(e => console.error(e));
     }
 
     function applyBrake() {
-        // Get current timestamp
-        const timestamp = new Date().toISOString();
-        
-        // Create command message
-        const command = "COMMAND:BRAKE";
-        
-        // Add to command terminal
-        const commandLog = document.getElementById('command-log');
-        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
-        commandLog.scrollTop = commandLog.scrollHeight;
+      const timestamp = new Date().toISOString();
+      const command = "COMMAND:BRAKE";
+      
+      // Create message in the same format as HMIESP32.C
+      const msg = {
+        type: "command",
+        message: command,
+        timestamp: timestamp
+      };
 
-        // Add single-line command output
-        console.log(`[COMMAND] BRAKE at ${timestamp}`);
+      // Add to command terminal
+      const terminalMsg = `[${timestamp}] ${command}\n`;
+      const terminal = document.getElementById('serialMonitor');
+      terminal.textContent += terminalMsg;
+      terminal.scrollTop = terminal.scrollHeight;
 
-        // Create MQTT message
-        const mqttMessage = {
-            type: "command",
-            message: command,
-            timestamp: timestamp
-        };
+      // Send via MQTT
+      if (mqtt_connected) {
+        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      }
 
-        // Publish to MQTT topic
-        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+      fetch('/apply_brake').catch(e => console.error(e));
     }
 
     function releaseBrake() {
-        // Get current timestamp
-        const timestamp = new Date().toISOString();
-        
-        // Create command message
-        const command = "COMMAND:RELEASE";
-        
-        // Add to command terminal
-        const commandLog = document.getElementById('command-log');
-        commandLog.innerHTML += `[${timestamp}] ${command}\n`;
-        commandLog.scrollTop = commandLog.scrollHeight;
+      const timestamp = new Date().toISOString();
+      const command = "COMMAND:RELEASE";
+      
+      // Create message in the same format as HMIESP32.C
+      const msg = {
+        type: "command",
+        message: command,
+        timestamp: timestamp
+      };
 
-        // Add single-line command output
-        console.log(`[COMMAND] RELEASE at ${timestamp}`);
+      // Add to command terminal
+      const terminalMsg = `[${timestamp}] ${command}\n`;
+      const terminal = document.getElementById('serialMonitor');
+      terminal.textContent += terminalMsg;
+      terminal.scrollTop = terminal.scrollHeight;
 
-        // Create MQTT message
-        const mqttMessage = {
-            type: "command",
-            message: command,
-            timestamp: timestamp
-        };
+      // Send via MQTT
+      if (mqtt_connected) {
+        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      }
 
-        // Publish to MQTT topic
-        publishToMQTT('usf/logs/command', JSON.stringify(mqttMessage));
+      fetch('/release_brake').catch(e => console.error(e));
     }
 
     // Helper function to publish MQTT messages

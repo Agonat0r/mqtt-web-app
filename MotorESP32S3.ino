@@ -94,6 +94,8 @@ unsigned long ELEVATOR_MODE_DELAY = 200; // Set default delay for Elevator Mode
 #define LIMIT_SWITCH_UP 21 // 21
 #define LIMIT_SWITCH_DOWN 22 // 22
 #define BRAKE_PIN 14 
+#define UP_OUTPUT_PIN 15    // Using pin 15 for UP output
+#define DOWN_OUTPUT_PIN 16  // Using pin 16 for DOWN output
 // Email Configuration
 #define MAX_EMAILS 10
 String emailAddresses[MAX_EMAILS];
@@ -337,18 +339,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
             Serial.print(" at ");
             Serial.println(timestamp);
 
-            // --- BEGIN: Command Output Pin Control (commented out for now) ---
-            // if (strcmp(msg, "COMMAND:UP") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, HIGH);
-            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            // } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, LOW);
-            //     digitalWrite(DOWN_OUTPUT_PIN, HIGH);
-            // } else if (strcmp(msg, "COMMAND:STOP") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, LOW);
-            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            // }
-            // --- END: Command Output Pin Control ---
+            // Command Output Pin Control
+            if (strcmp(msg, "COMMAND:UP") == 0) {
+                digitalWrite(UP_OUTPUT_PIN, HIGH);
+                digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+                digitalWrite(UP_OUTPUT_PIN, LOW);
+                digitalWrite(DOWN_OUTPUT_PIN, HIGH);
+            } else if (strcmp(msg, "COMMAND:STOP") == 0) {
+                digitalWrite(UP_OUTPUT_PIN, LOW);
+                digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            }
         }
     }
 }
@@ -1238,6 +1239,12 @@ void setup() {
   pinMode(BRAKE_PIN, OUTPUT);
   digitalWrite(BRAKE_PIN, HIGH);
   Serial.println("GPIO pins initialized");
+
+  // Initialize output pins
+  pinMode(UP_OUTPUT_PIN, OUTPUT);
+  pinMode(DOWN_OUTPUT_PIN, OUTPUT);
+  digitalWrite(UP_OUTPUT_PIN, LOW);    // Start with outputs OFF
+  digitalWrite(DOWN_OUTPUT_PIN, LOW);
 
   // Connect to WiFi with status check and timeout
   WiFi.mode(WIFI_STA);

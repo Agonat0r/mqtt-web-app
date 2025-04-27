@@ -100,6 +100,20 @@
   <audio id="click-sound" src="sounds/click.mp3" preload="auto"></audio>
 
   <!-- App Scripts -->
+  <script>
+    // Initialize Firebase first
+    const firebaseConfig = {
+      apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
+      authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
+      projectId: "usf-harmar-mqtt-dashboar-3a6ed",
+      storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
+      messagingSenderId: "469430781334",
+      appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
+      measurementId: "G-JR8BJYRZFW"
+    };
+    firebase.initializeApp(firebaseConfig);
+    window.db = firebase.firestore();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
   <script type="module" src="script.js"></script>
 </body>

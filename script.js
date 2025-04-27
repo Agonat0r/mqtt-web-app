@@ -9,10 +9,15 @@ import { translations } from './translations.js';
 // Global state
 let loggedIn = false;
 let currentLang = 'en';
-
-// Control variables
 let currentMode = 'elevator';
 let lastCommand = '';
+
+// Get Firestore instance from window object (initialized in HTML)
+const db = window.db;
+
+// Collections
+const emailCollection = db.collection('emailSubscribers');
+const alertsCollection = db.collection('alerts');
 
 /**
  * Initializes the application when the DOM is fully loaded.
@@ -97,24 +102,6 @@ function handleAction(event) {
       break;
   }
 }
-
-// ✅ Firebase Configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
-  authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
-  projectId: "usf-harmar-mqtt-dashboar-3a6ed",
-  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
-  messagingSenderId: "469430781334",
-  appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
-  measurementId: "G-JR8BJYRZFW"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// Collections
-const emailCollection = db.collection('emailSubscribers');
-const alertsCollection = db.collection('alerts');
 
 // Function to save alert to Firebase
 async function saveAlertToFirebase(type, message) {
@@ -1165,10 +1152,7 @@ document.getElementById('stop-btn').addEventListener('click', () => handleContro
 document.getElementById('down-btn').addEventListener('click', () => handleControlCommand('DOWN'));
 
 // Mode selector handler
-document.getElementById('mode-select').addEventListener('change', (e) => {
-    currentMode = e.target.value;
-    console.log(`Mode changed to: ${currentMode}`);
-});
+document.getElementById('mode-select').addEventListener('change', handleModeChange);
 
 // Subscribe to lift status updates
 client.subscribe('lift/status', { qos: 1 });
@@ -1188,12 +1172,14 @@ const stopButton = document.getElementById('stop-btn');
 const downButton = document.getElementById('down-btn');
 const lastCommandSpan = document.getElementById('last-command');
 
-let currentMode = 'elevator'; // Default mode
-
-modeSelect.addEventListener('change', (e) => {
+function handleModeChange(e) {
+    // Use the global currentMode instead of redeclaring
     currentMode = e.target.value;
     console.log(`Mode changed to: ${currentMode}`);
-});
+    // Update UI or perform other mode-specific actions
+    const topic = currentMode === 'elevator' ? 'elevator/command' : 'lift/command';
+    // ... rest of the function
+}
 
 function updateLastCommand(command) {
     lastCommandSpan.textContent = command;

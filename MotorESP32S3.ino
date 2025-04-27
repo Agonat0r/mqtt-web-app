@@ -336,19 +336,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
             else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
             Serial.print(" at ");
             Serial.println(timestamp);
-
-            // --- BEGIN: Command Output Pin Control (commented out for now) ---
-            // if (strcmp(msg, "COMMAND:UP") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, HIGH);
-            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            // } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, LOW);
-            //     digitalWrite(DOWN_OUTPUT_PIN, HIGH);
-            // } else if (strcmp(msg, "COMMAND:STOP") == 0) {
-            //     digitalWrite(UP_OUTPUT_PIN, LOW);
-            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            // }
-            // --- END: Command Output Pin Control ---
         }
     }
 }

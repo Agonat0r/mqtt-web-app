@@ -10,13 +10,6 @@ import { translations } from './translations.js';
 let loggedIn = false;
 let currentLang = 'en';
 
-// Get Firestore instance from window object (initialized in HTML)
-const db = window.db;
-
-// Collections
-const emailCollection = db.collection('emailSubscribers');
-const alertsCollection = db.collection('alerts');
-
 /**
  * Initializes the application when the DOM is fully loaded.
  * Sets up event handlers, loads settings, applies UI customizations,
@@ -100,6 +93,24 @@ function handleAction(event) {
       break;
   }
 }
+
+// ✅ Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAoRdVB4cu6FGVnCbssFl-uTzGWSYHF_7o",
+  authDomain: "usf-harmar-mqtt-dashboar-3a6ed.firebaseapp.com",
+  projectId: "usf-harmar-mqtt-dashboar-3a6ed",
+  storageBucket: "usf-harmar-mqtt-dashboar-3a6ed.firebasestorage.app",
+  messagingSenderId: "469430781334",
+  appId: "1:469430781334:web:d1fd378dd95a8753d289b7",
+  measurementId: "G-JR8BJYRZFW"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Collections
+const emailCollection = db.collection('emailSubscribers');
+const alertsCollection = db.collection('alerts');
 
 // Function to save alert to Firebase
 async function saveAlertToFirebase(type, message) {
@@ -490,7 +501,7 @@ client.on('connect', () => {
     logToTerminal('Connected to MQTT broker', 'success');
     
     // Subscribe to all relevant topics
-    const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general'];
+    const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];
     topics.forEach(topic => {
         client.subscribe(topic, (err) => {
             if (err) {
@@ -516,6 +527,8 @@ client.on('message', (topic, message) => {
         // Handle different message types
         if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
             handleAlarm(payload);
+        } else if (payload.type === 'command') {
+            logToCommandTerminal(payload.message || 'Command received', payload.type);
         } else {
             // Default to general terminal for other messages
             logToTerminal(payload.message || message.toString(), 'info');
@@ -536,6 +549,15 @@ function logToTerminal(message, type = 'info') {
     messageLog.scrollTop = messageLog.scrollHeight;
 }
 
+function logToCommandTerminal(message, type = 'command') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `[${timestamp}] ${message}`;
+    commandLog.appendChild(logEntry);
+    commandLog.scrollTop = commandLog.scrollHeight;
+}
+
 function handleAlarm(alarm) {
     const timestamp = new Date().toLocaleTimeString();
     const alarmEntry = document.createElement('div');
@@ -554,7 +576,191 @@ function handleAlarm(alarm) {
 
 // Terminal input handling
 terminalInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !event.shiftKey) {
+    if (e.key === 'Enter') {
+        const command = terminalInput.value.trim().toUpperCase();
+        if (command) {
+            // Log the command to the command terminal
+            logToCommandTerminal(`> ${command}`, 'command');
+            
+            // Create command payload
+            const payload = {
+                type: 'command',
+                message: command,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Publish to both general and command topics
+            client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+                if (err) {
+                    console.error('Failed to publish command:', err);
+                    logToCommandTerminal('Failed to send command', 'error');
+                }
+            });
+            
+            // Handle specific lift commands
+            if (command === 'UP' || command === 'DOWN' || command === 'STOP') {
+                const liftPayload = {
+                    type: 'command',
+                    message: `COMMAND:${command}`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Send to motor control topic
+                client.publish('usf/messages', JSON.stringify(liftPayload), { qos: 1 }, (err) => {
+                    if (err) {
+                        console.error('Failed to send lift command:', err);
+                        logToCommandTerminal('Failed to send lift command', 'error');
+                    }
+                });
+            }
+            
+            // Clear the input
+            terminalInput.value = '';
+        }
+    }
+});
+
+// Add helper buttons for lift control
+const terminalContainer = document.getElementById('command-log').parentElement;
+const controlButtonsDiv = document.createElement('div');
+controlButtonsDiv.className = 'terminal-controls';
+controlButtonsDiv.innerHTML = `
+    <button onclick="sendLiftCommand('UP')">UP</button>
+    <button onclick="sendLiftCommand('DOWN')">DOWN</button>
+    <button onclick="sendLiftCommand('STOP')">STOP</button>
+`;
+terminalContainer.insertBefore(controlButtonsDiv, terminalInput);
+
+// Add styles for the control buttons
+document.head.querySelector('style').textContent += `
+    .terminal-controls {
+        margin: 10px 0;
+        display: flex;
+        gap: 10px;
+    }
+    .terminal-controls button {
+        padding: 5px 15px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .terminal-controls button:hover {
+        background-color: #45a049;
+    }
+`;
+
+// Function to send lift commands
+window.sendLiftCommand = function(command) {
+    const payload = {
+        type: 'command',
+        message: `COMMAND:${command}`,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Log the command
+    logToCommandTerminal(`> ${command}`, 'command');
+    
+    // Send to motor control topic
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send lift command:', err);
+            logToCommandTerminal('Failed to send lift command', 'error');
+        }
+    });
+};
+
+// Clear log buttons
+document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
+    button.addEventListener('click', () => {
+        const targetId = button.getAttribute('data-target');
+        const terminal = document.getElementById(targetId);
+        if (terminal) {
+            terminal.innerHTML = '';
+        }
+    });
+});
+
+// Handle Login
+function handleLogin(event) {
+    if (!event) {
+        console.error('Login event is undefined');
+        return;
+    }
+    event.preventDefault();
+    
+    const usernameInput = document.getElementById('login-username');
+    const passwordInput = document.getElementById('login-password');
+    
+    if (!usernameInput || !passwordInput) {
+        console.error('Login form elements not found');
+        showMessage(t('loginError'), 'error');
+        return;
+    }
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password) {
+        showMessage(t('enterCredentials'), 'error');
+        return;
+    }
+
+    if (username === 'admin' && password === 'admin') {
+        loggedIn = true;
+        const loginContainer = document.querySelector('.login-container');
+        const mainApp = document.getElementById('main-app');
+        
+        if (!loginContainer || !mainApp) {
+            console.error('Required DOM elements not found');
+            return;
+        }
+
+        loginContainer.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        
+        // Clear the form
+        usernameInput.value = '';
+        passwordInput.value = '';
+        
+        // Show success message
+        showMessage(t('loginSuccess'), 'success');
+    } else {
+        loggedIn = false;
+        showMessage(t('invalidCredentials'), 'error');
+    }
+}
+
+// Handle Tab Switching
+function handleTabSwitch(event) {
+    const selectedTab = event.target.value;
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // First verify we have both the selected value and tab contents
+    if (!selectedTab || !tabContents.length) {
+        console.error('Tab switching error: Missing elements');
+        return;
+    }
+
+    // Log for debugging
+    console.log('Switching to tab:', selectedTab);
+
+    // Show selected tab content and hide others
+    tabContents.forEach(content => {
+        if (content.id === selectedTab + '-tab') {
+            content.classList.remove('hidden');
+            console.log('Showing tab:', content.id);
+        } else {
+            content.classList.add('hidden');
+            console.log('Hiding tab:', content.id);
+        }
+    });
+}
+
+// Send Command
+function sendCommand(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         const command = terminalInput.value.trim();
         
@@ -564,18 +770,58 @@ terminalInput.addEventListener('keypress', (e) => {
                 data: { command: command }
             };
             
-            client.publish('usf/messages', JSON.stringify(payload), (err) => {
+            client.publish(topic, JSON.stringify(payload), (err) => {
                 if (err) {
-                    logToTerminal('Error sending command: ' + err.message, 'error');
+                    logToCommandTerminal('Error sending command: ' + err.message, 'error');
                 } else {
-                    logToTerminal('Command sent: ' + command, 'success');
+                    logToCommandTerminal('Command sent: ' + command, 'success');
                 }
             });
             
             terminalInput.value = '';
         }
     }
-});
+}
+
+// Update Status Data
+function updateStatusData(data) {
+    const statusGrid = document.querySelector('.status-grid');
+    if (!statusGrid) return;
+
+    // Clear existing status cards
+    statusGrid.innerHTML = '';
+
+    // Create new status cards
+    Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'status-card';
+        card.innerHTML = `
+            <h3>${key}</h3>
+            <p>${value}</p>
+        `;
+        statusGrid.appendChild(card);
+    });
+}
+
+// Update Telemetry Data
+function updateTelemetryData(data) {
+    const telemetryGrid = document.querySelector('.telemetry-grid');
+    if (!telemetryGrid) return;
+
+    // Clear existing telemetry cards
+    telemetryGrid.innerHTML = '';
+
+    // Create new telemetry cards
+    Object.entries(data).forEach(([key, value]) => {
+        const card = document.createElement('div');
+        card.className = 'telemetry-card';
+        card.innerHTML = `
+            <h3>${key}</h3>
+            <p>${typeof value === 'object' ? JSON.stringify(value) : value}</p>
+        `;
+        telemetryGrid.appendChild(card);
+    });
+}
 
 // Add CSS for alarm styling
 const style = document.createElement('style');
@@ -596,6 +842,29 @@ style.textContent = `
   .alarm-entry.green {
     background-color: rgba(0, 255, 0, 0.1);
     border-left: 4px solid green;
+  }
+  .email-form {
+    margin: 20px 0;
+  }
+  .email-list {
+    margin-top: 20px;
+  }
+  .email-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    margin: 4px 0;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+  }
+  .email-item button {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
   }
 `;
 document.head.appendChild(style);
@@ -860,101 +1129,4 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedLang = localStorage.getItem('language') || 'en';
     document.getElementById('languageSelector').value = savedLang;
     updateAllText();
-    
-    // Initialize MQTT subscriptions and lift controls
-    initializeMQTTSubscriptions();
-    initializeLiftControls();
-});
-
-/**
- * Handles a lift control command and updates the UI accordingly
- * @param {string} command - The command to send ('up', 'down', 'stop')
- */
-function handleControlCommand(command) {
-    if (!loggedIn) {
-        showMessage(t('loginRequired'), 'error');
-        return;
-    }
-
-    // Update UI
-    lastCommand = command.toUpperCase();
-    updateLastCommand(lastCommand);
-
-    // Send command via MQTT
-    const topic = `lift/${currentMode}/command`;
-    const message = command.toLowerCase();
-    client.publish(topic, message, { qos: 1 });
-
-    // Log the command
-    logToCommandTerminal(`Sent ${currentMode} ${command} command`);
-}
-
-/**
- * Updates the mode when the selector changes
- * @param {Event} e - The change event
- */
-function handleModeChange(e) {
-    currentMode = e.target.value;
-    logToCommandTerminal(`Switched to ${currentMode} mode`);
-}
-
-/**
- * Updates the last command display in the UI
- * @param {string} command - The command to display
- */
-function updateLastCommand(command) {
-    if (lastCommandSpan) {
-        lastCommandSpan.textContent = command;
-    }
-}
-
-/**
- * Initializes the lift control event listeners
- */
-function initializeLiftControls() {
-    if (modeSelect) {
-        modeSelect.addEventListener('change', handleModeChange);
-    }
-
-    if (upButton) {
-        upButton.addEventListener('click', () => handleControlCommand('UP'));
-    }
-
-    if (stopButton) {
-        stopButton.addEventListener('click', () => handleControlCommand('STOP'));
-    }
-
-    if (downButton) {
-        downButton.addEventListener('click', () => handleControlCommand('DOWN'));
-    }
-}
-
-// Initialize MQTT subscriptions
-function initializeMQTTSubscriptions() {
-    // Subscribe to both status topics
-    const topics = ['elevator/status', 'lift/status'];
-    topics.forEach(topic => {
-        client.subscribe(topic, { qos: 1 }, (error) => {
-            if (error) {
-                console.error(`Error subscribing to ${topic}:`, error);
-            } else {
-                console.log(`Successfully subscribed to ${topic}`);
-            }
-        });
-    });
-}
-
-// Single message handler for all MQTT messages
-client.on('message', (topic, message) => {
-    if (topic === 'elevator/status' || topic === 'lift/status') {
-        try {
-            const status = JSON.parse(message.toString());
-            console.log(`Received status for ${topic}:`, status);
-            // Update UI with status information
-            updateLastCommand(`Last Status: ${status.command || status}`);
-            // Additional status handling can be added here
-        } catch (error) {
-            console.error('Error parsing status message:', error);
-        }
-    }
 });

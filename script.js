@@ -9,8 +9,8 @@ import { translations } from './translations.js';
 // Global state
 let loggedIn = false;
 let currentLang = 'en';
-let currentMode = 'elevator';
-let lastCommand = '';
+let currentMode = 'elevator'; // Lift control mode
+let lastCommand = ''; // Last lift command issued
 
 // Get Firestore instance from window object (initialized in HTML)
 const db = window.db;
@@ -18,6 +18,13 @@ const db = window.db;
 // Collections
 const emailCollection = db.collection('emailSubscribers');
 const alertsCollection = db.collection('alerts');
+
+// Initialize UI elements for lift controls
+const modeSelect = document.getElementById('mode-select');
+const upButton = document.getElementById('up-btn');
+const stopButton = document.getElementById('stop-btn');
+const downButton = document.getElementById('down-btn');
+const lastCommandSpan = document.getElementById('last-command');
 
 /**
  * Initializes the application when the DOM is fully loaded.
@@ -29,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   applySettings();
   updateAllText();
+  initializeLiftControls();
   // MQTT connection happens after login
 });
 
@@ -1120,121 +1128,99 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedLang = localStorage.getItem('language') || 'en';
     document.getElementById('languageSelector').value = savedLang;
     updateAllText();
+    
+    // Initialize MQTT subscriptions and lift controls
+    initializeMQTTSubscriptions();
+    initializeLiftControls();
 });
 
-// Function to handle control button clicks
+/**
+ * Handles a lift control command and updates the UI accordingly
+ * @param {string} command - The command to send ('up', 'down', 'stop')
+ */
 function handleControlCommand(command) {
-    if (!client.isConnected()) {
-        showAlert('Error: MQTT not connected. Please wait for connection.', 'error');
+    if (!loggedIn) {
+        showMessage(t('loginRequired'), 'error');
         return;
     }
 
-    const modePrefix = currentMode === 'elevator' ? 'E' : 'L';
-    const fullCommand = `${modePrefix}${command}`;
-    
-    // Publish command to MQTT
-    client.publish('lift/command', fullCommand, {
-        qos: 1,
-        retain: false
-    });
+    // Update UI
+    lastCommand = command.toUpperCase();
+    updateLastCommand(lastCommand);
 
-    // Update UI feedback
-    lastCommand = fullCommand;
-    document.getElementById('last-command').textContent = lastCommand;
-    
+    // Send command via MQTT
+    const topic = `lift/${currentMode}/command`;
+    const message = command.toLowerCase();
+    client.publish(topic, message, { qos: 1 });
+
     // Log the command
-    console.log(`Sent command: ${fullCommand}`);
+    logToCommandTerminal(`Sent ${currentMode} ${command} command`);
 }
 
-// Event listeners for control buttons
-document.getElementById('up-btn').addEventListener('click', () => handleControlCommand('UP'));
-document.getElementById('stop-btn').addEventListener('click', () => handleControlCommand('STOP'));
-document.getElementById('down-btn').addEventListener('click', () => handleControlCommand('DOWN'));
-
-// Mode selector handler
-document.getElementById('mode-select').addEventListener('change', handleModeChange);
-
-// Subscribe to lift status updates
-client.subscribe('lift/status', { qos: 1 });
-
-// Handle incoming status messages
-client.on('message', function (topic, message) {
-    if (topic === 'lift/status') {
-        const status = message.toString();
-        document.getElementById('last-command').textContent = `Last Status: ${status}`;
-    }
-});
-
-// Lift Controls
-const modeSelect = document.getElementById('mode-select');
-const upButton = document.getElementById('up-btn');
-const stopButton = document.getElementById('stop-btn');
-const downButton = document.getElementById('down-btn');
-const lastCommandSpan = document.getElementById('last-command');
-
+/**
+ * Updates the mode when the selector changes
+ * @param {Event} e - The change event
+ */
 function handleModeChange(e) {
-    // Use the global currentMode instead of redeclaring
     currentMode = e.target.value;
-    console.log(`Mode changed to: ${currentMode}`);
-    // Update UI or perform other mode-specific actions
-    const topic = currentMode === 'elevator' ? 'elevator/command' : 'lift/command';
-    // ... rest of the function
+    logToCommandTerminal(`Switched to ${currentMode} mode`);
 }
 
+/**
+ * Updates the last command display in the UI
+ * @param {string} command - The command to display
+ */
 function updateLastCommand(command) {
-    lastCommandSpan.textContent = command;
+    if (lastCommandSpan) {
+        lastCommandSpan.textContent = command;
+    }
 }
 
-function sendLiftCommand(command) {
-    const topic = currentMode === 'elevator' ? 'elevator/command' : 'lift/command';
-    const message = {
-        command: command,
-        timestamp: new Date().toISOString()
-    };
-    
-    // Send MQTT message
-    client.publish(topic, JSON.stringify(message), (error) => {
-        if (error) {
-            console.error('Error publishing message:', error);
-            return;
-        }
-        console.log(`Sent ${command} command to ${topic}`);
-        updateLastCommand(command);
+/**
+ * Initializes the lift control event listeners
+ */
+function initializeLiftControls() {
+    if (modeSelect) {
+        modeSelect.addEventListener('change', handleModeChange);
+    }
+
+    if (upButton) {
+        upButton.addEventListener('click', () => handleControlCommand('UP'));
+    }
+
+    if (stopButton) {
+        stopButton.addEventListener('click', () => handleControlCommand('STOP'));
+    }
+
+    if (downButton) {
+        downButton.addEventListener('click', () => handleControlCommand('DOWN'));
+    }
+}
+
+// Initialize MQTT subscriptions
+function initializeMQTTSubscriptions() {
+    // Subscribe to both status topics
+    const topics = ['elevator/status', 'lift/status'];
+    topics.forEach(topic => {
+        client.subscribe(topic, { qos: 1 }, (error) => {
+            if (error) {
+                console.error(`Error subscribing to ${topic}:`, error);
+            } else {
+                console.log(`Successfully subscribed to ${topic}`);
+            }
+        });
     });
 }
 
-upButton.addEventListener('click', () => {
-    sendLiftCommand('UP');
-});
-
-stopButton.addEventListener('click', () => {
-    sendLiftCommand('STOP');
-});
-
-downButton.addEventListener('click', () => {
-    sendLiftCommand('DOWN');
-});
-
-// Subscribe to status topics
-client.subscribe('elevator/status', (error) => {
-    if (error) {
-        console.error('Error subscribing to elevator status:', error);
-    }
-});
-
-client.subscribe('lift/status', (error) => {
-    if (error) {
-        console.error('Error subscribing to lift status:', error);
-    }
-});
-
-// Handle incoming status messages
+// Single message handler for all MQTT messages
 client.on('message', (topic, message) => {
     if (topic === 'elevator/status' || topic === 'lift/status') {
         try {
             const status = JSON.parse(message.toString());
             console.log(`Received status for ${topic}:`, status);
-            // Handle status updates here if needed
+            // Update UI with status information
+            updateLastCommand(`Last Status: ${status.command || status}`);
+            // Additional status handling can be added here
         } catch (error) {
             console.error('Error parsing status message:', error);
         }

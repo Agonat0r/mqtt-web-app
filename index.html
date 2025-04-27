@@ -220,6 +220,9 @@
         commandLog.innerHTML += `[${timestamp}] ${command}\n`;
         commandLog.scrollTop = commandLog.scrollHeight;
 
+        // Add single-line command output
+        console.log(`[COMMAND] ${direction.toUpperCase()} at ${timestamp}`);
+
         // Create MQTT message
         const mqttMessage = {
             type: "command",
@@ -242,6 +245,9 @@
         const commandLog = document.getElementById('command-log');
         commandLog.innerHTML += `[${timestamp}] ${command}\n`;
         commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Add single-line command output
+        console.log(`[COMMAND] STOP at ${timestamp}`);
 
         // Create MQTT message
         const mqttMessage = {
@@ -266,6 +272,9 @@
         commandLog.innerHTML += `[${timestamp}] ${command}\n`;
         commandLog.scrollTop = commandLog.scrollHeight;
 
+        // Add single-line command output
+        console.log(`[COMMAND] BRAKE at ${timestamp}`);
+
         // Create MQTT message
         const mqttMessage = {
             type: "command",
@@ -288,6 +297,9 @@
         const commandLog = document.getElementById('command-log');
         commandLog.innerHTML += `[${timestamp}] ${command}\n`;
         commandLog.scrollTop = commandLog.scrollHeight;
+
+        // Add single-line command output
+        console.log(`[COMMAND] RELEASE at ${timestamp}`);
 
         // Create MQTT message
         const mqttMessage = {

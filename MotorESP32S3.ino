@@ -16,8 +16,8 @@ const char* www_username = "admin";
 const char* www_password = "admin";
 
 // ===== WiFi and MQTT Configuration ===== //
-const char* ssid = "Hub Unit 221"; // Flugel
-const char* password = "ZWCFWFFN"; // dogecoin
+const char* ssid = "Avalon Heights-Resident"; // Flugel Hub Unit 221
+const char* password = "FlyerNitrogenInvest"; // dogecoin ZWCFWFFN
 const char* mqtt_server = "lb88002c.ala.us-east-1.emqxsl.com";
 const int mqtt_port = 8883;  // MQTT over TLS/SSL Port
 const char* mqtt_username = "Carlos";
@@ -326,34 +326,30 @@ void callback(char* topic, byte* payload, unsigned int length) {
     const char* msg = doc["message"];
     const char* timestamp = doc["timestamp"];
 
-    // Only print for command messages
+    // Only print for command messages with UP, DOWN, or STOP
     if (type && strcmp(type, "command") == 0 && msg && timestamp) {
-        // Print as a single compressed line
-        Serial.print("[COMMAND] ");
-        
-        if (strcmp(msg, "COMMAND:UP") == 0) {
-            Serial.print("UP");
-            handleMovement("up");
+        if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
+            // Print as a single compressed line
+            Serial.print("[COMMAND] ");
+            if (strcmp(msg, "COMMAND:UP") == 0) Serial.print("UP");
+            else if (strcmp(msg, "COMMAND:DOWN") == 0) Serial.print("DOWN");
+            else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
+            Serial.print(" at ");
+            Serial.println(timestamp);
+
+            // --- BEGIN: Command Output Pin Control (commented out for now) ---
+            // if (strcmp(msg, "COMMAND:UP") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, HIGH);
+            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            // } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, LOW);
+            //     digitalWrite(DOWN_OUTPUT_PIN, HIGH);
+            // } else if (strcmp(msg, "COMMAND:STOP") == 0) {
+            //     digitalWrite(UP_OUTPUT_PIN, LOW);
+            //     digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            // }
+            // --- END: Command Output Pin Control ---
         }
-        else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-            Serial.print("DOWN");
-            handleMovement("down");
-        }
-        else if (strcmp(msg, "COMMAND:STOP") == 0) {
-            Serial.print("STOP");
-            stopMovement();
-        }
-        else if (strcmp(msg, "COMMAND:BRAKE") == 0) {
-            Serial.print("BRAKE");
-            applyBrake();
-        }
-        else if (strcmp(msg, "COMMAND:RELEASE") == 0) {
-            Serial.print("RELEASE");
-            releaseBrake();
-        }
-        
-        Serial.print(" at ");
-        Serial.println(timestamp);
     }
 }
 

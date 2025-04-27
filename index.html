@@ -227,7 +227,10 @@
 
       // Send via MQTT
       if (mqtt_connected) {
+        console.log('Publishing MQTT message:', msg);
         mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      } else {
+        console.log('MQTT not connected');
       }
 
       fetch('/' + dir + '_start').catch(e => console.error(e));
@@ -252,7 +255,10 @@
 
       // Send via MQTT
       if (mqtt_connected) {
+        console.log('Publishing MQTT message:', msg);
         mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      } else {
+        console.log('MQTT not connected');
       }
 
       fetch('/stop').catch(e => console.error(e));
@@ -277,7 +283,10 @@
 
       // Send via MQTT
       if (mqtt_connected) {
+        console.log('Publishing MQTT message:', msg);
         mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      } else {
+        console.log('MQTT not connected');
       }
 
       fetch('/apply_brake').catch(e => console.error(e));
@@ -302,7 +311,10 @@
 
       // Send via MQTT
       if (mqtt_connected) {
+        console.log('Publishing MQTT message:', msg);
         mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      } else {
+        console.log('MQTT not connected');
       }
 
       fetch('/release_brake').catch(e => console.error(e));

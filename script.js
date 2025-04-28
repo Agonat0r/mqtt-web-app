@@ -679,6 +679,15 @@ document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
         if (terminal) {
             terminal.innerHTML = '';
         }
+        // Also clear logs on the ESP32 backend
+        fetch('/clearLogs')
+            .then(res => res.text())
+            .then(msg => {
+                showMessage(msg || 'Logs cleared', 'success');
+            })
+            .catch(() => {
+                showMessage('Failed to clear logs on device', 'error');
+            });
     });
 });
 

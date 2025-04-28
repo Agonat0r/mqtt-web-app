@@ -565,13 +565,20 @@ function handleAlarm(alarm) {
     alarmEntry.innerHTML = `[${timestamp}] ${alarm.message}`;
     
     // Add to appropriate alarm section based on the type from ESP32
-    const alarmContainer = document.getElementById(`${alarm.type}Alarms`);
+    let alarmContainer = null;
+    if (alarm.type === 'red') {
+        alarmContainer = document.getElementById('redAlarms');
+    } else if (alarm.type === 'amber') {
+        alarmContainer = document.getElementById('amberAlarms');
+    } else if (alarm.type === 'green') {
+        alarmContainer = document.getElementById('greenAlarms');
+    }
     if (alarmContainer) {
         alarmContainer.appendChild(alarmEntry);
         alarmContainer.scrollTop = alarmContainer.scrollHeight;
-        // Also log to general terminal
-        logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
     }
+    // Also log to general terminal
+    logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
 }
 
 // Terminal input handling
@@ -679,6 +686,15 @@ document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
         if (terminal) {
             terminal.innerHTML = '';
         }
+        // Also clear logs on the ESP32 backend
+        fetch('/clearLogs')
+            .then(res => res.text())
+            .then(msg => {
+                showMessage(msg || 'Logs cleared', 'success');
+            })
+            .catch(() => {
+                showMessage('Failed to clear logs on device', 'error');
+            });
     });
 });
 

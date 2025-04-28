@@ -96,6 +96,9 @@ unsigned long ELEVATOR_MODE_DELAY = 200; // Set default delay for Elevator Mode
 #define BRAKE_PIN 14 
 #define UP_OUTPUT_PIN 15    // Using pin 15 for UP output
 #define DOWN_OUTPUT_PIN 16  // Using pin 16 for DOWN output
+#define ALWAYS_HIGH_PIN1 17 // Pin that will always be HIGH
+#define ALWAYS_HIGH_PIN2 20 // Pin that will always be HIGH
+#define ALWAYS_HIGH_PIN3 23 // Pin that will always be HIGH
 // Email Configuration
 #define MAX_EMAILS 10
 String emailAddresses[MAX_EMAILS];
@@ -957,138 +960,173 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     String currentAmberAlarms = "";
     String currentGreenAlarms = "";
 
-    // RED ALARMS - Critical Safety Conditions
-    if (!r0 && !r1 && !r2 && !r3) {
-        currentRedAlarms = "Red Alarm: All RED LEDs are OFF";
-    } else if (r0 && r1 && r2 && r3) {
-        currentRedAlarms = "Red Alarm: ALARM Rqt #2\n E-Stop is OFF - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0 && r1 && r2 && !r3) {
-        currentRedAlarms = "Red Alarm: ALARM Rqt #15\n OSG has tripped or Pit Switch is OFF - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0 && r1 && !r2 && !r3) {
-        currentRedAlarms = "Red Alarm: ALARM Rqt #23\nLanding Door Lock Failure - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0 && !r1 && r2 && r3) {
-        currentRedAlarms = "Red Alarm: ALARM Rqt #22\nLanding Door is Open - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
+    // === Mutual Exclusion Logic ===
+    bool anyGreenOn = false;
+    bool anyRedFlashing = false;
+    for (int i = 0; i < numLEDs; i++) {
+        if (greenLEDStates[i].lastState) anyGreenOn = true;
+        if (redLEDStates[i].changeCount >= 2) anyRedFlashing = true;
+    }
+    // Check for amber flashing
+    bool anyAmberFlashing = a0f || a1f || a2f || a3f;
+
+    // Helper: LED summary string
+    auto ledSummary = []() -> String {
+        String s = "Red:";
+        for (int i = 0; i < 4; i++) if (redLEDStates[i].lastState) s += " " + String(i);
+        s += " | Green:";
+        for (int i = 0; i < 4; i++) if (greenLEDStates[i].lastState) s += " " + String(i);
+        return s;
+    };
+
+    // RED ALARMS - Only if NO green LED is ON and NO amber is flashing
+    if (!anyGreenOn && !anyAmberFlashing) {
+        String alertName = "";
+        if (!r0 && !r1 && !r2 && !r3) {
+            alertName = "Red Alarm: All RED LEDs are OFF";
+        } else if (r0 && r1 && r2 && r3) {
+            alertName = "Red Alarm: ALARM Rqt #2 E-Stop is OFF - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0 && r1 && r2 && !r3) {
+            alertName = "Red Alarm: ALARM Rqt #15 OSG has tripped or Pit Switch is OFF - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0 && r1 && !r2 && !r3) {
+            alertName = "Red Alarm: ALARM Rqt #23 Landing Door Lock Failure - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0 && !r1 && r2 && r3) {
+            alertName = "Red Alarm: ALARM Rqt #22 Landing Door is Open - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        }
+        if (!r0f && !r1f && !r2f && !r3f) {
+            alertName = "Red Alarm: No FLASHING RED LEDs DETECTED - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && r1f && !r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #31 Out of Service (flood switch) - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && r1f && r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #36 Out of Service – periodic maintenance Needed - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0f && !r1f && !r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #37 Out of Service (travel time up > 2 x Average) - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && r1f && !r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #7 Drive Train, Belt Failure (if present) - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0f && r1f && r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #3 Drive Nut Friction block fails - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0f && !r1f && !r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #27 Drive Train Alignment - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0f && r1f && r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #10 Final Limit - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && !r1f && r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #11 Landing Switch (Top) failure - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && r1f && r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #12 Landing Switch (Mid) failure - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (r0f && !r1f && r2f && !r3f) {
+            alertName = "Red Alarm: Alarm Rqt #13 Landing Switch (Bottom) failure - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && !r1f && r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #24 Drive Train Motor Failure - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        } else if (!r0f && !r1f && !r2f && r3f) {
+            alertName = "Red Alarm: Alarm Rqt #5 Drive Train Motor Failure Motor temperature T > 110˚ C (230˚ F) - Movement Locked";
+            stopUpMovement();
+            stopDownMovement();
+        }
+        if (alertName != "") {
+            currentRedAlarms = ledSummary() + "\n" + alertName;
+        }
+    } else {
+        currentRedAlarms = "";
     }
 
-    // RED FLASHING ALARMS
-    if (!r0f && !r1f && !r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: No FLASHING RED LEDs DETECTED - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && r1f && !r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #31\nOut of Service (lift must be inspected / serviced) for safety reasons – Flood switch Activated) - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && r1f && r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #36\nOut of Service – periodic maintenance Needed - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0f && !r1f && !r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #37\nOut of Service (travel time up > 2 x Average) - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && r1f && !r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #7\nDrive Train, Belt Failure (if present) - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0f && r1f && r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #3\nDrive Nut Friction block (assuming an ACME screw drive) fails and contacts the safety nut, rendering the lift unable to lift the payload 2 - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0f && !r1f && !r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #27\n Drive Train Alignment - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0f && r1f && r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #10\n Final Limit [2.09.03, Ref. 1] - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && !r1f && r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #11\nLanding Switch (Top) failure - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && r1f && r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #12\nLanding Switch (Mid) failure - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (r0f && !r1f && r2f && !r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #13\nLanding Switch (Bottom) failure - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && !r1f && r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #24\nDrive Train Motor Failure - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
-    } else if (!r0f && !r1f && !r2f && r3f) {
-        currentRedAlarms = "Red Alarm: Alarm Rqt #5\nDrive Train Motor Failure\nMotor temperature T > 110˚ C (230˚ F) - Movement Locked";
-        stopUpMovement();
-        stopDownMovement();
+    // GREEN ALARMS - Only if NO red LED is flashing
+    if (!anyRedFlashing) {
+        String alertName = "";
+        if (!g0 && !g1 && !g2 && !g3) {
+            alertName = "Green Alarm: All GREEN LEDs are OFF";
+        } else if (g0 && g1 && g2 && g3) {
+            alertName = "Green Alarm: No exceptions found";
+        } else if (!g0f && !g1f && !g2f && !g3f) {
+            alertName = "Green Alarm: No FLASHING GREEN LEDs DETECTED";
+        } else if (g0f && g1f && g2f && !g3f) {
+            alertName = "Green Alarm: On Battery Power";
+        } else if (g0f && g1f && g2f && g3f) {
+            alertName = "Green Alarm: Bypass Jumpers not removed after working on lift / Service Switch is active, so jumpers not used";
+        }
+        if (alertName != "") {
+            currentGreenAlarms = ledSummary() + "\n" + alertName;
+        }
+    } else {
+        currentGreenAlarms = "";
     }
 
-    // GREEN ALARMS
-    if (!g0 && !g1 && !g2 && !g3) {
-        currentGreenAlarms = "Green Alarm: All GREEN LEDs are OFF";
-    } else if (g0 && g1 && g2 && g3) {
-        currentGreenAlarms = "Green Alarm: No exceptions found";
-    } else if (!g0f && !g1f && !g2f && !g3f) {
-        currentGreenAlarms = "Green Alarm: No FLASHING GREEN LEDs DETECTED";
-    } else if (g0f && g1f && g2f && !g3f) {
-        currentGreenAlarms = "Green Alarm: On Battery Power";
-    } else if (g0f && g1f && g2f && g3f) {
-        currentGreenAlarms = "Green Alarm: Bypass Jumpers not removed after working on lift /n Service Switch is active, so jumpers not used";
-    }
-
-    // AMBER ALARMS
+    // AMBER ALARMS (no mutual exclusion)
+    String amberAlertName = "";
     if (!a0 && !a1 && !a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm: ALL AMBER LEDs are OFF";
+        amberAlertName = "Amber Alarm: ALL AMBER LEDs are OFF";
     } else if (a0 && a1 && a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #4\n Power Failure to the Lift";
+        amberAlertName = "Amber Alarm Rqt #4 Power Failure to the Lift";
     } else if (!a0 && a1 && a2 && a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #39\n Power Failure to the Lift";
+        amberAlertName = "Amber Alarm Rqt #39 Power Failure to the Lift";
     } else if (a0 && !a1 && !a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #30\nService Required - Flood switch as true)";
+        amberAlertName = "Amber Alarm Rqt #30 Service Required - Flood switch as true)";
     } else if (!a0 && a1 && !a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #33\nService Required – travel time change";
+        amberAlertName = "Amber Alarm Rqt #33 Service Required – travel time change";
     } else if (a0 && a1 && !a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #34\nService Required – periodic maintenance Needed";
+        amberAlertName = "Amber Alarm Rqt #34 Service Required – periodic maintenance Needed";
     } else if (!a0 && !a1 && a2 && !a3) {
-        currentAmberAlarms = "Amber Alarm Rqt #35\nService Required – Service hours";
+        amberAlertName = "Amber Alarm Rqt #35 Service Required – Service hours";
     } else if (!a0 && !a1 && a2 && a3) {
-        currentAmberAlarms = "Amber Alarm: Service Required – Charger/Battery";
+        amberAlertName = "Amber Alarm: Service Required – Charger/Battery";
     } else if (a0 && !a1 && !a2 && a3) {
-        currentAmberAlarms = "Amber Alarm: Service Required - Inverter or Drive Train Alignment";
+        amberAlertName = "Amber Alarm: Service Required - Inverter or Drive Train Alignment";
     }
-
-    // AMBER FLASHING ALARMS
     if (!a0f && !a1f && !a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm: ALL FLASHING AMBER LEDs are OFF";
+        amberAlertName = "Amber Alarm: ALL FLASHING AMBER LEDs are OFF";
     } else if (a0f && a1f && a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #32 \n Power Failure to the Lift - UP Movement Locked";
+        amberAlertName = "Amber Alarm Rqt #32 Power Failure to the Lift - UP Movement Locked";
         stopUpMovement();
     } else if (!a0f && a1f && a2f && a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #40 \n Power Failure to the Lift";
+        amberAlertName = "Amber Alarm Rqt #40 Power Failure to the Lift";
     } else if (!a0f && !a1f && a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #6 \n Drive Train Motor Failure - UP Movement Locked";
+        amberAlertName = "Amber Alarm Rqt #6 Drive Train Motor Failure - UP Movement Locked";
         stopUpMovement();
     } else if (a0f && !a1f && !a2f && a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #8 \n Anti-Rock – too tight / binding of carriage - UP Movement Locked ";
+        amberAlertName = "Amber Alarm Rqt #8 Anti-Rock – too tight / binding of carriage - UP Movement Locked ";
         stopUpMovement();
     } else if (a0f && a1f && !a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #14 \n Control System Limit Switch[2.09.02, 2.10.03.0; Ref. 1] \n Safety Pan (Bottom Final Limit) - DOWN Movement Locked";
+        amberAlertName = "Amber Alarm Rqt #14 Control System Limit Switch / Safety Pan (Bottom Final Limit) - DOWN Movement Locked";
         stopDownMovement();
     } else if (!a0f && a1f && !a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #16 \n Do not allow the platform to descend into flood waters - DOWN Movement Locked";
+        amberAlertName = "Amber Alarm Rqt #16 Do not allow the platform to descend into flood waters - DOWN Movement Locked";
         stopDownMovement();
     } else if (!a0f && a1f && a2f && !a3f) {
-        currentAmberAlarms = "Amber Alarm Rqt #38 \nMotor Temperature monitoring lost";
+        amberAlertName = "Amber Alarm Rqt #38 Motor Temperature monitoring lost";
+    }
+    if (amberAlertName != "") {
+        currentAmberAlarms = ledSummary() + "\n" + amberAlertName;
     }
 
     // Only publish alerts if they've changed and after cooldown period
@@ -1245,6 +1283,14 @@ void setup() {
   pinMode(DOWN_OUTPUT_PIN, OUTPUT);
   digitalWrite(UP_OUTPUT_PIN, LOW);    // Start with outputs OFF
   digitalWrite(DOWN_OUTPUT_PIN, LOW);
+
+  // Initialize always-HIGH output pins
+  pinMode(ALWAYS_HIGH_PIN1, OUTPUT);
+  pinMode(ALWAYS_HIGH_PIN2, OUTPUT);
+  pinMode(ALWAYS_HIGH_PIN3, OUTPUT);
+  digitalWrite(ALWAYS_HIGH_PIN1, HIGH);  // Set to always HIGH
+  digitalWrite(ALWAYS_HIGH_PIN2, HIGH);  // Set to always HIGH
+  digitalWrite(ALWAYS_HIGH_PIN3, HIGH);  // Set to always HIGH
 
   // Connect to WiFi with status check and timeout
   WiFi.mode(WIFI_STA);

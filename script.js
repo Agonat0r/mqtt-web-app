@@ -1146,3 +1146,110 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('languageSelector').value = savedLang;
     updateAllText();
 });
+
+// === Email Alerts Tab Logic ===
+const EMAIL_ALERTS_KEY = 'email_alerts_list';
+const EMAIL_ALERTS_ENABLED_KEY = 'email_alerts_enabled';
+
+function getEmailAlertsList() {
+    return JSON.parse(localStorage.getItem(EMAIL_ALERTS_KEY) || '[]');
+}
+function setEmailAlertsList(list) {
+    localStorage.setItem(EMAIL_ALERTS_KEY, JSON.stringify(list));
+}
+function getEmailAlertsEnabled() {
+    return localStorage.getItem(EMAIL_ALERTS_ENABLED_KEY) === 'true';
+}
+function setEmailAlertsEnabled(enabled) {
+    localStorage.setItem(EMAIL_ALERTS_ENABLED_KEY, enabled ? 'true' : 'false');
+}
+
+function renderEmailAlertsTab() {
+    const list = getEmailAlertsList();
+    const ul = document.getElementById('emailAlertList');
+    ul.innerHTML = '';
+    if (list.length === 0) {
+        ul.innerHTML = '<li>No emails added yet</li>';
+    } else {
+        list.forEach((email, idx) => {
+            const li = document.createElement('li');
+            li.textContent = email + ' ';
+            const btn = document.createElement('button');
+            btn.textContent = 'Remove';
+            btn.onclick = () => {
+                const newList = getEmailAlertsList();
+                newList.splice(idx, 1);
+                setEmailAlertsList(newList);
+                renderEmailAlertsTab();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+        });
+    }
+    document.getElementById('emailAlertEnabled').checked = getEmailAlertsEnabled();
+}
+
+document.getElementById('addEmailAlertBtn').onclick = function() {
+    const input = document.getElementById('emailAlertInput');
+    const email = input.value.trim();
+    if (!email || !validateEmail(email)) {
+        showMessage('Please enter a valid email address', 'error');
+        return;
+    }
+    const list = getEmailAlertsList();
+    if (!list.includes(email)) {
+        list.push(email);
+        setEmailAlertsList(list);
+        renderEmailAlertsTab();
+    }
+    input.value = '';
+};
+
+document.getElementById('emailAlertEnabled').onchange = function() {
+    setEmailAlertsEnabled(this.checked);
+    renderEmailAlertsTab();
+};
+
+// Show the correct tab when selected
+const tabSelector = document.getElementById('tab-selector');
+tabSelector.addEventListener('change', function() {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+    const selected = tabSelector.value;
+    if (selected === 'email-alerts') {
+        renderEmailAlertsTab();
+        document.getElementById('email-alerts-tab').classList.remove('hidden');
+    } else {
+        const tabDiv = document.getElementById(selected + '-tab');
+        if (tabDiv) tabDiv.classList.remove('hidden');
+    }
+});
+
+// === Send alert emails when an alarm is detected ===
+async function sendAlarmEmails(alarm) {
+    if (!getEmailAlertsEnabled()) return;
+    const emails = getEmailAlertsList();
+    if (!emails.length) return;
+    for (const email of emails) {
+        try {
+            await emailjs.send(
+                "service_lsa1r4i", // Replace with your EmailJS service ID
+                "template_vnrbr1d", // Replace with your EmailJS template ID
+                {
+                    to_email: email,
+                    log_content: `[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`,
+                    log_type: alarm.type,
+                    timestamp: new Date().toLocaleString()
+                }
+            );
+        } catch (e) {
+            console.error('Failed to send alert email to', email, e);
+        }
+    }
+}
+
+// Patch handleAlarm to send emails
+const origHandleAlarm = handleAlarm;
+handleAlarm = function(alarm) {
+    origHandleAlarm(alarm);
+    sendAlarmEmails(alarm);
+};

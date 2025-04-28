@@ -41,6 +41,7 @@
         <option value="commands" data-translate="commands">Commands</option>
         <option value="alerts" data-translate="alerts">Alerts</option>
         <option value="customization" data-translate="customization">Customization</option>
+        <option value="email-alerts" data-translate="emailAlerts">Email Alerts</option>
       </select>
       <div id="connectionStatus" class="status-indicator status-disconnected">
         Disconnected
@@ -185,6 +186,24 @@
           </div>
         </div>
         <button id="resetCustomizations" data-action="reset-customizations" data-translate="reset">Reset to Default</button>
+      </div>
+
+      <!-- Email Alerts Tab -->
+      <div id="email-alerts-tab" class="tab-content hidden">
+        <h3>Email Alerts</h3>
+        <div>
+          <label>
+            <input type="checkbox" id="emailAlertEnabled"> Enable Email Notifications
+          </label>
+        </div>
+        <div style="margin-top: 15px;">
+          <input type="email" id="emailAlertInput" placeholder="Enter email address">
+          <button id="addEmailAlertBtn">Add Email</button>
+        </div>
+        <div style="margin-top: 10px;">
+          <h5>Email Recipients:</h5>
+          <ul id="emailAlertList"></ul>
+        </div>
       </div>
     </div>
 

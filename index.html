@@ -58,7 +58,7 @@
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
             <pre id="messageLog" class="terminal"></pre>
             <div class="terminal-controls">
-              <button data-action="clear-log" data-target="messageLog" data-translate="clearLog">Clear Log</button>
+              <button onclick="clearLog('messageLog')" data-translate="clearLog">Clear Log</button>
               <button data-action="export-log" data-target="messageLog" data-translate="exportLog">Export Log</button>
               <button data-action="email-log" data-target="messageLog" data-translate="emailLog">Email Log</button>
             </div>
@@ -70,7 +70,7 @@
             <pre id="command-log" class="terminal"></pre>
             <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
             <div class="terminal-controls">
-              <button data-action="clear-log" data-target="command-log" data-translate="clearLog">Clear Log</button>
+              <button onclick="clearLog('command-log')" data-translate="clearLog">Clear Log</button>
               <button data-action="export-log" data-target="command-log" data-translate="exportLog">Export Log</button>
               <button data-action="email-log" data-target="command-log" data-translate="emailLog">Email Log</button>
             </div>
@@ -688,6 +688,24 @@
         }, 5000);
       }
     });
+
+    // Add handler for email alerts
+    mqtt_client.on('message', function(topic, message) {
+        try {
+            const msg = JSON.parse(message.toString());
+            if (topic === "usf/alerts/email") {
+                sendEmailAlert(msg.alert_type.toLowerCase(), msg.message);
+            }
+            // ... existing message handling code ...
+        } catch (error) {
+            console.error('Error processing MQTT message:', error);
+        }
+    });
+
+    // Add this function to handle clearing logs
+    function clearLog(elementId) {
+      document.getElementById(elementId).textContent = '';
+    }
   </script>
 
   <style>

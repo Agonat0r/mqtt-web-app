@@ -1,222 +1,77 @@
-// Initialize EmailJS
-(function() {
-    emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your actual EmailJS public key
-})();
-
-// Tab Switching
-function handleTabSwitch(tabId) {
-    // Hide all tab content
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.add('hidden');
-    });
-
-    // Show selected tab
-    const selectedTab = document.getElementById(tabId + '-tab');
-    if (selectedTab) {
-        selectedTab.classList.remove('hidden');
-    }
-
-}
-
-// Initialize both SMS and Email settings when the script loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize tab switching
-    const tabSelector = document.getElementById('tab-selector');
-    if (tabSelector) {
-        // Set initial tab
-        handleTabSwitch(tabSelector.value);
-        
-        // Add change listener
-        tabSelector.addEventListener('change', (e) => {
-            handleTabSwitch(e.target.value);
-            console.log('Switching to tab:', e.target.value);
-        });
-    }
-
-    // Initialize SMS and Email settings
-    initializeSMSSettings();
-    initializeEmailSettings();
-});
-
 // SMS Alert Management
 let smsEnabled = localStorage.getItem('smsEnabled') === 'true';
 let phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
 
 function initializeSMSSettings() {
-    // Wait for DOM to be fully loaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupSMSElements);
-    } else {
-        setupSMSElements();
-    }
+    document.getElementById('smsEnabled').checked = smsEnabled;
+    const phoneList = document.getElementById('phoneList');
+    phoneList.innerHTML = '';
+    phoneNumbers.forEach(phone => {
+        addPhoneToList(phone);
+    });
 }
 
-function setupSMSElements() {
-    // Get all required elements
-    const elements = {
-        smsToggle: document.getElementById('smsEnabled'),
-        redAlerts: document.getElementById('smsRedAlerts'),
-        amberAlerts: document.getElementById('smsAmberAlerts'),
-        greenAlerts: document.getElementById('smsGreenAlerts'),
-        phoneList: document.getElementById('phoneList'),
-        addPhoneBtn: document.getElementById('addPhoneBtn'),
-        phoneInput: document.getElementById('phoneInput'),
-        testSmsBtn: document.getElementById('sendTestSMS'),
-        validationMsg: document.getElementById('phoneValidationMsg')
-    };
-
-    // Check if we're on a page with SMS elements
-    if (!elements.smsToggle) {
-        return; // Not on a page with SMS elements, exit gracefully
-    }
-
-    // Initialize toggle switch
-    elements.smsToggle.checked = smsEnabled;
-    elements.smsToggle.addEventListener('change', (event) => toggleSMSAlerts(event, elements));
-
-    // Initialize alert preferences
-    if (elements.redAlerts) {
-        elements.redAlerts.checked = localStorage.getItem('smsRedAlerts') !== 'false';
-        elements.redAlerts.addEventListener('change', e => localStorage.setItem('smsRedAlerts', e.target.checked));
-    }
-    if (elements.amberAlerts) {
-        elements.amberAlerts.checked = localStorage.getItem('smsAmberAlerts') !== 'false';
-        elements.amberAlerts.addEventListener('change', e => localStorage.setItem('smsAmberAlerts', e.target.checked));
-    }
-    if (elements.greenAlerts) {
-        elements.greenAlerts.checked = localStorage.getItem('smsGreenAlerts') === 'true';
-        elements.greenAlerts.addEventListener('change', e => localStorage.setItem('smsGreenAlerts', e.target.checked));
-    }
-
-    // Initialize phone list
-    if (elements.phoneList) {
-        elements.phoneList.innerHTML = '';
-        phoneNumbers.forEach(phone => addPhoneToList(phone, elements));
-    }
-
-    // Add event listeners
-    if (elements.addPhoneBtn) {
-        elements.addPhoneBtn.addEventListener('click', () => addPhoneNumber(elements));
-    }
-
-    if (elements.phoneInput) {
-        elements.phoneInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addPhoneNumber(elements);
-            }
-        });
-    }
-
-    if (elements.testSmsBtn) {
-        elements.testSmsBtn.addEventListener('click', () => sendTestSMS(elements));
-        elements.testSmsBtn.disabled = !smsEnabled;
-    }
-}
-
-function toggleSMSAlerts(event, elements) {
-    smsEnabled = event.target.checked;
+function toggleSMSAlerts() {
+    smsEnabled = document.getElementById('smsEnabled').checked;
     localStorage.setItem('smsEnabled', smsEnabled);
-    
-    // Update UI elements
-    if (elements.testSmsBtn) {
-        elements.testSmsBtn.disabled = !smsEnabled;
-    }
-    
-    // Show/hide validation message
-    if (elements.validationMsg) {
-        elements.validationMsg.textContent = '';
-        elements.validationMsg.style.display = 'none';
-    }
 }
 
 function validatePhoneNumber(phone) {
-    // Basic international phone number validation
+    // Basic phone validation - can be enhanced based on your needs
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    return phoneRegex.test(phone.trim());
+    return phoneRegex.test(phone);
 }
 
-function addPhoneNumber(elements) {
-    const phone = elements.phoneInput.value.trim();
-    
-    // Clear previous validation message
-    elements.validationMsg.textContent = '';
-    elements.validationMsg.style.display = 'none';
-    
-    if (!phone) {
-        elements.validationMsg.textContent = 'Please enter a phone number';
-        elements.validationMsg.style.display = 'block';
-        return;
-    }
-    
+function addPhoneNumber() {
+    const phoneInput = document.getElementById('phoneInput');
+    const phone = phoneInput.value.trim();
+    const validationMsg = document.getElementById('phone-validation-msg');
+
     if (!validatePhoneNumber(phone)) {
-        elements.validationMsg.textContent = 'Please enter a valid international phone number (e.g., +1234567890)';
-        elements.validationMsg.style.display = 'block';
+        validationMsg.textContent = 'Please enter a valid phone number';
+        validationMsg.style.color = 'red';
         return;
     }
-    
+
     if (phoneNumbers.includes(phone)) {
-        elements.validationMsg.textContent = 'This phone number is already in the list';
-        elements.validationMsg.style.display = 'block';
+        validationMsg.textContent = 'This phone number is already added';
+        validationMsg.style.color = 'red';
         return;
     }
-    
-    // Add phone to list and save
+
     phoneNumbers.push(phone);
     localStorage.setItem('phoneNumbers', JSON.stringify(phoneNumbers));
-    addPhoneToList(phone, elements);
-    
-    // Clear input
-    elements.phoneInput.value = '';
+    addPhoneToList(phone);
+    phoneInput.value = '';
+    validationMsg.textContent = '';
 }
 
-function addPhoneToList(phone, elements) {
+function addPhoneToList(phone) {
+    const phoneList = document.getElementById('phoneList');
     const li = document.createElement('li');
-    li.className = 'phone-item';
-    
-    const phoneText = document.createElement('span');
-    phoneText.textContent = phone;
-    li.appendChild(phoneText);
-    
+    li.textContent = phone;
     const removeBtn = document.createElement('button');
-    removeBtn.textContent = '×';
-    removeBtn.className = 'remove-phone';
-    removeBtn.onclick = () => removePhone(phone, li, elements);
+    removeBtn.textContent = 'Remove';
+    removeBtn.onclick = () => removePhone(phone);
     li.appendChild(removeBtn);
-    
-    elements.phoneList.appendChild(li);
+    phoneList.appendChild(li);
 }
 
-function removePhone(phone, listItem, elements) {
-    // Remove from UI
-    listItem.remove();
-    
-    // Remove from storage
+function removePhone(phone) {
     phoneNumbers = phoneNumbers.filter(p => p !== phone);
     localStorage.setItem('phoneNumbers', JSON.stringify(phoneNumbers));
-    
-    // Clear any validation messages
-    if (elements.validationMsg) {
-        elements.validationMsg.textContent = '';
-        elements.validationMsg.style.display = 'none';
-    }
+    initializeSMSSettings();
 }
 
 async function sendSMSAlert(alertType, message) {
-    if (!smsEnabled) return;
-    
+    if (!smsEnabled || phoneNumbers.length === 0) return;
+
     // Check if this alert type is enabled
-    const alertTypeEnabled = localStorage.getItem(`sms${alertType}Alerts`);
-    if (alertTypeEnabled === 'false') return;
-    
-    if (phoneNumbers.length === 0) {
-        console.warn('No phone numbers configured for SMS alerts');
-        return;
-    }
-    
+    const alertPreference = localStorage.getItem(`${alertType.toLowerCase()}AlertsEnabled`);
+    if (alertPreference !== 'true') return;
+
     try {
-        const timestamp = new Date().toISOString();
-        const response = await fetch('/.netlify/functions/send-sms', {
+        const response = await fetch('/api/send-sms', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -224,223 +79,34 @@ async function sendSMSAlert(alertType, message) {
             body: JSON.stringify({
                 phones: phoneNumbers,
                 message: `${alertType} Alert: ${message}`,
-                timestamp: timestamp
+                timestamp: new Date().toLocaleString()
             })
         });
-        
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('Failed to send SMS alert');
         }
-        
-        console.log(`SMS alert sent successfully to ${phoneNumbers.length} recipients`);
     } catch (error) {
         console.error('Error sending SMS alert:', error);
     }
 }
 
-async function sendTestSMS(elements) {
+async function sendTestSMS() {
     if (!smsEnabled || phoneNumbers.length === 0) {
-        elements.validationMsg.textContent = 'Please enable SMS alerts and add at least one phone number';
-        elements.validationMsg.style.display = 'block';
-        return;
-    }
-    
-    try {
-        elements.testSmsBtn.disabled = true;
-        await sendSMSAlert('Test', 'This is a test SMS alert from your VPL Monitoring Dashboard');
-        elements.validationMsg.textContent = 'Test SMS sent successfully!';
-        elements.validationMsg.style.display = 'block';
-    } catch (error) {
-        elements.validationMsg.textContent = 'Failed to send test SMS. Please try again.';
-        elements.validationMsg.style.display = 'block';
-    } finally {
-        elements.testSmsBtn.disabled = false;
-    }
-}
-
-// Email Alert Management
-let emailEnabled = localStorage.getItem('emailEnabled') === 'true';
-let emailAddresses = JSON.parse(localStorage.getItem('emailAddresses') || '[]');
-
-function initializeEmailSettings() {
-    // Wait for DOM to be fully loaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupEmailElements);
-    } else {
-        setupEmailElements();
-    }
-}
-
-function setupEmailElements() {
-    const elements = {
-        emailToggle: document.getElementById('emailAlertEnabled'),
-        redAlerts: document.getElementById('emailRedAlerts'),
-        amberAlerts: document.getElementById('emailAmberAlerts'),
-        greenAlerts: document.getElementById('emailGreenAlerts'),
-        emailList: document.getElementById('emailList'),
-        addEmailBtn: document.getElementById('addEmailAlertBtn'),
-        emailInput: document.getElementById('emailAlertInput'),
-        testEmailBtn: document.getElementById('sendTestEmail'),
-        validationMsg: document.getElementById('emailValidationMsg')
-    };
-
-    if (!elements.emailToggle) {
-        return; // Not on a page with email elements
-    }
-
-    // Initialize toggle switch
-    elements.emailToggle.checked = emailEnabled;
-    elements.emailToggle.addEventListener('change', (event) => {
-        emailEnabled = event.target.checked;
-        localStorage.setItem('emailEnabled', emailEnabled);
-        if (elements.testEmailBtn) {
-            elements.testEmailBtn.disabled = !emailEnabled;
-        }
-    });
-
-    // Initialize alert preferences
-    if (elements.redAlerts) {
-        elements.redAlerts.checked = localStorage.getItem('emailRedAlerts') !== 'false';
-        elements.redAlerts.addEventListener('change', e => localStorage.setItem('emailRedAlerts', e.target.checked));
-    }
-    if (elements.amberAlerts) {
-        elements.amberAlerts.checked = localStorage.getItem('emailAmberAlerts') !== 'false';
-        elements.amberAlerts.addEventListener('change', e => localStorage.setItem('emailAmberAlerts', e.target.checked));
-    }
-    if (elements.greenAlerts) {
-        elements.greenAlerts.checked = localStorage.getItem('emailGreenAlerts') === 'true';
-        elements.greenAlerts.addEventListener('change', e => localStorage.setItem('emailGreenAlerts', e.target.checked));
-    }
-
-    // Initialize email list
-    if (elements.emailList) {
-        elements.emailList.innerHTML = '';
-        emailAddresses.forEach(email => addEmailToList(email, elements));
-    }
-
-    // Add event listeners for email input
-    if (elements.addEmailBtn) {
-        elements.addEmailBtn.addEventListener('click', () => addEmailAddress(elements));
-    }
-
-    if (elements.emailInput) {
-        elements.emailInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addEmailAddress(elements);
-            }
-        });
-    }
-
-    // Add event listener for test email button
-    if (elements.testEmailBtn) {
-        elements.testEmailBtn.addEventListener('click', () => sendTestEmail(elements));
-        elements.testEmailBtn.disabled = !emailEnabled;
-    }
-}
-
-function validateEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
-
-function addEmailAddress(elements) {
-    const email = elements.emailInput.value.trim();
-    
-    // Clear previous validation message
-    elements.validationMsg.textContent = '';
-    elements.validationMsg.style.display = 'none';
-    
-    if (!email) {
-        elements.validationMsg.textContent = 'Please enter an email address';
-        elements.validationMsg.style.display = 'block';
-        return;
-    }
-    
-    if (!validateEmail(email)) {
-        elements.validationMsg.textContent = 'Please enter a valid email address';
-        elements.validationMsg.style.display = 'block';
-        return;
-    }
-    
-    if (emailAddresses.includes(email)) {
-        elements.validationMsg.textContent = 'This email address is already in the list';
-        elements.validationMsg.style.display = 'block';
-        return;
-    }
-    
-    // Add email to list and save
-    emailAddresses.push(email);
-    localStorage.setItem('emailAddresses', JSON.stringify(emailAddresses));
-    addEmailToList(email, elements);
-    
-    // Clear input
-    elements.emailInput.value = '';
-}
-
-function addEmailToList(email, elements) {
-    const li = document.createElement('li');
-    li.className = 'email-item';
-    
-    const emailText = document.createElement('span');
-    emailText.textContent = email;
-    li.appendChild(emailText);
-    
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = '×';
-    removeBtn.className = 'remove-email';
-    removeBtn.onclick = () => removeEmail(email, li, elements);
-    li.appendChild(removeBtn);
-    
-    elements.emailList.appendChild(li);
-}
-
-function removeEmail(email, listItem, elements) {
-    // Remove from UI
-    listItem.remove();
-    
-    // Remove from storage
-    emailAddresses = emailAddresses.filter(e => e !== email);
-    localStorage.setItem('emailAddresses', JSON.stringify(emailAddresses));
-    
-    // Clear any validation messages
-    if (elements.validationMsg) {
-        elements.validationMsg.textContent = '';
-        elements.validationMsg.style.display = 'none';
-    }
-}
-
-async function sendTestEmail(elements) {
-    if (!emailEnabled || emailAddresses.length === 0) {
-        elements.validationMsg.textContent = 'Please enable email alerts and add at least one email address';
-        elements.validationMsg.style.display = 'block';
+        alert('Please enable SMS alerts and add at least one phone number');
         return;
     }
 
     try {
-        elements.testEmailBtn.disabled = true;
-        await emailjs.send(
-            'service_lsa1r4i',  // Your EmailJS service ID
-            'template_vnrbr1d', // Your EmailJS template ID
-            {
-                to_email: emailAddresses.join(', '),
-                alert_type: 'TEST',
-                alert_message: 'This is a test email alert from your VPL Monitoring Dashboard',
-                timestamp: new Date().toLocaleString()
-            }
-        );
-        elements.validationMsg.textContent = 'Test email sent successfully!';
-        elements.validationMsg.style.color = '#4CAF50';
-        elements.validationMsg.style.display = 'block';
+        await sendSMSAlert('Test', 'This is a test SMS alert');
+        alert('Test SMS sent successfully!');
     } catch (error) {
-        console.error('Failed to send test email:', error);
-        elements.validationMsg.textContent = 'Failed to send test email. Please try again.';
-        elements.validationMsg.style.color = '#ff4444';
-        elements.validationMsg.style.display = 'block';
-    } finally {
-        elements.testEmailBtn.disabled = false;
-        setTimeout(() => {
-            elements.validationMsg.textContent = '';
-            elements.validationMsg.style.display = 'none';
-        }, 5000);
+        alert('Failed to send test SMS');
+        console.error(error);
     }
-} 
+}
+
+// Initialize SMS settings when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSMSSettings();
+}); 

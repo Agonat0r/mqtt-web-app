@@ -121,6 +121,18 @@
         </div>
       </div>
 
+      <!-- Controls Tab -->
+      <div id="controls-tab" class="tab-content hidden">
+        <h2>VPL Controls</h2>
+        <div class="control-buttons">
+          <button onclick="startAction('up')" class="control-btn">UP</button>
+          <button onclick="stopAction()" class="control-btn">STOP</button>
+          <button onclick="startAction('down')" class="control-btn">DOWN</button>
+          <button onclick="applyBrake()" class="control-btn">APPLY BRAKE</button>
+          <button onclick="releaseBrake()" class="control-btn">RELEASE BRAKE</button>
+        </div>
+      </div>
+
       <!-- Alerts Tab -->
       <div id="alerts-tab" class="tab-content hidden">
         <div class="alerts-container">
@@ -135,47 +147,6 @@
           <div class="alert-section">
             <h3>Green Alarms</h3>
             <div id="greenAlarms" class="alert-list"></div>
-          </div>
-
-          <!-- SMS Alerts Section -->
-          <div class="sms-section">
-            <h3>SMS Alerts</h3>
-            <div class="sms-toggle">
-              <label class="toggle-switch">
-                <input type="checkbox" id="smsEnabled">
-                <span class="toggle-slider"></span>
-              </label>
-              <span>Enable SMS Alerts</span>
-            </div>
-            
-            <div class="sms-input-container">
-              <input type="text" id="phoneInput" class="sms-input" placeholder="Enter phone number (+1234567890)">
-              <button id="addPhoneBtn" class="add-btn">Add</button>
-            </div>
-            <div id="phoneValidationMsg" class="validation-message"></div>
-            
-            <div class="phone-list-container">
-              <h4>Phone Numbers</h4>
-              <ul id="phoneList" class="phone-list"></ul>
-            </div>
-            
-            <div class="alert-preferences">
-              <h4>Alert Preferences</h4>
-              <div class="preference-item">
-                <input type="checkbox" id="smsRedAlerts" checked>
-                <label for="smsRedAlerts">Red Alerts (Critical)</label>
-              </div>
-              <div class="preference-item">
-                <input type="checkbox" id="smsAmberAlerts" checked>
-                <label for="smsAmberAlerts">Amber Alerts (Warning)</label>
-              </div>
-              <div class="preference-item">
-                <input type="checkbox" id="smsGreenAlerts">
-                <label for="smsGreenAlerts">Green Alerts (Info)</label>
-              </div>
-            </div>
-            
-            <button id="sendTestSMS" class="test-btn">Send Test SMS</button>
           </div>
         </div>
       </div>
@@ -240,24 +211,52 @@
             <div id="emailList" class="email-list">
               <!-- Email items will be added here dynamically -->
             </div>
+          </div>
 
-            <div class="alert-preferences">
-              <h4>Alert Preferences</h4>
-              <div class="preference-item">
-                <input type="checkbox" id="emailRedAlerts" checked>
-                <label for="emailRedAlerts">Red Alerts (Critical)</label>
-              </div>
-              <div class="preference-item">
-                <input type="checkbox" id="emailAmberAlerts" checked>
-                <label for="emailAmberAlerts">Amber Alerts (Warning)</label>
-              </div>
-              <div class="preference-item">
-                <input type="checkbox" id="emailGreenAlerts">
-                <label for="emailGreenAlerts">Green Alerts (Info)</label>
-              </div>
+          <!-- SMS Alerts Section -->
+          <div class="sms-section">
+            <h3>SMS Alerts</h3>
+            <div class="sms-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="smsAlertEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Enable SMS Alerts</span>
             </div>
 
-            <button id="sendTestEmail" class="test-btn">Send Test Email</button>
+            <div class="phone-input-section">
+              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+            </div>
+            <div id="phoneValidationMsg" class="validation-msg"></div>
+
+            <div id="phoneList" class="phone-list">
+              <!-- Phone numbers will be added here dynamically -->
+            </div>
+          </div>
+
+          <!-- Common Alert Preferences Section -->
+          <div class="alert-preferences">
+            <h3>Alert Preferences</h3>
+            <div class="alert-toggle">
+              <input type="checkbox" id="redAlertEnabled" checked>
+              <label for="redAlertEnabled">Red Alerts (Critical)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="amberAlertEnabled" checked>
+              <label for="amberAlertEnabled">Amber Alerts (Warning)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="greenAlertEnabled">
+              <label for="greenAlertEnabled">Green Alerts (Info)</label>
+            </div>
+          </div>
+
+          <!-- Test Alerts Section -->
+          <div class="test-alerts-section">
+            <button id="testEmailBtn" class="test-btn">Send Test Email</button>
+            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
+            <div id="testAlertStatus" class="test-alert-status"></div>
           </div>
         </div>
       </div>
@@ -523,8 +522,8 @@
     const addPhoneBtn = document.getElementById('addPhoneBtn');
     const phoneList = document.getElementById('phoneList');
     const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-    const smsAlertEnabled = document.getElementById('smsEnabled');
-    const testSmsBtn = document.getElementById('sendTestSMS');
+    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
+    const testSmsBtn = document.getElementById('testSmsBtn');
     const testAlertStatus = document.getElementById('testAlertStatus');
 
     // Load saved SMS settings
@@ -760,177 +759,6 @@
     .test-btn:disabled {
       background-color: #ccc;
       cursor: not-allowed;
-    }
-
-    .alerts-container {
-      padding: 20px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-    }
-
-    .alert-section, .sms-section {
-      background: #f5f5f5;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .sms-section {
-      grid-column: span 2;  /* Make SMS section take full width */
-    }
-
-    .sms-toggle {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
-    }
-
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-
-    input:checked + .toggle-slider {
-      background-color: #2196F3;
-    }
-
-    input:checked + .toggle-slider:before {
-      transform: translateX(26px);
-    }
-
-    .sms-input-container {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .sms-input {
-      flex: 1;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-
-    .add-btn {
-      padding: 8px 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .add-btn:hover {
-      background-color: #45a049;
-    }
-
-    .validation-message {
-      color: #ff4444;
-      font-size: 14px;
-      margin: 5px 0;
-      min-height: 20px;
-    }
-
-    .phone-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      max-height: 200px;
-      overflow-y: auto;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-    }
-
-    .phone-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px;
-      background: white;
-      margin-bottom: 5px;
-      border-radius: 4px;
-      border: 1px solid #eee;
-    }
-
-    .remove-phone {
-      background: none;
-      border: none;
-      color: #ff4444;
-      cursor: pointer;
-      font-size: 18px;
-      padding: 0 5px;
-    }
-
-    .alert-preferences {
-      margin-top: 20px;
-    }
-
-    .preference-item {
-      margin: 10px 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .test-btn {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #2196F3;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    .test-btn:hover {
-      background-color: #1976D2;
-    }
-
-    .test-btn:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    /* Make sure hidden class works properly */
-    .hidden {
-      display: none !important;
     }
   </style>
 </body>

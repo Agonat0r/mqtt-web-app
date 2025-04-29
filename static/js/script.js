@@ -15,16 +15,27 @@ function handleTabSwitch(tabId) {
     if (selectedTab) {
         selectedTab.classList.remove('hidden');
     }
+
 }
 
-// Add tab switching event listener
+// Initialize both SMS and Email settings when the script loads
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize tab switching
     const tabSelector = document.getElementById('tab-selector');
     if (tabSelector) {
+        // Set initial tab
+        handleTabSwitch(tabSelector.value);
+        
+        // Add change listener
         tabSelector.addEventListener('change', (e) => {
             handleTabSwitch(e.target.value);
+            console.log('Switching to tab:', e.target.value);
         });
     }
+
+    // Initialize SMS and Email settings
+    initializeSMSSettings();
+    initializeEmailSettings();
 });
 
 // SMS Alert Management
@@ -432,8 +443,4 @@ async function sendTestEmail(elements) {
             elements.validationMsg.style.display = 'none';
         }, 5000);
     }
-}
-
-// Initialize both SMS and Email settings when the script loads
-initializeSMSSettings();
-initializeEmailSettings(); 
+} 

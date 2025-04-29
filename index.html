@@ -776,6 +776,10 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
+    .sms-section {
+      grid-column: span 2;  /* Make SMS section take full width */
+    }
+
     .sms-toggle {
       display: flex;
       align-items: center;
@@ -867,6 +871,10 @@
       margin: 0;
       max-height: 200px;
       overflow-y: auto;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
     }
 
     .phone-item {
@@ -877,6 +885,7 @@
       background: white;
       margin-bottom: 5px;
       border-radius: 4px;
+      border: 1px solid #eee;
     }
 
     .remove-phone {
@@ -894,6 +903,34 @@
 
     .preference-item {
       margin: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .test-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .test-btn:hover {
+      background-color: #1976D2;
+    }
+
+    .test-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* Make sure hidden class works properly */
+    .hidden {
+      display: none !important;
     }
   </style>
 </body>

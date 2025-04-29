@@ -1,3 +1,32 @@
+// Initialize EmailJS
+(function() {
+    emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your actual EmailJS public key
+})();
+
+// Tab Switching
+function handleTabSwitch(tabId) {
+    // Hide all tab content
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+
+    // Show selected tab
+    const selectedTab = document.getElementById(tabId + '-tab');
+    if (selectedTab) {
+        selectedTab.classList.remove('hidden');
+    }
+}
+
+// Add tab switching event listener
+document.addEventListener('DOMContentLoaded', () => {
+    const tabSelector = document.getElementById('tab-selector');
+    if (tabSelector) {
+        tabSelector.addEventListener('change', (e) => {
+            handleTabSwitch(e.target.value);
+        });
+    }
+});
+
 // SMS Alert Management
 let smsEnabled = localStorage.getItem('smsEnabled') === 'true';
 let phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
@@ -278,10 +307,94 @@ function setupEmailElements() {
         emailAddresses.forEach(email => addEmailToList(email, elements));
     }
 
-    // Add event listeners
+    // Add event listeners for email input
+    if (elements.addEmailBtn) {
+        elements.addEmailBtn.addEventListener('click', () => addEmailAddress(elements));
+    }
+
+    if (elements.emailInput) {
+        elements.emailInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addEmailAddress(elements);
+            }
+        });
+    }
+
+    // Add event listener for test email button
     if (elements.testEmailBtn) {
         elements.testEmailBtn.addEventListener('click', () => sendTestEmail(elements));
         elements.testEmailBtn.disabled = !emailEnabled;
+    }
+}
+
+function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function addEmailAddress(elements) {
+    const email = elements.emailInput.value.trim();
+    
+    // Clear previous validation message
+    elements.validationMsg.textContent = '';
+    elements.validationMsg.style.display = 'none';
+    
+    if (!email) {
+        elements.validationMsg.textContent = 'Please enter an email address';
+        elements.validationMsg.style.display = 'block';
+        return;
+    }
+    
+    if (!validateEmail(email)) {
+        elements.validationMsg.textContent = 'Please enter a valid email address';
+        elements.validationMsg.style.display = 'block';
+        return;
+    }
+    
+    if (emailAddresses.includes(email)) {
+        elements.validationMsg.textContent = 'This email address is already in the list';
+        elements.validationMsg.style.display = 'block';
+        return;
+    }
+    
+    // Add email to list and save
+    emailAddresses.push(email);
+    localStorage.setItem('emailAddresses', JSON.stringify(emailAddresses));
+    addEmailToList(email, elements);
+    
+    // Clear input
+    elements.emailInput.value = '';
+}
+
+function addEmailToList(email, elements) {
+    const li = document.createElement('li');
+    li.className = 'email-item';
+    
+    const emailText = document.createElement('span');
+    emailText.textContent = email;
+    li.appendChild(emailText);
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.className = 'remove-email';
+    removeBtn.onclick = () => removeEmail(email, li, elements);
+    li.appendChild(removeBtn);
+    
+    elements.emailList.appendChild(li);
+}
+
+function removeEmail(email, listItem, elements) {
+    // Remove from UI
+    listItem.remove();
+    
+    // Remove from storage
+    emailAddresses = emailAddresses.filter(e => e !== email);
+    localStorage.setItem('emailAddresses', JSON.stringify(emailAddresses));
+    
+    // Clear any validation messages
+    if (elements.validationMsg) {
+        elements.validationMsg.textContent = '';
+        elements.validationMsg.style.display = 'none';
     }
 }
 

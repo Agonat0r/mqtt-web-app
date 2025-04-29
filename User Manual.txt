@@ -1,0 +1,181 @@
+User Manual
+
+1. Required Hardware and Software
+Hardware:
+• Linux/iOS/Windows System (latest versions recommended)
+• ESP32 Development Board
+• ESP32-based HMI Module
+• Provided VPL PCB (with 12-pin header)
+• USB Cable (for ESP32)
+Software:
+• Arduino IDE
+• ESP-IDF
+• ESP32 Board Support Package
+• Libraries: WiFi, ESP-NOW, PubSubClient, ESP Mail Client, ArduinoJson, WebServer
+
+2. Install Arduino IDE
+1. Go to Arduino Website: https://www.arduino.cc/en/software/
+2. Download Arduino IDE (Windows/Mac/Linux) and install it.
+
+3. Install ESP32 Board Support
+1. Open Arduino IDE.
+2. Go to File → Preferences.
+3. In "Additional Board Manager URLs", paste: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+4. Go to Tools → Board → Boards Manager.
+5. Search ESP32, install "esp32 by Espressif Systems".
+
+4. Install Required Libraries
+Go to Sketch → Include Library → Manage Libraries, then install:
+• ESP Mail Client
+• PubSubClient
+• ArduinoJson
+• ESPAsyncWebServer (if needed)
+
+5. Connect ESP32 to Computer
+1. Connect ESP32 with USB cable.
+2. In Arduino IDE, go to Tools:
+   o Board: Choose "ESP32 Dev Module"
+   o Port: Select correct COM port.
+
+6. Configure Your Project
+6.1 WiFi Settings
+In the code, find these lines:
+const char* ssid = "Enter SSID";
+const char* password = "Enter Password";
+Change them to match your WiFi network if needed.
+
+6.2 MQTT Settings
+Find:
+const char* mqtt_server = "your-mqtt-broker-url";
+const char* mqtt_username = "your-username";
+const char* mqtt_password = "your-password";
+Edit if your MQTT Broker credentials are different.
+
+6.3 Email Settings
+(OPTIONAL: for sending email alerts) Set up Gmail SMTP:
+#define AUTHOR_EMAIL "your@gmail.com"
+#define AUTHOR_PASSWORD "your-app-password"
+How do I find my app password?
+Paste the following link into any web browser:
+https://support.google.com/accounts/answer/185833?hl=en
+
+7. Flash the Code to ESP32
+1. Open the provided .ino code in Arduino IDE.
+2. Click the Upload button (right arrow).
+3. Monitor the output. It should say "Done uploading".
+
+8. PCB Connection Guide
+• Connect the 12-pin header from the VPL PCB to the ESP32 using the female 12-pin molex connector.
+
+8.2. Configuring the HMI
+• From the HMI (ESP32 screen), you can:
+   o See Alarms (Green, Amber, Red)
+   o Move Lift (Up, Down)
+   o Apply/Release Brake
+   o See System Logs
+
+9. HMI User Interface Overview
+The HMI (Human-Machine Interface) provides a touchscreen and display-based interface for monitoring and controlling the lift system. The main screens and their functions are:
+
+Home Screen:
+- Shows the current system status, including whether the device is connected to Wi-Fi and the MQTT broker.
+- Displays a status label at the top with real-time feedback (e.g., "Wi-Fi Connected", "MQTT Connected", or error messages).
+- Shows recent actions or system events, so you always know what the system is doing.
+
+Logs Screen:
+- Presents a scrolling terminal view of all system messages, including commands sent to the lift and all alarm notifications.
+- Includes a dedicated "Alerts Only" terminal that filters and displays only alarm messages, categorized by severity (Red, Amber, Green) and timestamped for easy review.
+- Both terminals update automatically as new data arrives, so you never miss an important event.
+
+Controls Screen:
+- Allows you to operate the lift directly from the HMI.
+- Lets you select between Elevator Mode and Lift Mode, with the current mode clearly displayed.
+- Provides large, easy-to-press UP and DOWN buttons for moving the lift, supporting both tap and press-and-hold actions.
+- Includes controls to Apply or Release the brake, with immediate feedback on the action taken.
+- All controls are designed for safe, intuitive operation.
+
+Settings Screen:
+- Lets you change the interface language from a dropdown menu, supporting multiple languages for accessibility.
+- May include additional system settings in future updates.
+- Changes take effect immediately, making it easy to personalize the HMI.
+
+About Screen:
+- Provides a brief description of the application, its purpose, and project information.
+- Useful for reference or support.
+
+Sidebar Navigation:
+- A persistent sidebar on the left side of the screen gives you quick access to all main tabs (Home, Logs, Controls, Settings, About).
+- You can switch between screens at any time, from anywhere in the interface.
+
+Visual Alerts:
+- Critical alarms (Red, Amber, Green) are shown with clear color-coding and timestamps in the Alerts Only terminal.
+- The HMI may be extended to support sound or vibration for critical events.
+
+Real-Time Updates:
+- All screens update automatically as new data arrives from the ESP32 and MQTT broker.
+- You do not need to refresh or navigate away to see the latest status or alarms.
+
+User Experience:
+- The interface is designed to be simple, clear, and responsive, so users of all backgrounds can operate the lift safely and efficiently.
+- All actions and alarms are logged for traceability and troubleshooting.
+
+10. Operation Summary
+1. ESP32 reads LED statuses and button states from the PCB.
+2. It classifies alarms:
+   o Green = Minor/Informational.
+   o Amber = Warnings.
+   o Red = Critical errors (stops movement/technician needed).
+3. ESP32 publishes alarms to MQTT topics.
+4. Web Server shows the live alarm states.
+5. Emails can be sent for critical alarms. 
+
+11. Configure Your Project
+
+11.1 WiFi Settings
+
+In MotorESP32S3.ino:
+const char* ssid = "<insert your WiFi SSID here>";
+const char* password = "<insert your WiFi password here>";
+- Change the value of ssid to match your WiFi network name.
+- Change the value of password to your WiFi password.
+
+In HMIESP32.C:
+#define WIFI_SSID "<insert your WiFi SSID here>"
+#define WIFI_PASS "<insert your WiFi password here>"
+- Update WIFI_SSID and WIFI_PASS to match your WiFi network credentials for the HMI module.
+
+11.2 MQTT Settings
+
+In MotorESP32S3.ino:
+const char* mqtt_server = "<insert your MQTT broker address here>";
+const int mqtt_port = <insert port, e.g., 8883>;
+const char* mqtt_username = "<insert your MQTT username here>";
+const char* mqtt_password = "<insert your MQTT password here>";
+- Set mqtt_server to your MQTT broker's address.
+- Set mqtt_port to the port your broker uses (default is 8883 for secure MQTT).
+- Set mqtt_username and mqtt_password to your MQTT broker credentials.
+
+In HMIESP32.C:
+#define MQTT_URI        "<insert your MQTT WSS URI here>"
+#define MQTT_USERNAME   "<insert your MQTT username here>"
+#define MQTT_PASSWORD   "<insert your MQTT password here>"
+- Update MQTT_URI to your broker's WebSocket Secure (WSS) address if different.
+- Update MQTT_USERNAME and MQTT_PASSWORD as needed.
+
+11.3 Email Settings (Optional: for sending email alerts)
+
+In MotorESP32S3.ino:
+#define AUTHOR_EMAIL "<insert your Gmail address here>"
+#define AUTHOR_PASSWORD "<insert your Gmail app password here>"
+- Set AUTHOR_EMAIL to the Gmail address you want to send alerts from.
+- Set AUTHOR_PASSWORD to your Gmail App Password (not your regular Gmail password).
+
+How do I find my app password?
+Paste the following link into any web browser:
+https://support.google.com/accounts/answer/185833?hl=en
+- Follow the instructions to generate an app password for your Gmail account.
+- Use this app password in the code.
+
+Summary:
+- Update WiFi, MQTT, and (optionally) Email settings in both MotorESP32S3.ino and HMIESP32.C to match your environment.
+- Save your changes and re-upload the code to your ESP32 devices. 

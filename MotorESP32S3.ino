@@ -83,8 +83,10 @@ struct_message incomingDataStruct;
 unsigned long lastHealthCheck = 0;
 const unsigned long HEALTH_CHECK_INTERVAL = 300000; // Changed to 5 minutes (300000ms)
 // Timing Configuration (ms)
-unsigned long LIFT_MODE_DELAY = 200; // Set default delay for Lift Mode
-unsigned long ELEVATOR_MODE_DELAY = 200; // Set default delay for Elevator Mode
+unsigned long LIFT_MODE_DELAY = 100; // Reduced from 200ms to 100ms
+unsigned long ELEVATOR_MODE_DELAY = 100; // Reduced from 200ms to 100ms
+const unsigned long LED_CHECK_DELAY = 50; // Reduced from 300ms to 50ms
+const unsigned long checkInterval = 500; // Reduced from 1500ms to 500ms
 
 // Pin Definitions
 #define UP_BUTTON 18 // 18
@@ -124,10 +126,6 @@ const int numLEDs = 4; // Total LEDs per color
 
 // Timing variables for LED reading
 unsigned long previousMillis = 0; // // Variable to store the last time LED status was updated
-const unsigned long checkInterval = 1500; // Adjusted to capture ~2 full LED cycles
-unsigned long LED_CHECK_DELAY = 300; // Default delay for LEDs serial monitoring
-static unsigned long lastRedLED0Print = 0;
-const unsigned long redLED0Interval = 10000;  // 10 seconds = 10,000 ms
 
 // Variables to track LED states
 bool lastStateRed[numLEDs] = {LOW, LOW, LOW, LOW}; // Array to store last read state of each Red LED
@@ -911,7 +909,7 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     static String lastAmberAlarms = "";
     static String lastGreenAlarms = "";
     static unsigned long lastAlertTime = 0;
-    const unsigned long ALERT_COOLDOWN = 2000; // 2 second cooldown between alerts
+    const unsigned long ALERT_COOLDOWN = 5000; // Increased from 1000ms to 5000ms
 
     struct tm timeinfo;
     if (getLocalTime(&timeinfo)) {
@@ -1133,6 +1131,7 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     if (currentRedAlarms != lastRedAlarms && currentRedAlarms != "" && 
         (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
         publishAlert("red", currentRedAlarms);
+        Serial.println("[RED ALERT CHANGE] " + currentRedAlarms);  // Only print on change
         lastRedAlarms = currentRedAlarms;
         lastAlertTime = currentMillis;
     }
@@ -1140,6 +1139,7 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     if (currentAmberAlarms != lastAmberAlarms && currentAmberAlarms != "" && 
         (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
         publishAlert("amber", currentAmberAlarms);
+        Serial.println("[AMBER ALERT CHANGE] " + currentAmberAlarms);  // Only print on change
         lastAmberAlarms = currentAmberAlarms;
         lastAlertTime = currentMillis;
     }
@@ -1147,6 +1147,7 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     if (currentGreenAlarms != lastGreenAlarms && currentGreenAlarms != "" && 
         (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
         publishAlert("green", currentGreenAlarms);
+        Serial.println("[GREEN ALERT CHANGE] " + currentGreenAlarms);  // Only print on change
         lastGreenAlarms = currentGreenAlarms;
         lastAlertTime = currentMillis;
     }
@@ -1345,12 +1346,88 @@ void setup() {
   }
   
   Serial.println("=== Setup Complete ===\n");
+
+  // Initialize web server routes
+  server.on("/", HTTP_GET, []() {
+    if (!isAuthenticated()) return;
+    server.send(200, "text/html", htmlContent);
+  });
+
+  server.on("/getStatus", HTTP_GET, []() {
+    if (!isAuthenticated()) return;
+    String response = "{";
+    response += "\"mode\":\"" + String(elevatorMode ? "elevator" : "lift") + "\",";
+    response += "\"delay\":\"" + String(elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY) + "\",";
+    response += "\"logs\":\"" + serialLogs + "\",";
+    response += "\"ledStatus\":\"" + ledStatus + "\",";
+    response += "\"ledStatusHistory\":\"" + ledStatusHistory + "\",";
+    response += "\"greenAlarms\":\"" + greenAlarms + "\",";
+    response += "\"amberAlarms\":\"" + amberAlarms + "\",";
+    response += "\"redAlarms\":\"" + redAlarms + "\",";
+    response += "\"emailEnabled\":" + String(emailNotificationsEnabled ? "true" : "false") + ",";
+    response += "\"emails\":[";
+    for (int i = 0; i < emailCount; i++) {
+      if (i > 0) response += ",";
+      response += "\"" + emailAddresses[i] + "\"";
+    }
+    response += "]}";
+    server.send(200, "application/json", response);
+  });
+
+  server.on("/toggleEmail", HTTP_GET, []() {
+    if (!isAuthenticated()) return;
+    emailNotificationsEnabled = server.arg("enabled") == "true";
+    server.send(200, "text/plain", "Email notifications " + String(emailNotificationsEnabled ? "enabled" : "disabled"));
+  });
+
+  server.on("/addEmail", HTTP_GET, []() {
+    if (!isAuthenticated()) return;
+    String email = server.arg("email");
+    if (emailCount >= MAX_EMAILS) {
+      server.send(400, "text/plain", "Maximum number of emails reached");
+      return;
+    }
+    // Check for duplicates
+    for (int i = 0; i < emailCount; i++) {
+      if (emailAddresses[i] == email) {
+        server.send(400, "text/plain", "Email already exists");
+        return;
+      }
+    }
+    emailAddresses[emailCount++] = email;
+    saveEmailsToSPIFFS();
+    server.send(200, "text/plain", "Email added successfully");
+  });
+
+  server.on("/removeEmail", HTTP_GET, []() {
+    if (!isAuthenticated()) return;
+    int index = server.arg("index").toInt();
+    if (index < 0 || index >= emailCount) {
+      server.send(400, "text/plain", "Invalid email index");
+      return;
+    }
+    // Shift remaining emails
+    for (int i = index; i < emailCount - 1; i++) {
+      emailAddresses[i] = emailAddresses[i + 1];
+    }
+    emailCount--;
+    saveEmailsToSPIFFS();
+    server.send(200, "text/plain", "Email removed successfully");
+  });
+
+  // Start the server
+  server.begin();
+  Serial.println("HTTP server started");
+
+  // Load saved emails
+  loadEmailsFromSPIFFS();
 }
 
 void loop() {
     static unsigned long lastWiFiCheck = 0;
     static unsigned long lastMQTTCheck = 0;
     static unsigned long lastWDTReset = 0;
+    static unsigned long lastLoopDelay = 0;
     const unsigned long CHECK_INTERVAL = 5000;
     const unsigned long WDT_RESET_INTERVAL = 1000;
     unsigned long currentMillis = millis();
@@ -1377,6 +1454,7 @@ void loop() {
     readDeviceOutputs();
     static unsigned long lastButtonTime = 0;
     unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY;
+    
     if (currentMillis - lastButtonTime >= currentDelay) {
         if (digitalRead(UP_BUTTON) == LOW) {
             handleMovement("up");
@@ -1402,7 +1480,12 @@ void loop() {
         lastUpLimit = currentUpLimit;
         lastDownLimit = currentDownLimit;
     }
-    delay(10); // This is short and will not trigger the watchdog
+
+    // Replace delay(10) with non-blocking delay
+    if (currentMillis - lastLoopDelay >= 5) {  // 5ms instead of 10ms
+        lastLoopDelay = currentMillis;
+        yield();  // Allow other tasks to run
+    }
 }
 
 void saveEmailsToSPIFFS() {

@@ -461,3 +461,104 @@ body {
     background-color: #004a80;
     color: white;
 }
+
+/* LED Status Display */
+.led-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.led-indicator {
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.led-indicator::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* RED LED States */
+.red-on {
+    background: rgba(255, 0, 0, 0.1);
+    color: #d32f2f;
+}
+
+.red-on::before {
+    background: #d32f2f;
+    box-shadow: 0 0 10px #ff0000;
+}
+
+.red-off {
+    background: rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
+.red-off::before {
+    background: #999;
+}
+
+/* GREEN LED States */
+.green-on {
+    background: rgba(0, 255, 0, 0.1);
+    color: #2e7d32;
+}
+
+.green-on::before {
+    background: #2e7d32;
+    box-shadow: 0 0 10px #00ff00;
+}
+
+.green-off {
+    background: rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
+.green-off::before {
+    background: #999;
+}
+
+/* AMBER LED States */
+.amber-on {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ff8f00;
+}
+
+.amber-on::before {
+    background: #ff8f00;
+    box-shadow: 0 0 10px #ffc107;
+}
+
+.amber-off {
+    background: rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
+.amber-off::before {
+    background: #999;
+}
+
+/* Animation for flashing LEDs */
+@keyframes ledFlash {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.led-flashing::before {
+    animation: ledFlash 1s infinite;
+}

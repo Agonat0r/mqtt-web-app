@@ -3,12 +3,34 @@ import { translations } from './translations.js';
 
 // Initialize EmailJS
 (function() {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // Replace with your actual EmailJS public key
+    emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your actual EmailJS public key
 })();
 
 // Global state
 let loggedIn = false;
 let currentLang = 'en';
+
+// Global variables for LED alert handling
+const LED_STATES = {
+    red: Array(4).fill(false),
+    green: Array(4).fill(false),
+    amber: Array(4).fill(false)
+};
+
+// Alert cooldown configuration
+const ALERT_COOLDOWN = 5000; // 5 seconds cooldown between alerts of same type
+const lastAlertTime = {
+    red: 0,
+    amber: 0,
+    green: 0,
+    general: 0 // For any non-LED specific alerts
+};
+
+// Global variables for LED state tracking
+let lastRedAlarms = "";
+let lastAmberAlarms = "";
+let lastGreenAlarms = "";
+let lastPublishedAlert = "";
 
 /**
  * Initializes the application when the DOM is fully loaded.
@@ -530,13 +552,16 @@ client.on('message', (topic, message) => {
     try {
         const payload = JSON.parse(message.toString());
         
-        // Handle different message types
-        if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
-            handleAlarm(payload);
+        // Handle LED status messages
+        if (payload.led_status) {
+            processLEDStatus(payload);
+        }
+        // Handle other message types
+        else if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
+            handleAlarm(payload.type, payload.message);
         } else if (payload.type === 'command') {
             logToCommandTerminal(payload.message || 'Command received', payload.type);
         } else {
-            // Default to general terminal for other messages
             logToTerminal(payload.message || message.toString(), 'info');
         }
     } catch (e) {
@@ -564,19 +589,83 @@ function logToCommandTerminal(message, type = 'command') {
     commandLog.scrollTop = commandLog.scrollHeight;
 }
 
-function handleAlarm(alarm) {
-    const timestamp = new Date().toLocaleTimeString();
-    const alarmEntry = document.createElement('div');
-    alarmEntry.className = `alarm-entry ${alarm.type}`; // Use the type directly from ESP32
-    alarmEntry.innerHTML = `[${timestamp}] ${alarm.message}`;
+/**
+ * Handles an alarm event by creating a UI entry, logging it,
+ * and triggering appropriate notifications based on settings.
+ * @param {string} type - The type of the alarm
+ * @param {string} message - The message of the alarm
+ */
+async function handleAlarm(type, message) {
+    const currentTime = Date.now();
     
-    // Add to appropriate alarm section based on the type from ESP32
-    const alarmContainer = document.getElementById(`${alarm.type}Alarms`);
-    if (alarmContainer) {
-        alarmContainer.appendChild(alarmEntry);
-        alarmContainer.scrollTop = alarmContainer.scrollHeight;
-        // Also log to general terminal
-        logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
+    // Check cooldown for specific alert type
+    if (currentTime - lastAlertTime[type] < ALERT_COOLDOWN) {
+        console.debug(`Skipping ${type} alert due to cooldown`);
+        return;
+    }
+    
+    // Create alarm entry
+    const alarmEntry = document.createElement('div');
+    alarmEntry.className = `alarm-entry ${type}-alarm`;
+    alarmEntry.innerHTML = `
+        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+        <span class="alarm-type">${type.toUpperCase()}</span>
+        <span class="alarm-message">${message}</span>
+    `;
+    
+    // Add to appropriate section and terminal
+    const alarmsSection = document.getElementById('alarms-section');
+    alarmsSection.insertBefore(alarmEntry, alarmsSection.firstChild);
+    
+    // Log to terminal with appropriate styling
+    const terminalMessage = `[${type.toUpperCase()}] ${message}`;
+    const terminalStyle = type === 'red' ? 'color: red; font-weight: bold' :
+                         type === 'amber' ? 'color: orange' :
+                         'color: green';
+    logToTerminal(terminalMessage, terminalStyle);
+    
+    try {
+        // Save alert to Firebase if enabled
+        if (isFirebaseEnabled()) {
+            await saveAlertToFirebase(type, message);
+        }
+        
+        // Send email alert if enabled
+        if (localStorage.getItem('emailAlertsEnabled') === 'true') {
+            const emailAddress = localStorage.getItem('alertEmailAddress');
+            if (emailAddress) {
+                await sendEmailAlert(type, message, emailAddress);
+            }
+        }
+        
+        // Send SMS alert if enabled
+        if (localStorage.getItem('smsAlertsEnabled') === 'true') {
+            const phoneNumber = localStorage.getItem('alertPhoneNumber');
+            if (phoneNumber) {
+                await sendSMSAlert(type, message, phoneNumber);
+            }
+        }
+        
+        // Play alert sound if enabled
+        if (localStorage.getItem('alertSoundsEnabled') === 'true') {
+            playAlertSound(type);
+        }
+        
+        // Show browser notification if enabled
+        if (localStorage.getItem('browserNotificationsEnabled') === 'true' && 
+            Notification.permission === 'granted') {
+            new Notification(`${type.toUpperCase()} Alert`, {
+                body: message,
+                icon: `/icons/${type}-alert.png`
+            });
+        }
+        
+        // Update last alert time for this type
+        lastAlertTime[type] = currentTime;
+        
+    } catch (error) {
+        console.error('Error handling alert:', error);
+        showMessage('Error delivering alert notifications', 'error');
     }
 }
 
@@ -1191,4 +1280,170 @@ async function sendTestEmail() {
             testButton.textContent = 'Send Test Email';
         }
     }
+}
+
+// Process LED status and generate alerts
+function processLEDStatus(message) {
+    const currentMillis = Date.now();
+    const ledStatus = message.led_status;
+    
+    // Extract LED states
+    const redStates = [];
+    const greenStates = [];
+    for (let i = 0; i < 4; i++) {
+        redStates[i] = ledStatus[`red${i}`];
+        greenStates[i] = ledStatus[`green${i}`];
+    }
+
+    // Helper: LED summary string
+    const ledSummary = () => {
+        let s = "Red:";
+        for (let i = 0; i < 4; i++) if (redStates[i]) s += " " + i;
+        s += " | Green:";
+        for (let i = 0; i < 4; i++) if (greenStates[i]) s += " " + i;
+        return s;
+    };
+
+    // Check for any green LEDs on
+    const anyGreenOn = greenStates.some(state => state);
+
+    // Check for amber conditions (red AND green on same position)
+    const amberStates = redStates.map((red, i) => red && greenStates[i]);
+    const anyAmberOn = amberStates.some(state => state);
+
+    let currentRedAlarms = "";
+    let currentAmberAlarms = "";
+    let currentGreenAlarms = "";
+
+    // RED ALARMS - Only if NO green LED is ON and NO amber is ON
+    if (!anyGreenOn && !anyAmberOn) {
+        let alertName = "";
+        const [r0, r1, r2, r3] = redStates;
+
+        if (!r0 && !r1 && !r2 && !r3) {
+            alertName = "Red Alarm: All RED LEDs are OFF";
+        } else if (r0 && r1 && r2 && r3) {
+            alertName = "Red Alarm: ALARM Rqt #2 E-Stop is OFF - Movement Locked";
+            stopMovement();
+        } else if (r0 && r1 && r2 && !r3) {
+            alertName = "Red Alarm: ALARM Rqt #15 OSG has tripped or Pit Switch is OFF - Movement Locked";
+            stopMovement();
+        } else if (r0 && r1 && !r2 && !r3) {
+            alertName = "Red Alarm: ALARM Rqt #23 Landing Door Lock Failure - Movement Locked";
+            stopMovement();
+        } else if (!r0 && !r1 && r2 && r3) {
+            alertName = "Red Alarm: ALARM Rqt #22 Landing Door is Open - Movement Locked";
+            stopMovement();
+        }
+
+        if (alertName) {
+            currentRedAlarms = ledSummary() + "\n" + alertName;
+        }
+    }
+
+    // GREEN ALARMS
+    if (!anyAmberOn) {
+        let alertName = "";
+        const [g0, g1, g2, g3] = greenStates;
+
+        if (!g0 && !g1 && !g2 && !g3) {
+            alertName = "Green Alarm: All GREEN LEDs are OFF";
+        } else if (g0 && g1 && g2 && g3) {
+            alertName = "Green Alarm: No exceptions found";
+        } else if (g0 && g1 && g2 && !g3) {
+            alertName = "Green Alarm: On Battery Power";
+        } else if (g0 && g1 && g2 && g3) {
+            alertName = "Green Alarm: Bypass Jumpers not removed after working on lift / Service Switch is active";
+        }
+
+        if (alertName) {
+            currentGreenAlarms = ledSummary() + "\n" + alertName;
+        }
+    }
+
+    // AMBER ALARMS
+    if (anyAmberOn) {
+        let alertName = "";
+        const [a0, a1, a2, a3] = amberStates;
+
+        if (a0 && a1 && a2 && !a3) {
+            alertName = "Amber Alarm Rqt #4 Power Failure to the Lift";
+        } else if (!a0 && a1 && a2 && a3) {
+            alertName = "Amber Alarm Rqt #39 Power Failure to the Lift";
+        } else if (a0 && !a1 && !a2 && !a3) {
+            alertName = "Amber Alarm Rqt #30 Service Required - Flood switch as true)";
+        } else if (!a0 && a1 && !a2 && !a3) {
+            alertName = "Amber Alarm Rqt #33 Service Required – travel time change";
+        } else if (a0 && a1 && !a2 && !a3) {
+            alertName = "Amber Alarm Rqt #34 Service Required – periodic maintenance Needed";
+        } else if (!a0 && !a1 && a2 && !a3) {
+            alertName = "Amber Alarm Rqt #35 Service Required – Service hours";
+        } else if (!a0 && !a1 && a2 && a3) {
+            alertName = "Amber Alarm: Service Required – Charger/Battery";
+        } else if (a0 && !a1 && !a2 && a3) {
+            alertName = "Amber Alarm: Service Required - Inverter or Drive Train Alignment";
+        }
+
+        if (alertName) {
+            currentAmberAlarms = ledSummary() + "\n" + alertName;
+        }
+    }
+
+    // Handle alerts with cooldown
+    if (currentRedAlarms && currentRedAlarms !== lastRedAlarms && 
+        currentRedAlarms !== lastPublishedAlert &&
+        (currentMillis - lastAlertTime.general) >= ALERT_COOLDOWN) {
+        handleAlarm("red", currentRedAlarms);
+        lastRedAlarms = currentRedAlarms;
+        lastPublishedAlert = currentRedAlarms;
+        lastAlertTime.general = currentMillis;
+    }
+
+    if (currentAmberAlarms && currentAmberAlarms !== lastAmberAlarms && 
+        currentAmberAlarms !== lastPublishedAlert &&
+        (currentMillis - lastAlertTime.general) >= ALERT_COOLDOWN) {
+        handleAlarm("amber", currentAmberAlarms);
+        lastAmberAlarms = currentAmberAlarms;
+        lastPublishedAlert = currentAmberAlarms;
+        lastAlertTime.general = currentMillis;
+    }
+
+    if (currentGreenAlarms && currentGreenAlarms !== lastGreenAlarms && 
+        currentGreenAlarms !== lastPublishedAlert &&
+        (currentMillis - lastAlertTime.general) >= ALERT_COOLDOWN) {
+        handleAlarm("green", currentGreenAlarms);
+        lastGreenAlarms = currentGreenAlarms;
+        lastPublishedAlert = currentGreenAlarms;
+        lastAlertTime.general = currentMillis;
+    }
+
+    // Update UI elements
+    updateLEDStatus(ledStatus);
+}
+
+// Helper function to stop movement
+function stopMovement() {
+    // Send MQTT message to stop movement
+    if (client && client.connected) {
+        client.publish('lift/control', JSON.stringify({ command: 'stop' }));
+    }
+}
+
+// Helper function to update LED status display
+function updateLEDStatus(ledStatus) {
+    const ledDisplay = document.getElementById('led-status');
+    if (!ledDisplay) return;
+
+    let statusHtml = '<h3>LED Status:</h3>';
+    for (let i = 0; i < 4; i++) {
+        const redState = ledStatus[`red${i}`];
+        const greenState = ledStatus[`green${i}`];
+        
+        statusHtml += `<div class="led-group">`;
+        statusHtml += `<div class="led ${redState ? 'led-red-on' : 'led-off'}">Red ${i}</div>`;
+        statusHtml += `<div class="led ${greenState ? 'led-green-on' : 'led-off'}">Green ${i}</div>`;
+        statusHtml += `</div>`;
+    }
+    
+    ledDisplay.innerHTML = statusHtml;
 }

@@ -190,25 +190,52 @@
 
       <!-- Email Alerts Tab -->
       <div id="email-alerts-tab" class="tab-content hidden">
-        <div class="email-settings-container">
-          <div class="email-toggle">
-            <label class="toggle-switch">
-              <input type="checkbox" id="emailAlertEnabled">
-              <span class="toggle-slider"></span>
-            </label>
-            <span>Enable Email Alerts</span>
+        <div class="alerts-settings-container">
+          <!-- Email Alerts Section -->
+          <div class="email-section">
+            <h3>Email Alerts</h3>
+            <div class="email-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="emailAlertEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Enable Email Alerts</span>
+            </div>
+
+            <div class="email-input-section">
+              <input type="email" id="emailAlertInput" class="email-input" placeholder="Enter email address">
+              <button id="addEmailAlertBtn" class="add-email-btn">Add Email</button>
+            </div>
+            <div id="emailValidationMsg" class="validation-msg"></div>
+
+            <div id="emailList" class="email-list">
+              <!-- Email items will be added here dynamically -->
+            </div>
           </div>
 
-          <div class="email-input-section">
-            <input type="email" id="emailAlertInput" class="email-input" placeholder="Enter email address">
-            <button id="addEmailAlertBtn" class="add-email-btn">Add Email</button>
-          </div>
-          <div id="emailValidationMsg" class="email-validation-msg"></div>
+          <!-- SMS Alerts Section -->
+          <div class="sms-section">
+            <h3>SMS Alerts</h3>
+            <div class="sms-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="smsAlertEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Enable SMS Alerts</span>
+            </div>
 
-          <div id="emailList" class="email-list">
-            <!-- Email items will be added here dynamically -->
+            <div class="phone-input-section">
+              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+            </div>
+            <div id="phoneValidationMsg" class="validation-msg"></div>
+
+            <div id="phoneList" class="phone-list">
+              <!-- Phone numbers will be added here dynamically -->
+            </div>
           </div>
 
+          <!-- Common Alert Preferences Section -->
           <div class="alert-preferences">
             <h3>Alert Preferences</h3>
             <div class="alert-toggle">
@@ -225,9 +252,11 @@
             </div>
           </div>
 
-          <div class="test-email-section">
-            <button id="testEmailBtn" class="test-email-btn">Send Test Email</button>
-            <div id="testEmailStatus" class="test-email-status"></div>
+          <!-- Test Alerts Section -->
+          <div class="test-alerts-section">
+            <button id="testEmailBtn" class="test-btn">Send Test Email</button>
+            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
+            <div id="testAlertStatus" class="test-alert-status"></div>
           </div>
         </div>
       </div>
@@ -488,51 +517,174 @@
       }
     }
 
-    // Test Email Functionality
-    const testEmailBtn = document.getElementById('testEmailBtn');
-    const testEmailStatus = document.getElementById('testEmailStatus');
+    // SMS Alert Management
+    const phoneInput = document.getElementById('phoneInput');
+    const addPhoneBtn = document.getElementById('addPhoneBtn');
+    const phoneList = document.getElementById('phoneList');
+    const phoneValidationMsg = document.getElementById('phoneValidationMsg');
+    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
+    const testSmsBtn = document.getElementById('testSmsBtn');
+    const testAlertStatus = document.getElementById('testAlertStatus');
 
-    testEmailBtn.addEventListener('click', async () => {
-      if (!emailAlertEnabled.checked) {
-        testEmailStatus.textContent = 'Please enable email alerts first';
-        testEmailStatus.style.color = '#ff4444';
+    // Load saved SMS settings
+    window.addEventListener('load', () => {
+      const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
+      savedPhones.forEach(phone => addPhoneToList(phone));
+      
+      const smsEnabled = localStorage.getItem('smsAlertEnabled') === 'true';
+      smsAlertEnabled.checked = smsEnabled;
+    });
+
+    // Phone number validation function
+    function isValidPhone(phone) {
+      return /^\+[1-9]\d{1,14}$/.test(phone);
+    }
+
+    // Add phone to the list
+    function addPhoneToList(phone) {
+      const phoneItem = document.createElement('div');
+      phoneItem.className = 'phone-item';
+      phoneItem.innerHTML = `
+        <span class="phone-text">${phone}</span>
+        <button class="delete-phone-btn" onclick="removePhone(this)">×</button>
+      `;
+      phoneList.appendChild(phoneItem);
+      savePhones();
+    }
+
+    // Remove phone from the list
+    function removePhone(button) {
+      button.parentElement.remove();
+      savePhones();
+    }
+
+    // Save phones to localStorage
+    function savePhones() {
+      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+        .map(span => span.textContent);
+      localStorage.setItem('smsAlerts', JSON.stringify(phones));
+    }
+
+    // Add phone button click handler
+    addPhoneBtn.addEventListener('click', () => {
+      const phone = phoneInput.value.trim();
+      if (!phone) {
+        phoneValidationMsg.textContent = 'Please enter a phone number';
+        phoneValidationMsg.style.color = '#ff4444';
+        return;
+      }
+      if (!isValidPhone(phone)) {
+        phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
+        phoneValidationMsg.style.color = '#ff4444';
+        return;
+      }
+      
+      const existingPhones = Array.from(phoneList.querySelectorAll('.phone-text'))
+        .map(span => span.textContent);
+      if (existingPhones.includes(phone)) {
+        phoneValidationMsg.textContent = 'This phone number is already in the list';
+        phoneValidationMsg.style.color = '#ff4444';
         return;
       }
 
-      const emails = Array.from(emailList.querySelectorAll('.email-text'))
+      addPhoneToList(phone);
+      phoneInput.value = '';
+      phoneValidationMsg.textContent = 'Phone number added successfully';
+      phoneValidationMsg.style.color = '#4CAF50';
+      setTimeout(() => {
+        phoneValidationMsg.textContent = '';
+      }, 3000);
+    });
+
+    // Save SMS alert enabled state
+    smsAlertEnabled.addEventListener('change', () => {
+      localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
+    });
+
+    // Function to send SMS alerts using Twilio
+    async function sendSmsAlert(type, message) {
+      if (!smsAlertEnabled.checked) return;
+      
+      const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
+      if (!alertTypeEnabled) return;
+
+      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
         .map(span => span.textContent);
       
-      if (emails.length === 0) {
-        testEmailStatus.textContent = 'Please add at least one email address';
-        testEmailStatus.style.color = '#ff4444';
+      if (phones.length === 0) return;
+
+      try {
+        // You'll need to set up a server endpoint to handle Twilio SMS sending
+        const response = await fetch('/api/send-sms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phones: phones,
+            message: `${type.toUpperCase()} Alert: ${message}`,
+            timestamp: new Date().toLocaleString()
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to send SMS');
+        }
+
+        console.log('SMS alert sent successfully');
+      } catch (error) {
+        console.error('Failed to send SMS alert:', error);
+      }
+    }
+
+    // Test SMS button click handler
+    testSmsBtn.addEventListener('click', async () => {
+      if (!smsAlertEnabled.checked) {
+        testAlertStatus.textContent = 'Please enable SMS alerts first';
+        testAlertStatus.style.color = '#ff4444';
         return;
       }
 
-      testEmailBtn.disabled = true;
-      testEmailStatus.textContent = 'Sending test email...';
-      testEmailStatus.style.color = '#2196F3';
+      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+        .map(span => span.textContent);
+      
+      if (phones.length === 0) {
+        testAlertStatus.textContent = 'Please add at least one phone number';
+        testAlertStatus.style.color = '#ff4444';
+        return;
+      }
+
+      testSmsBtn.disabled = true;
+      testAlertStatus.textContent = 'Sending test SMS...';
+      testAlertStatus.style.color = '#2196F3';
 
       try {
-        await emailjs.send(
-          'service_lsa1r4i',
-          'template_vnrbr1d',
-          {
-            to_email: emails.join(', '),
-            alert_type: 'TEST',
-            alert_message: 'This is a test email to verify your email alert configuration.',
+        const response = await fetch('/api/send-sms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phones: phones,
+            message: 'This is a test SMS to verify your alert configuration.',
             timestamp: new Date().toLocaleString()
-          }
-        );
-        testEmailStatus.textContent = 'Test email sent successfully!';
-        testEmailStatus.style.color = '#4CAF50';
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to send SMS');
+        }
+
+        testAlertStatus.textContent = 'Test SMS sent successfully!';
+        testAlertStatus.style.color = '#4CAF50';
       } catch (error) {
-        console.error('Failed to send test email:', error);
-        testEmailStatus.textContent = 'Failed to send test email. Please try again.';
-        testEmailStatus.style.color = '#ff4444';
+        console.error('Failed to send test SMS:', error);
+        testAlertStatus.textContent = 'Failed to send test SMS. Please try again.';
+        testAlertStatus.style.color = '#ff4444';
       } finally {
-        testEmailBtn.disabled = false;
+        testSmsBtn.disabled = false;
         setTimeout(() => {
-          testEmailStatus.textContent = '';
+          testAlertStatus.textContent = '';
         }, 5000);
       }
     });
@@ -540,316 +692,73 @@
 
   <style>
     /* Email Alerts Tab Styles */
-    .email-settings-container {
-      max-width: 800px;
+    .alerts-settings-container {
+      max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
     }
 
-    .email-toggle-section {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
+    .email-section,
+    .sms-section {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
     }
 
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
+    .alert-preferences,
+    .test-alerts-section {
+      grid-column: 1 / -1;
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
     }
 
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
-    }
-
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-
-    input:checked + .toggle-slider {
-      background-color: #2196F3;
-    }
-
-    input:checked + .toggle-slider:before {
-      transform: translateX(26px);
-    }
-
-    .email-input-section {
-      margin-bottom: 20px;
-    }
-
-    .email-input-group {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .email-input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 16px;
-    }
-
-    .validation-message {
+    .validation-msg {
       color: #ff4444;
       font-size: 14px;
+      margin-top: 5px;
       min-height: 20px;
     }
 
-    .email-list {
-      border: 1px solid #ddd;
-      border-radius: 4px;
+    .email-list,
+    .phone-list {
       max-height: 200px;
       overflow-y: auto;
+      margin-top: 15px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
       padding: 10px;
     }
 
-    .email-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      background-color: #f8f9fa;
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-
-    .email-item button {
-      background-color: #ff4444;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .alert-preferences {
-      margin-top: 20px;
-    }
-
-    .alert-type-toggles {
+    .test-alerts-section {
       display: flex;
       gap: 20px;
-      margin-top: 10px;
-    }
-
-    .alert-toggle {
-      display: flex;
+      justify-content: center;
       align-items: center;
-      gap: 8px;
-      cursor: pointer;
     }
 
-    .btn-primary {
-      background-color: #2196F3;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-
-    .btn-primary:hover {
-      background-color: #1976D2;
-    }
-
-    /* Email Alerts Styles */
-    .email-settings-container {
-      padding: 20px;
-      background: #f5f5f5;
-      border-radius: 8px;
-      margin: 20px 0;
-    }
-
-    .email-toggle {
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
-      margin-right: 10px;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
-    }
-
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-
-    input:checked + .toggle-slider {
-      background-color: #2196F3;
-    }
-
-    input:checked + .toggle-slider:before {
-      transform: translateX(26px);
-    }
-
-    .email-input-section {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .email-input {
-      flex: 1;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-
-    .add-email-btn {
-      padding: 8px 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    .add-email-btn:hover {
-      background-color: #45a049;
-    }
-
-    .email-validation-msg {
-      color: #f44336;
-      font-size: 14px;
-      margin-top: 5px;
-    }
-
-    .email-list {
-      margin-top: 20px;
-    }
-
-    .email-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 8px;
-    }
-
-    .email-item button {
-      padding: 4px 8px;
-      background-color: #f44336;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    .email-item button:hover {
-      background-color: #da190b;
-    }
-
-    .alert-preferences {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #ddd;
-    }
-
-    .alert-toggle {
-      display: flex;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .alert-toggle label {
-      margin-left: 10px;
-    }
-
-    .test-email-section {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #ddd;
-      text-align: center;
-    }
-
-    .test-email-btn {
+    .test-btn {
       padding: 10px 20px;
       background-color: #2196F3;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 14px;
       transition: background-color 0.3s;
     }
 
-    .test-email-btn:hover {
+    .test-btn:hover {
       background-color: #1976D2;
     }
 
-    .test-email-btn:disabled {
+    .test-btn:disabled {
       background-color: #ccc;
       cursor: not-allowed;
-    }
-
-    .test-email-status {
-      margin-top: 10px;
-      font-size: 14px;
-      min-height: 20px;
     }
   </style>
 </body>

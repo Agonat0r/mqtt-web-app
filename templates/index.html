@@ -1,0 +1,44 @@
+<div id="smsAlerts" class="tab-content">
+    <div class="settings-section">
+        <h3>SMS Alert Settings</h3>
+        <div class="toggle-container">
+            <label class="toggle-switch">
+                <input type="checkbox" id="smsEnabled" onchange="toggleSMSAlerts()">
+                <span class="slider round"></span>
+            </label>
+            <label for="smsEnabled">Enable SMS Alerts</label>
+        </div>
+        
+        <div class="phone-input-section">
+            <label for="phoneInput">Add Phone Number:</label>
+            <input type="tel" id="phoneInput" placeholder="Enter phone number (e.g., +1234567890)">
+            <button onclick="addPhoneNumber()">Add</button>
+            <div id="phone-validation-msg" class="validation-msg"></div>
+        </div>
+
+        <div class="phone-list-section">
+            <h4>Phone Numbers:</h4>
+            <ul id="phoneList"></ul>
+        </div>
+
+        <div class="alert-preferences">
+            <h4>Alert Preferences</h4>
+            <div class="preference-item">
+                <input type="checkbox" id="redAlertsEnabled" checked>
+                <label for="redAlertsEnabled">Red Alerts (Critical)</label>
+            </div>
+            <div class="preference-item">
+                <input type="checkbox" id="amberAlertsEnabled" checked>
+                <label for="amberAlertsEnabled">Amber Alerts (Warning)</label>
+            </div>
+            <div class="preference-item">
+                <input type="checkbox" id="greenAlertsEnabled">
+                <label for="greenAlertsEnabled">Green Alerts (Info)</label>
+            </div>
+        </div>
+
+        <div class="test-sms-section">
+            <button onclick="sendTestSMS()">Send Test SMS</button>
+        </div>
+    </div>
+</div> 

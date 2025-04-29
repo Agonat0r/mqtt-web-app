@@ -36,6 +36,12 @@ function initializeEventHandlers() {
   if (terminalInput) {
     terminalInput.addEventListener('keydown', sendCommand);
   }
+
+  // Add handler for test email button
+  const testEmailButton = document.querySelector('#testEmailBtn');
+  if (testEmailButton) {
+    testEmailButton.addEventListener('click', sendTestEmail);
+  }
 }
 
 /**
@@ -1139,3 +1145,50 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('languageSelector').value = savedLang;
     updateAllText();
 });
+
+/**
+ * Sends a test email to verify email alert configuration
+ */
+async function sendTestEmail() {
+    const emailList = document.querySelectorAll('#emailList .email-item span');
+    if (emailList.length === 0) {
+        showMessage('Please add at least one email address first', 'error');
+        return;
+    }
+
+    try {
+        // Disable the test button while sending
+        const testButton = document.querySelector('#testEmailBtn');
+        if (testButton) {
+            testButton.disabled = true;
+            testButton.textContent = 'Sending...';
+        }
+
+        // Send test email to all subscribed addresses
+        for (const emailElement of emailList) {
+            const email = emailElement.textContent;
+            await emailjs.send(
+                "service_lsa1r4i",
+                "template_vnrbr1d",
+                {
+                    to_email: email,
+                    subject: "Test Alert from VPL Monitoring System",
+                    message: "This is a test alert from your VPL Monitoring System. If you received this, your email alerts are working correctly.",
+                    timestamp: new Date().toLocaleString()
+                }
+            );
+        }
+
+        showMessage('Test email sent successfully!', 'success');
+    } catch (error) {
+        console.error('Failed to send test email:', error);
+        showMessage('Failed to send test email: ' + error.message, 'error');
+    } finally {
+        // Re-enable the test button
+        const testButton = document.querySelector('#testEmailBtn');
+        if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Send Test Email';
+        }
+    }
+}

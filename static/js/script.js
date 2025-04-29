@@ -3,37 +3,79 @@ let smsEnabled = localStorage.getItem('smsEnabled') === 'true';
 let phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
 
 function initializeSMSSettings() {
-    const smsEnabledCheckbox = document.getElementById('smsEnabled');
-    const phoneList = document.getElementById('phoneList');
-    
-    if (smsEnabledCheckbox) {
-        smsEnabledCheckbox.checked = smsEnabled;
+    // Initialize toggle switch
+    const smsToggle = document.getElementById('smsAlertEnabled');
+    if (smsToggle) {
+        smsToggle.checked = smsEnabled;
+        smsToggle.addEventListener('change', toggleSMSAlerts);
     }
-    
+
+    // Initialize alert preferences
+    const redAlerts = document.getElementById('smsRedAlerts');
+    const amberAlerts = document.getElementById('smsAmberAlerts');
+    const greenAlerts = document.getElementById('smsGreenAlerts');
+
+    if (redAlerts) {
+        redAlerts.checked = localStorage.getItem('smsRedAlerts') === 'true';
+        redAlerts.addEventListener('change', e => localStorage.setItem('smsRedAlerts', e.target.checked));
+    }
+    if (amberAlerts) {
+        amberAlerts.checked = localStorage.getItem('smsAmberAlerts') === 'true';
+        amberAlerts.addEventListener('change', e => localStorage.setItem('smsAmberAlerts', e.target.checked));
+    }
+    if (greenAlerts) {
+        greenAlerts.checked = localStorage.getItem('smsGreenAlerts') === 'true';
+        greenAlerts.addEventListener('change', e => localStorage.setItem('smsGreenAlerts', e.target.checked));
+    }
+
+    // Initialize phone list
+    const phoneList = document.getElementById('phoneList');
     if (phoneList) {
         phoneList.innerHTML = '';
-        phoneNumbers.forEach(phone => {
-            addPhoneToList(phone);
+        phoneNumbers.forEach(phone => addPhoneToList(phone));
+    }
+
+    // Add event listeners
+    const addPhoneBtn = document.getElementById('addPhoneBtn');
+    if (addPhoneBtn) {
+        addPhoneBtn.addEventListener('click', addPhoneNumber);
+    }
+
+    const phoneInput = document.getElementById('phoneInput');
+    if (phoneInput) {
+        phoneInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addPhoneNumber();
+            }
         });
-    } else {
-        console.warn('Phone list element not found');
+    }
+
+    const testSmsBtn = document.getElementById('testSmsBtn');
+    if (testSmsBtn) {
+        testSmsBtn.addEventListener('click', sendTestSMS);
     }
 }
 
-function toggleSMSAlerts() {
-    smsEnabled = document.getElementById('smsEnabled').checked;
+function toggleSMSAlerts(e) {
+    smsEnabled = e.target.checked;
     localStorage.setItem('smsEnabled', smsEnabled);
+    
+    // Update UI elements
+    const testSmsBtn = document.getElementById('testSmsBtn');
+    if (testSmsBtn) {
+        testSmsBtn.disabled = !smsEnabled;
+    }
 }
 
 function validatePhoneNumber(phone) {
-    // Basic phone validation - can be enhanced based on your needs
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
     return phoneRegex.test(phone);
 }
 
 function addPhoneNumber() {
     const phoneInput = document.getElementById('phoneInput');
-    const validationMsg = document.getElementById('phone-validation-msg');
+    const validationMsg = document.getElementById('phoneValidationMsg');
     
     if (!phoneInput || !validationMsg) {
         console.error('Required elements not found');
@@ -43,22 +85,25 @@ function addPhoneNumber() {
     const phone = phoneInput.value.trim();
 
     if (!validatePhoneNumber(phone)) {
-        validationMsg.textContent = 'Please enter a valid phone number';
-        validationMsg.style.color = 'red';
+        validationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
+        validationMsg.style.display = 'block';
         return;
     }
 
     if (phoneNumbers.includes(phone)) {
         validationMsg.textContent = 'This phone number is already added';
-        validationMsg.style.color = 'red';
+        validationMsg.style.display = 'block';
         return;
     }
 
     phoneNumbers.push(phone);
     localStorage.setItem('phoneNumbers', JSON.stringify(phoneNumbers));
     addPhoneToList(phone);
+    
+    // Clear input and validation message
     phoneInput.value = '';
     validationMsg.textContent = '';
+    validationMsg.style.display = 'none';
 }
 
 function addPhoneToList(phone) {
@@ -70,9 +115,11 @@ function addPhoneToList(phone) {
 
     const li = document.createElement('li');
     li.textContent = phone;
+    
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
     removeBtn.onclick = () => removePhone(phone);
+    
     li.appendChild(removeBtn);
     phoneList.appendChild(li);
 }
@@ -80,18 +127,26 @@ function addPhoneToList(phone) {
 function removePhone(phone) {
     phoneNumbers = phoneNumbers.filter(p => p !== phone);
     localStorage.setItem('phoneNumbers', JSON.stringify(phoneNumbers));
-    initializeSMSSettings();
+    
+    const phoneList = document.getElementById('phoneList');
+    if (phoneList) {
+        const items = phoneList.getElementsByTagName('li');
+        for (let item of items) {
+            if (item.textContent.includes(phone)) {
+                phoneList.removeChild(item);
+                break;
+            }
+        }
+    }
 }
 
 async function sendSMSAlert(message, alertType) {
-    // Check if SMS alerts are enabled
     if (!smsEnabled) {
         console.log('SMS alerts are disabled');
         return;
     }
 
-    // Get phone numbers from localStorage
-    const phones = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
+    const phones = phoneNumbers;
     if (!phones.length) {
         console.log('No phone numbers configured for SMS alerts');
         return;
@@ -102,7 +157,6 @@ async function sendSMSAlert(message, alertType) {
     const amberAlertsEnabled = localStorage.getItem('smsAmberAlerts') === 'true';
     const greenAlertsEnabled = localStorage.getItem('smsGreenAlerts') === 'true';
 
-    // Only send if the alert type is enabled
     if ((alertType === 'red' && !redAlertsEnabled) ||
         (alertType === 'amber' && !amberAlertsEnabled) ||
         (alertType === 'green' && !greenAlertsEnabled)) {
@@ -119,7 +173,7 @@ async function sendSMSAlert(message, alertType) {
             },
             body: JSON.stringify({
                 phones,
-                message,
+                message: `${alertType.toUpperCase()} Alert: ${message}`,
                 timestamp
             })
         });
@@ -132,7 +186,6 @@ async function sendSMSAlert(message, alertType) {
         console.log('SMS alert sent successfully');
     } catch (error) {
         console.error('Error sending SMS alert:', error);
-        // Optionally show an error message to the user
         showNotification('Failed to send SMS alert: ' + error.message, 'error');
     }
 }
@@ -148,16 +201,23 @@ async function sendTestSMS() {
         return;
     }
 
+    const testBtn = document.getElementById('testSmsBtn');
+    if (testBtn) {
+        testBtn.disabled = true;
+    }
+
     try {
-        await sendSMSAlert('Test Alert: This is a test message from your VPL Monitoring Dashboard', 'test');
+        await sendSMSAlert('This is a test message from your VPL Monitoring Dashboard', 'test');
         showNotification('Test SMS sent successfully!', 'success');
     } catch (error) {
         showNotification('Failed to send test SMS: ' + error.message, 'error');
         console.error('Test SMS Error:', error);
+    } finally {
+        if (testBtn) {
+            testBtn.disabled = false;
+        }
     }
 }
 
 // Initialize SMS settings when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeSMSSettings();
-}); 
+document.addEventListener('DOMContentLoaded', initializeSMSSettings); 

@@ -1,0 +1,8 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for MQTT Web App",
+  "dependencies": {
+    "twilio": "^4.22.0"
+  }
+} 

@@ -63,46 +63,84 @@ function removePhone(phone) {
     initializeSMSSettings();
 }
 
-async function sendSMSAlert(alertType, message) {
-    if (!smsEnabled || phoneNumbers.length === 0) return;
+async function sendSMSAlert(message, alertType) {
+    if (!smsEnabled) return;
 
-    // Check if this alert type is enabled
-    const alertPreference = localStorage.getItem(`${alertType.toLowerCase()}AlertsEnabled`);
-    if (alertPreference !== 'true') return;
+    // Check if the alert type is enabled
+    const redAlertsEnabled = document.getElementById('smsRedAlerts').checked;
+    const amberAlertsEnabled = document.getElementById('smsAmberAlerts').checked;
+    const greenAlertsEnabled = document.getElementById('smsGreenAlerts').checked;
+
+    if ((alertType === 'red' && !redAlertsEnabled) ||
+        (alertType === 'amber' && !amberAlertsEnabled) ||
+        (alertType === 'green' && !greenAlertsEnabled)) {
+        return;
+    }
+
+    const phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
+    if (phoneNumbers.length === 0) return;
 
     try {
-        const response = await fetch('/api/send-sms', {
+        const response = await fetch('/.netlify/functions/send-sms', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 phones: phoneNumbers,
-                message: `${alertType} Alert: ${message}`,
-                timestamp: new Date().toLocaleString()
+                message: message,
+                timestamp: new Date().toISOString()
             })
         });
 
+        const data = await response.json();
+        
         if (!response.ok) {
-            throw new Error('Failed to send SMS alert');
+            throw new Error(data.message || 'Failed to send SMS');
         }
+
+        console.log('SMS alert sent successfully');
     } catch (error) {
         console.error('Error sending SMS alert:', error);
+        showError('Failed to send SMS alert: ' + error.message);
     }
 }
 
 async function sendTestSMS() {
-    if (!smsEnabled || phoneNumbers.length === 0) {
-        alert('Please enable SMS alerts and add at least one phone number');
+    if (!smsEnabled) {
+        showError('SMS alerts are not enabled');
+        return;
+    }
+
+    const phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
+    if (phoneNumbers.length === 0) {
+        showError('No phone numbers added');
         return;
     }
 
     try {
-        await sendSMSAlert('Test', 'This is a test SMS alert');
-        alert('Test SMS sent successfully!');
+        const response = await fetch('/.netlify/functions/send-sms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                phones: phoneNumbers,
+                message: 'This is a test SMS alert from your VPL Monitoring Dashboard.',
+                timestamp: new Date().toISOString()
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to send test SMS');
+        }
+
+        showSuccess('Test SMS sent successfully');
     } catch (error) {
-        alert('Failed to send test SMS');
-        console.error(error);
+        console.error('Error sending test SMS:', error);
+        showError('Failed to send test SMS: ' + error.message);
     }
 }
 

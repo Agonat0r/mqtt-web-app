@@ -189,20 +189,41 @@
       </div>
 
       <!-- Email Alerts Tab -->
-      <div id="email-alerts-tab" class="tab-content hidden">
-        <h3>Email Alerts</h3>
-        <div>
-          <label>
-            <input type="checkbox" id="emailAlertEnabled"> Enable Email Notifications
-          </label>
-        </div>
-        <div style="margin-top: 15px;">
-          <input type="email" id="emailAlertInput" placeholder="Enter email address">
-          <button id="addEmailAlertBtn">Add Email</button>
-        </div>
-        <div style="margin-top: 10px;">
-          <h5>Email Recipients:</h5>
-          <ul id="emailAlertList"></ul>
+      <div id="emailAlerts" class="tab-content">
+        <div class="email-settings-container">
+          <div class="email-toggle">
+            <label class="toggle-switch">
+              <input type="checkbox" id="emailAlertEnabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span>Enable Email Alerts</span>
+          </div>
+
+          <div class="email-input-section">
+            <input type="email" id="emailAlertInput" class="email-input" placeholder="Enter email address">
+            <button id="addEmailAlertBtn" class="add-email-btn">Add Email</button>
+          </div>
+          <div id="emailValidationMsg" class="email-validation-msg"></div>
+
+          <div id="emailList" class="email-list">
+            <!-- Email items will be added here dynamically -->
+          </div>
+
+          <div class="alert-preferences">
+            <h3>Alert Preferences</h3>
+            <div class="alert-toggle">
+              <input type="checkbox" id="redAlertEnabled" checked>
+              <label for="redAlertEnabled">Red Alerts (Critical)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="amberAlertEnabled" checked>
+              <label for="amberAlertEnabled">Amber Alerts (Warning)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="greenAlertEnabled">
+              <label for="greenAlertEnabled">Green Alerts (Info)</label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -337,6 +358,412 @@
             console.error('MQTT client not connected');
         }
     }
+
+    // Email Alert Management
+    const emailInput = document.getElementById('emailAlertInput');
+    const addEmailBtn = document.getElementById('addEmailAlertBtn');
+    const emailList = document.getElementById('emailList');
+    const emailValidationMsg = document.getElementById('emailValidationMsg');
+    const emailAlertEnabled = document.getElementById('emailAlertEnabled');
+    
+    // Load saved email settings
+    window.addEventListener('load', () => {
+      const savedEmails = JSON.parse(localStorage.getItem('emailAlerts') || '[]');
+      savedEmails.forEach(email => addEmailToList(email));
+      
+      const alertEnabled = localStorage.getItem('emailAlertEnabled') === 'true';
+      emailAlertEnabled.checked = alertEnabled;
+      
+      // Load alert preferences
+      document.getElementById('redAlertEnabled').checked = localStorage.getItem('redAlertEnabled') !== 'false';
+      document.getElementById('amberAlertEnabled').checked = localStorage.getItem('amberAlertEnabled') !== 'false';
+      document.getElementById('greenAlertEnabled').checked = localStorage.getItem('greenAlertEnabled') === 'true';
+    });
+
+    // Email validation function
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    // Add email to the list
+    function addEmailToList(email) {
+      const emailItem = document.createElement('div');
+      emailItem.className = 'email-item';
+      emailItem.innerHTML = `
+        <span class="email-text">${email}</span>
+        <button class="delete-email-btn" onclick="removeEmail(this)">×</button>
+      `;
+      emailList.appendChild(emailItem);
+      saveEmails();
+    }
+
+    // Remove email from the list
+    function removeEmail(button) {
+      button.parentElement.remove();
+      saveEmails();
+    }
+
+    // Save emails to localStorage
+    function saveEmails() {
+      const emails = Array.from(emailList.querySelectorAll('.email-text'))
+        .map(span => span.textContent);
+      localStorage.setItem('emailAlerts', JSON.stringify(emails));
+    }
+
+    // Add email button click handler
+    addEmailBtn.addEventListener('click', () => {
+      const email = emailInput.value.trim();
+      if (!email) {
+        emailValidationMsg.textContent = 'Please enter an email address';
+        emailValidationMsg.style.color = '#ff4444';
+        return;
+      }
+      if (!isValidEmail(email)) {
+        emailValidationMsg.textContent = 'Please enter a valid email address';
+        emailValidationMsg.style.color = '#ff4444';
+        return;
+      }
+      
+      const existingEmails = Array.from(emailList.querySelectorAll('.email-text'))
+        .map(span => span.textContent);
+      if (existingEmails.includes(email)) {
+        emailValidationMsg.textContent = 'This email is already in the list';
+        emailValidationMsg.style.color = '#ff4444';
+        return;
+      }
+
+      addEmailToList(email);
+      emailInput.value = '';
+      emailValidationMsg.textContent = 'Email added successfully';
+      emailValidationMsg.style.color = '#4CAF50';
+      setTimeout(() => {
+        emailValidationMsg.textContent = '';
+      }, 3000);
+    });
+
+    // Save email alert enabled state
+    emailAlertEnabled.addEventListener('change', () => {
+      localStorage.setItem('emailAlertEnabled', emailAlertEnabled.checked);
+    });
+
+    // Save alert preferences
+    ['red', 'amber', 'green'].forEach(type => {
+      const checkbox = document.getElementById(`${type}AlertEnabled`);
+      checkbox.addEventListener('change', () => {
+        localStorage.setItem(`${type}AlertEnabled`, checkbox.checked);
+      });
+    });
+
+    // Function to send email alerts
+    async function sendEmailAlert(type, message) {
+      if (!emailAlertEnabled.checked) return;
+      
+      const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
+      if (!alertTypeEnabled) return;
+
+      const emails = Array.from(emailList.querySelectorAll('.email-text'))
+        .map(span => span.textContent);
+      
+      if (emails.length === 0) return;
+
+      try {
+        const response = await emailjs.send(
+          'YOUR_SERVICE_ID',  // Replace with your EmailJS service ID
+          'YOUR_TEMPLATE_ID', // Replace with your EmailJS template ID
+          {
+            to_email: emails.join(', '),
+            alert_type: type.toUpperCase(),
+            alert_message: message,
+            timestamp: new Date().toLocaleString()
+          }
+        );
+        console.log('Email alert sent successfully:', response);
+      } catch (error) {
+        console.error('Failed to send email alert:', error);
+      }
+    }
   </script>
+
+  <style>
+    /* Email Alerts Tab Styles */
+    .email-settings-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .email-toggle-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #2196F3;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    .email-input-section {
+      margin-bottom: 20px;
+    }
+
+    .email-input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .email-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    .validation-message {
+      color: #ff4444;
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .email-list {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .email-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+
+    .email-item button {
+      background-color: #ff4444;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .alert-preferences {
+      margin-top: 20px;
+    }
+
+    .alert-type-toggles {
+      display: flex;
+      gap: 20px;
+      margin-top: 10px;
+    }
+
+    .alert-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .btn-primary:hover {
+      background-color: #1976D2;
+    }
+
+    /* Email Alerts Styles */
+    .email-settings-container {
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .email-toggle {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+      margin-right: 10px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #2196F3;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    .email-input-section {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .email-input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .add-email-btn {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .add-email-btn:hover {
+      background-color: #45a049;
+    }
+
+    .email-validation-msg {
+      color: #f44336;
+      font-size: 14px;
+      margin-top: 5px;
+    }
+
+    .email-list {
+      margin-top: 20px;
+    }
+
+    .email-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .email-item button {
+      padding: 4px 8px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .email-item button:hover {
+      background-color: #da190b;
+    }
+
+    .alert-preferences {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+    }
+
+    .alert-toggle {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .alert-toggle label {
+      margin-left: 10px;
+    }
+  </style>
 </body>
 </html>

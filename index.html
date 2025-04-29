@@ -224,6 +224,11 @@
               <label for="greenAlertEnabled">Green Alerts (Info)</label>
             </div>
           </div>
+
+          <div class="test-email-section">
+            <button id="testEmailBtn" class="test-email-btn">Send Test Email</button>
+            <div id="testEmailStatus" class="test-email-status"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -482,6 +487,55 @@
         console.error('Failed to send email alert:', error);
       }
     }
+
+    // Test Email Functionality
+    const testEmailBtn = document.getElementById('testEmailBtn');
+    const testEmailStatus = document.getElementById('testEmailStatus');
+
+    testEmailBtn.addEventListener('click', async () => {
+      if (!emailAlertEnabled.checked) {
+        testEmailStatus.textContent = 'Please enable email alerts first';
+        testEmailStatus.style.color = '#ff4444';
+        return;
+      }
+
+      const emails = Array.from(emailList.querySelectorAll('.email-text'))
+        .map(span => span.textContent);
+      
+      if (emails.length === 0) {
+        testEmailStatus.textContent = 'Please add at least one email address';
+        testEmailStatus.style.color = '#ff4444';
+        return;
+      }
+
+      testEmailBtn.disabled = true;
+      testEmailStatus.textContent = 'Sending test email...';
+      testEmailStatus.style.color = '#2196F3';
+
+      try {
+        await emailjs.send(
+          'service_lsa1r4i',
+          'template_vnrbr1d',
+          {
+            to_email: emails.join(', '),
+            alert_type: 'TEST',
+            alert_message: 'This is a test email to verify your email alert configuration.',
+            timestamp: new Date().toLocaleString()
+          }
+        );
+        testEmailStatus.textContent = 'Test email sent successfully!';
+        testEmailStatus.style.color = '#4CAF50';
+      } catch (error) {
+        console.error('Failed to send test email:', error);
+        testEmailStatus.textContent = 'Failed to send test email. Please try again.';
+        testEmailStatus.style.color = '#ff4444';
+      } finally {
+        testEmailBtn.disabled = false;
+        setTimeout(() => {
+          testEmailStatus.textContent = '';
+        }, 5000);
+      }
+    });
   </script>
 
   <style>
@@ -763,6 +817,39 @@
 
     .alert-toggle label {
       margin-left: 10px;
+    }
+
+    .test-email-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      text-align: center;
+    }
+
+    .test-email-btn {
+      padding: 10px 20px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+
+    .test-email-btn:hover {
+      background-color: #1976D2;
+    }
+
+    .test-email-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .test-email-status {
+      margin-top: 10px;
+      font-size: 14px;
+      min-height: 20px;
     }
   </style>
 </body>

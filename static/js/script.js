@@ -63,31 +63,57 @@ function removePhone(phone) {
     initializeSMSSettings();
 }
 
-async function sendSMSAlert(alertType, message) {
-    if (!smsEnabled || phoneNumbers.length === 0) return;
+async function sendSMSAlert(message, alertType) {
+    // Check if SMS alerts are enabled
+    if (!smsEnabled) {
+        console.log('SMS alerts are disabled');
+        return;
+    }
 
-    // Check if this alert type is enabled
-    const alertPreference = localStorage.getItem(`${alertType.toLowerCase()}AlertsEnabled`);
-    if (alertPreference !== 'true') return;
+    // Get phone numbers from localStorage
+    const phones = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
+    if (!phones.length) {
+        console.log('No phone numbers configured for SMS alerts');
+        return;
+    }
+
+    // Check alert type preferences
+    const redAlertsEnabled = localStorage.getItem('smsRedAlerts') === 'true';
+    const amberAlertsEnabled = localStorage.getItem('smsAmberAlerts') === 'true';
+    const greenAlertsEnabled = localStorage.getItem('smsGreenAlerts') === 'true';
+
+    // Only send if the alert type is enabled
+    if ((alertType === 'red' && !redAlertsEnabled) ||
+        (alertType === 'amber' && !amberAlertsEnabled) ||
+        (alertType === 'green' && !greenAlertsEnabled)) {
+        console.log(`${alertType} alerts are disabled for SMS`);
+        return;
+    }
 
     try {
-        const response = await fetch('/api/send-sms', {
+        const timestamp = new Date().toLocaleString();
+        const response = await fetch('/.netlify/functions/send-sms', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                phones: phoneNumbers,
-                message: `${alertType} Alert: ${message}`,
-                timestamp: new Date().toLocaleString()
+                phones,
+                message,
+                timestamp
             })
         });
 
+        const data = await response.json();
         if (!response.ok) {
-            throw new Error('Failed to send SMS alert');
+            throw new Error(data.error || 'Failed to send SMS alert');
         }
+
+        console.log('SMS alert sent successfully');
     } catch (error) {
         console.error('Error sending SMS alert:', error);
+        // Optionally show an error message to the user
+        showNotification('Failed to send SMS alert: ' + error.message, 'error');
     }
 }
 

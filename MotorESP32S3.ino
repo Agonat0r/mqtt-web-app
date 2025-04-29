@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <time.h>
@@ -6,10 +7,11 @@
 #include "SPIFFS.h"
 #include <ESP_Mail_Client.h>
 #include <PubSubClient.h>  // Add MQTT client library
-#include <WebServer.h>  // Add WebServer library
+#include <WebServer.h>  // Add WebServer library for authentication
 #include <WiFiClientSecure.h>  // Add WiFiClientSecure for SSL/TLS
 #include <ArduinoJson.h>  // Add ArduinoJson library for JSON parsing
 #include <esp_task_wdt.h>
+#include <ESPmDNS.h>
 
 // ===== Login Configuration ===== //
 const char* www_username = "admin";     
@@ -66,7 +68,7 @@ CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
 -----END CERTIFICATE-----
 )EOF";
 
-WebServer server(80); // Initialized server on port 80
+WebServer server(80);  // Create web server instance on port 80
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = -5 * 3600; // EST (change to -4*3600 for EDT, etc.)
@@ -168,6 +170,25 @@ struct LEDState {
 // LED states arrays
 LEDState redLEDStates[4];
 LEDState greenLEDStates[4];
+
+// Alert system configuration
+#define ALERT_COOLDOWN 5000        // 5 seconds between different alerts
+#define ALERT_DEBOUNCE_TIME 1000   // 1 second debounce for state changes
+#define MAX_ALERT_HISTORY 50       // Maximum number of alerts to keep in memory
+
+// Alert tracking structure
+struct AlertState {
+    String message;
+    unsigned long lastChangeTime;
+    unsigned long lastPublishTime;
+    bool isActive;
+    int stableCount;
+};
+
+// Global alert states
+AlertState redAlertState;
+AlertState amberAlertState;
+AlertState greenAlertState;
 
 // Function declarations
 void stopUpMovement();
@@ -436,321 +457,6 @@ bool sendAlarmEmail(String alarmType, String alarmMessage) {
 }
 
 // ===== HTML Content ===== //
-const char htmlContent[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-  <title>VPL Control</title>
-  <style>
-    body { font-family: Arial; margin: 20px; }
-    button { font-size: 20px; padding: 10px; margin: 5px; }
-    .mode { font-size: 18px; margin: 15px 0; }
-    .delay-control { margin: 15px 0; }
-    #serialMonitor, #ledStatus {
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 200px;
-      overflow-y: scroll;
-      background: #f8f8f8;
-      white-space: pre-wrap;
-      font-family: monospace;
-    }
-
-
-    /* === Tabs === */
-    .tab {
-      overflow: hidden;
-      border-bottom: 1px solid #ccc;
-      margin-top: 20px;
-    }
-    .tab button {
-      background-color: #f1f1f1;
-      float: left;
-      border: none;
-      outline: none;
-      cursor: pointer;
-      padding: 10px 16px;
-      transition: 0.3s;
-      font-size: 16px;
-    }
-    .tab button:hover { background-color: #ddd; }
-    .tab button.active { background-color: #ccc; }
-    .tabcontent {
-      display: none;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-top: none;
-      background: #fff;
-    }
-  </style>
-</head>
-<body>
-  <h2>Vertical Platform Lift Control</h2>
-
-
-  <div id="modeSelection">
-    <h3>Select Mode:</h3>
-    <button onclick="setMode('elevator')">Elevator Mode</button>
-    <button onclick="setMode('lift')">Lift Mode</button>
-    <button onclick="applyBrake()">APPLY BRAKE</button>
-    <button onclick="releaseBrake()">RELEASE BRAKE</button>
-  </div>
-
-
-  <div id="mainUI" style="display:none">
-    <p class="mode">Current Mode: <b><span id="modeText"></span></b></p>
-   
-    <!-- Delay Control -->
-    <div class="delay-control">
-      <label>Response Time (ms): </label>
-      <input type="number" id="delayInput" min="50" max="1000" value="200">
-      <button onclick="setDelay()">Apply</button>
-      <span id="currentDelay"></span>
-    </div>
-
-
-    <!-- LED Check Delay Control -->
-  <div class="led-delay-control">
-  <label>LED Check Delay (ms): </label>
-  <input type="number" id="ledDelayInput" min="10" max="1000" value="300">
-  <button onclick="setLEDDelay()">Apply</button>
-</div>
-   
-    <button onclick="showModeSelection()">Change Mode</button><br><br>
-   
-    <!-- Control Buttons -->
-    <button onmousedown="startAction('up')" onmouseup="stopAction()">UP</button>
-    <button onmousedown="startAction('down')" onmouseup="stopAction()">DOWN</button>
-
-
-    <!-- Serial Monitor -->
-    <h3>System Monitor</h3>
-    <div id="serialMonitor">Connecting...</div>
-
-
-    <!-- LED Status Monitor -->
-    <h3>LED Monitor</h3>
-    <div id="ledStatus">Loading LED status...</div>
-
-    <!-- LED Status Download -->
-    <a href="/downloadLogs" target="_blank"><button>Download Full Log</button></a>
-
-    <button onclick="clearLogs()">Clear Logs</button>
-  </div>
-
-
-  <!-- === Alarm Tabs === -->
-  <h3>Alarm Warnings</h3>
-  <div class="tab">
-    <button class="tablinks" onclick="openTab(event, 'Green')" id="defaultOpen">Green Alarms</button>
-    <button class="tablinks" onclick="openTab(event, 'Amber')">Amber Alarms</button>
-    <button class="tablinks" onclick="openTab(event, 'Red')">Red Alarms</button>
-    <button class="tablinks" onclick="openTab(event, 'LEDHistory')">LED Status Logs</button>
-    <button class="tablinks" onclick="openTab(event, 'EmailSettings')">Email Settings</button>
-  
-  </div>
-
-
-  <div id="Green" class="tabcontent">
-    <h4>Green Alarm Messages</h4>
-    <div id="greenAlarms">No green alarms.</div>
-  </div>
-
-
-  <div id="Amber" class="tabcontent">
-    <h4>Amber Alarm Messages</h4>
-    <div id="amberAlarms">No amber alarms.</div>
-  </div>
-
-
-  <div id="Red" class="tabcontent">
-    <h4>Red Alarm Messages</h4>
-    <div id="redAlarms">No red alarms.</div>
-  </div>
-
-<div id="LEDHistory" class="tabcontent">
-  <h4>LED Status History</h4>
-  <div id="ledStatusHistory" style="white-space: pre-wrap; font-family: monospace;">Loading history...</div>
-</div>
-
-
-<div id="EmailSettings" class="tabcontent">
-  <h4>Email Notification Settings</h4>
-  <div>
-    <label>
-      <input type="checkbox" id="emailEnabled" onchange="toggleEmailNotifications()"> 
-      Enable Email Notifications
-    </label>
-  </div>
-  <div style="margin-top: 15px;">
-    <input type="email" id="newEmail" placeholder="Enter email address">
-    <button onclick="addEmail()">Add Email</button>
-  </div>
-  <div style="margin-top: 10px;">
-    <h5>Email Recipients:</h5>
-    <ul id="emailList"></ul>
-  </div>
-</div>
-
-  <script>
-    function startAction(dir) {
-      fetch('/' + dir + '_start').catch(e => console.error(e));
-    }
-
-
-    function stopAction() {
-      fetch('/stop').catch(e => console.error(e));
-    }
-
-
-    function setMode(mode) {
-      fetch('/setMode?mode=' + mode)
-        .then(r => r.text())
-        .then(mode => {
-          document.getElementById('modeSelection').style.display = 'none';
-          document.getElementById('mainUI').style.display = 'block';
-          document.getElementById('modeText').innerText = mode;
-          updateUI();
-        });
-    }
-
-
-    function showModeSelection() {
-      document.getElementById('mainUI').style.display = 'none';
-      document.getElementById('modeSelection').style.display = 'block';
-    }
-
-
-    function setDelay() {
-      const delay = document.getElementById('delayInput').value;
-      fetch('/setDelay?value=' + delay)
-        .then(r => r.text())
-        .then(updateUI);
-    }
-
-
-// Function for setting LED delay
-    function setLEDDelay() {
-  const delay = document.getElementById('ledDelayInput').value;
-  fetch('/setLEDDelay?value=' + delay)
-    .then(r => r.text())
-    .then(msg => alert(msg));
-}
-
-
-function applyBrake() {
-  fetch('/apply_brake').catch(e => console.error(e));
-}
-
-function releaseBrake() {
-  fetch('/release_brake').catch(e => console.error(e));
-}
-    function clearLogs() {
-      fetch('/clearLogs').then(updateUI);
-    }
-
-
-    function updateUI() {
-      fetch('/getStatus')
-        .then(r => r.json())
-        .then(data => {
-          document.getElementById('modeText').innerText = data.mode;
-          document.getElementById('delayInput').value = data.delay;
-          document.getElementById('currentDelay').innerText = 'Current: ' + data.delay + 'ms';
-          document.getElementById('serialMonitor').innerText = data.logs.replace(/\\n/g, '\n');
-          document.getElementById('ledStatus').innerText = data.ledStatus.replace(/\\n/g, '\n');
-          document.getElementById('ledStatusHistory').innerText = data.ledStatusHistory.replace(/\\n/g, '\n');
-
-
-
-          // Alarm tab updates
-          document.getElementById('greenAlarms').innerText = data.greenAlarms || "No green alarms.";
-          document.getElementById('amberAlarms').innerText = data.amberAlarms || "No amber alarms.";
-          document.getElementById('redAlarms').innerText = data.redAlarms || "No red alarms.";
-        
-        // Add this inside the updateUI() function where it processes the data from getStatus
-document.getElementById('emailEnabled').checked = data.emailEnabled;
-const emailList = document.getElementById('emailList');
-emailList.innerHTML = '';
-if (data.emails && data.emails.length > 0) {
-  data.emails.forEach((email, index) => {
-    const li = document.createElement('li');
-    li.textContent = email + ' ';
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.onclick = () => removeEmail(index);
-    li.appendChild(removeBtn);
-    emailList.appendChild(li);
-  });
-} else {
-  emailList.innerHTML = '<li>No emails added yet</li>';
-}
-});
-    }
-
-
-    function openTab(evt, tabName) {
-      var i, tabcontent, tablinks;
-      tabcontent = document.getElementsByClassName("tabcontent");
-      for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-      }
-      tablinks = document.getElementsByClassName("tablinks");
-      for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-      }
-      document.getElementById(tabName).style.display = "block";
-      evt.currentTarget.className += " active";
-    }
-
-
-    window.onload = () => {
-      document.getElementById("defaultOpen").click();
-      updateUI();
-      setInterval(updateUI, 1000);
-    }
-
-    function toggleEmailNotifications() {
-  const enabled = document.getElementById('emailEnabled').checked;
-  fetch('/toggleEmail?enabled=' + enabled)
-    .then(r => r.text())
-    .then(msg => alert(msg));
-}
-
-function addEmail() {
-  const email = document.getElementById('newEmail').value;
-  if (!email || !validateEmail(email)) {
-    alert('Please enter a valid email address');
-    return;
-  }
-  
-  fetch('/addEmail?email=' + encodeURIComponent(email))
-    .then(r => r.text())
-    .then(msg => {
-      alert(msg);
-      updateUI();
-      document.getElementById('newEmail').value = '';
-    });
-}
-
-function removeEmail(index) {
-  fetch('/removeEmail?index=' + index)
-    .then(r => r.text())
-    .then(msg => {
-      alert(msg);
-      updateUI();
-    });
-}
-
-function validateEmail(email) {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(String(email).toLowerCase());
-}
-  </script>
-</body>
-</html>
-)rawliteral";
-
 
 // Buffer sizes and optimization constants
 const size_t LOG_BUFFER_SIZE = 1024;  // 1KB buffer for logs
@@ -1127,35 +833,34 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
         currentAmberAlarms = ledSummary() + "\n" + amberAlertName;
     }
 
-    // Only publish alerts if they've changed and after cooldown period
-    if (currentRedAlarms != lastRedAlarms && currentRedAlarms != "" && 
-        (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
+    // Process Red Alarms with improved state management
+    if (shouldPublishAlert(redAlertState, currentRedAlarms, currentMillis)) {
         publishAlert("red", currentRedAlarms);
-        Serial.println("[RED ALERT CHANGE] " + currentRedAlarms);  // Only print on change
-        lastRedAlarms = currentRedAlarms;
-        lastAlertTime = currentMillis;
+        Serial.println("[RED ALERT] " + currentRedAlarms);
     }
 
-    if (currentAmberAlarms != lastAmberAlarms && currentAmberAlarms != "" && 
-        (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
+    // Process Amber Alarms with improved state management
+    if (shouldPublishAlert(amberAlertState, currentAmberAlarms, currentMillis)) {
         publishAlert("amber", currentAmberAlarms);
-        Serial.println("[AMBER ALERT CHANGE] " + currentAmberAlarms);  // Only print on change
-        lastAmberAlarms = currentAmberAlarms;
-        lastAlertTime = currentMillis;
+        Serial.println("[AMBER ALERT] " + currentAmberAlarms);
     }
 
-    if (currentGreenAlarms != lastGreenAlarms && currentGreenAlarms != "" && 
-        (currentMillis - lastAlertTime) >= ALERT_COOLDOWN) {
+    // Process Green Alarms with improved state management
+    if (shouldPublishAlert(greenAlertState, currentGreenAlarms, currentMillis)) {
         publishAlert("green", currentGreenAlarms);
-        Serial.println("[GREEN ALERT CHANGE] " + currentGreenAlarms);  // Only print on change
-        lastGreenAlarms = currentGreenAlarms;
-        lastAlertTime = currentMillis;
+        Serial.println("[GREEN ALERT] " + currentGreenAlarms);
     }
 
-    // Update global alarm strings for web interface
-    redAlarms = (currentRedAlarms != "") ? currentRedAlarms : "No red alarms.";
-    amberAlarms = (currentAmberAlarms != "") ? currentAmberAlarms : "No amber alarms.";
-    greenAlarms = (currentGreenAlarms != "") ? currentGreenAlarms : "No green alarms.";
+    // Update global strings for web interface only when stable
+    redAlarms = (redAlertState.stableCount >= 2) ? 
+                (redAlertState.message != "" ? redAlertState.message : "No red alarms.") : 
+                redAlarms;
+    amberAlarms = (amberAlertState.stableCount >= 2) ? 
+                  (amberAlertState.message != "" ? amberAlertState.message : "No amber alarms.") : 
+                  amberAlarms;
+    greenAlarms = (greenAlertState.stableCount >= 2) ? 
+                  (greenAlertState.message != "" ? greenAlertState.message : "No green alarms.") : 
+                  greenAlarms;
 
     // Update LED history
     if (ledStateOnly != lastLedSnapshot) {
@@ -1213,12 +918,13 @@ if (strcmp(incomingDataStruct.type, "command") == 0) {
 }
 }
 
+// Check if user is authenticated via cookie
 bool isAuthenticated() {
-  if (!server.authenticate(www_username, www_password)) {
-    server.requestAuthentication();
-    return false;
+  if (server.hasHeader("Cookie")) {
+    String cookie = server.header("Cookie");
+    return cookie.indexOf("SESSIONID=") != -1;
   }
-  return true;
+  return false;
 }
 
 // Remove the previous watchdog definitions and add proper configuration
@@ -1240,13 +946,20 @@ void setup() {
   // Do NOT call esp_task_wdt_init() or esp_task_wdt_add() here, as the TWDT and loopTask are already handled by the Arduino core.
   // No manual registration needed.
 
-  // Rest of your existing setup code...
+  // Initialize SPIFFS
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
   Serial.println("SPIFFS Initialized Successfully");
 
+  // Check if required files exist
+  if(!SPIFFS.exists("/index.html")) {
+    Serial.println("Warning: index.html not found in SPIFFS");
+    Serial.println("Please upload the file using ESP32 Sketch Data Upload tool");
+  }
+
+  // Rest of your existing setup code...
   // Initialize LED pins and states
   Serial.println("Initializing LED pins...");
   for (int i = 0; i < numLEDs; i++) {
@@ -1349,8 +1062,17 @@ void setup() {
 
   // Initialize web server routes
   server.on("/", HTTP_GET, []() {
-    if (!isAuthenticated()) return;
-    server.send(200, "text/html", htmlContent);
+    if (!isAuthenticated()) {
+      server.send(401, "text/plain", "Unauthorized");
+      return;
+    }
+    File file = SPIFFS.open("/index.html", "r");
+    if (!file) {
+      server.send(404, "text/plain", "File not found");
+      return;
+    }
+    server.streamFile(file, "text/html");
+    file.close();
   });
 
   server.on("/getStatus", HTTP_GET, []() {
@@ -1421,6 +1143,9 @@ void setup() {
 
   // Load saved emails
   loadEmailsFromSPIFFS();
+
+  // Initialize alert system
+  initializeAlertSystem();
 }
 
 void loop() {
@@ -1529,4 +1254,37 @@ void cleanup() {
     if (arduinoTask != NULL) {
         esp_task_wdt_delete(arduinoTask);
     }
+}
+
+// Initialize alert system
+void initializeAlertSystem() {
+    redAlertState = {"", 0, 0, false, 0};
+    amberAlertState = {"", 0, 0, false, 0};
+    greenAlertState = {"", 0, 0, false, 0};
+}
+
+// Helper function to manage alert state changes
+bool shouldPublishAlert(AlertState &state, String newMessage, unsigned long currentMillis) {
+    // If message changed, reset stable count
+    if (newMessage != state.message) {
+        state.message = newMessage;
+        state.lastChangeTime = currentMillis;
+        state.stableCount = 0;
+        return false;
+    }
+    
+    // Check if state has been stable for debounce period
+    if (currentMillis - state.lastChangeTime >= ALERT_DEBOUNCE_TIME) {
+        state.stableCount++;
+        
+        // Only publish if state is stable and cooldown period has passed
+        if (state.stableCount >= 2 && 
+            currentMillis - state.lastPublishTime >= ALERT_COOLDOWN &&
+            newMessage != "") {
+            state.lastPublishTime = currentMillis;
+            return true;
+        }
+    }
+    
+    return false;
 }  

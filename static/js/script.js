@@ -218,5 +218,109 @@ async function sendTestSMS(elements) {
     }
 }
 
-// Initialize SMS settings when the script loads
-initializeSMSSettings(); 
+// Email Alert Management
+let emailEnabled = localStorage.getItem('emailEnabled') === 'true';
+let emailAddresses = JSON.parse(localStorage.getItem('emailAddresses') || '[]');
+
+function initializeEmailSettings() {
+    // Wait for DOM to be fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupEmailElements);
+    } else {
+        setupEmailElements();
+    }
+}
+
+function setupEmailElements() {
+    const elements = {
+        emailToggle: document.getElementById('emailAlertEnabled'),
+        redAlerts: document.getElementById('emailRedAlerts'),
+        amberAlerts: document.getElementById('emailAmberAlerts'),
+        greenAlerts: document.getElementById('emailGreenAlerts'),
+        emailList: document.getElementById('emailList'),
+        addEmailBtn: document.getElementById('addEmailAlertBtn'),
+        emailInput: document.getElementById('emailAlertInput'),
+        testEmailBtn: document.getElementById('sendTestEmail'),
+        validationMsg: document.getElementById('emailValidationMsg')
+    };
+
+    if (!elements.emailToggle) {
+        return; // Not on a page with email elements
+    }
+
+    // Initialize toggle switch
+    elements.emailToggle.checked = emailEnabled;
+    elements.emailToggle.addEventListener('change', (event) => {
+        emailEnabled = event.target.checked;
+        localStorage.setItem('emailEnabled', emailEnabled);
+        if (elements.testEmailBtn) {
+            elements.testEmailBtn.disabled = !emailEnabled;
+        }
+    });
+
+    // Initialize alert preferences
+    if (elements.redAlerts) {
+        elements.redAlerts.checked = localStorage.getItem('emailRedAlerts') !== 'false';
+        elements.redAlerts.addEventListener('change', e => localStorage.setItem('emailRedAlerts', e.target.checked));
+    }
+    if (elements.amberAlerts) {
+        elements.amberAlerts.checked = localStorage.getItem('emailAmberAlerts') !== 'false';
+        elements.amberAlerts.addEventListener('change', e => localStorage.setItem('emailAmberAlerts', e.target.checked));
+    }
+    if (elements.greenAlerts) {
+        elements.greenAlerts.checked = localStorage.getItem('emailGreenAlerts') === 'true';
+        elements.greenAlerts.addEventListener('change', e => localStorage.setItem('emailGreenAlerts', e.target.checked));
+    }
+
+    // Initialize email list
+    if (elements.emailList) {
+        elements.emailList.innerHTML = '';
+        emailAddresses.forEach(email => addEmailToList(email, elements));
+    }
+
+    // Add event listeners
+    if (elements.testEmailBtn) {
+        elements.testEmailBtn.addEventListener('click', () => sendTestEmail(elements));
+        elements.testEmailBtn.disabled = !emailEnabled;
+    }
+}
+
+async function sendTestEmail(elements) {
+    if (!emailEnabled || emailAddresses.length === 0) {
+        elements.validationMsg.textContent = 'Please enable email alerts and add at least one email address';
+        elements.validationMsg.style.display = 'block';
+        return;
+    }
+
+    try {
+        elements.testEmailBtn.disabled = true;
+        await emailjs.send(
+            'service_lsa1r4i',  // Your EmailJS service ID
+            'template_vnrbr1d', // Your EmailJS template ID
+            {
+                to_email: emailAddresses.join(', '),
+                alert_type: 'TEST',
+                alert_message: 'This is a test email alert from your VPL Monitoring Dashboard',
+                timestamp: new Date().toLocaleString()
+            }
+        );
+        elements.validationMsg.textContent = 'Test email sent successfully!';
+        elements.validationMsg.style.color = '#4CAF50';
+        elements.validationMsg.style.display = 'block';
+    } catch (error) {
+        console.error('Failed to send test email:', error);
+        elements.validationMsg.textContent = 'Failed to send test email. Please try again.';
+        elements.validationMsg.style.color = '#ff4444';
+        elements.validationMsg.style.display = 'block';
+    } finally {
+        elements.testEmailBtn.disabled = false;
+        setTimeout(() => {
+            elements.validationMsg.textContent = '';
+            elements.validationMsg.style.display = 'none';
+        }, 5000);
+    }
+}
+
+// Initialize both SMS and Email settings when the script loads
+initializeSMSSettings();
+initializeEmailSettings(); 

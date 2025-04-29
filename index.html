@@ -154,7 +154,7 @@
             <h3>SMS Alerts</h3>
             <div class="sms-toggle">
               <label class="toggle-switch">
-                <input type="checkbox" id="smsAlertEnabled">
+                <input type="checkbox" id="smsEnabled">
                 <span class="toggle-slider"></span>
               </label>
               <span>Enable SMS Alerts</span>
@@ -164,7 +164,7 @@
               <input type="text" id="phoneInput" class="sms-input" placeholder="Enter phone number (+1234567890)">
               <button id="addPhoneBtn" class="add-btn">Add</button>
             </div>
-            <div class="validation-message" id="phoneValidationMsg"></div>
+            <div id="phoneValidationMsg" class="validation-message"></div>
             
             <div class="phone-list-container">
               <h4>Phone Numbers</h4>
@@ -187,7 +187,7 @@
               </div>
             </div>
             
-            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
+            <button id="sendTestSMS" class="test-btn">Send Test SMS</button>
           </div>
         </div>
       </div>
@@ -252,6 +252,24 @@
             <div id="emailList" class="email-list">
               <!-- Email items will be added here dynamically -->
             </div>
+
+            <div class="alert-preferences">
+              <h4>Alert Preferences</h4>
+              <div class="preference-item">
+                <input type="checkbox" id="emailRedAlerts" checked>
+                <label for="emailRedAlerts">Red Alerts (Critical)</label>
+              </div>
+              <div class="preference-item">
+                <input type="checkbox" id="emailAmberAlerts" checked>
+                <label for="emailAmberAlerts">Amber Alerts (Warning)</label>
+              </div>
+              <div class="preference-item">
+                <input type="checkbox" id="emailGreenAlerts">
+                <label for="emailGreenAlerts">Green Alerts (Info)</label>
+              </div>
+            </div>
+
+            <button id="sendTestEmail" class="test-btn">Send Test Email</button>
           </div>
         </div>
       </div>
@@ -517,8 +535,8 @@
     const addPhoneBtn = document.getElementById('addPhoneBtn');
     const phoneList = document.getElementById('phoneList');
     const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
-    const testSmsBtn = document.getElementById('testSmsBtn');
+    const smsAlertEnabled = document.getElementById('smsEnabled');
+    const testSmsBtn = document.getElementById('sendTestSMS');
     const testAlertStatus = document.getElementById('testAlertStatus');
 
     // Load saved SMS settings

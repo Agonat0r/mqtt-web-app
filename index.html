@@ -218,45 +218,40 @@
             <h3>SMS Alerts</h3>
             <div class="sms-toggle">
               <label class="toggle-switch">
-                <input type="checkbox" id="smsAlertEnabled">
+                <input type="checkbox" id="smsEnabled" onchange="toggleSMSAlerts()">
                 <span class="toggle-slider"></span>
               </label>
               <span>Enable SMS Alerts</span>
             </div>
+            
+            <div class="sms-input">
+              <input type="text" id="phoneInput" placeholder="Enter phone number (e.g., +1234567890)">
+              <button onclick="addPhoneNumber()">Add Phone</button>
+              <div id="phone-validation-msg" class="validation-message"></div>
+            </div>
 
-            <div class="phone-input-section">
-              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
-              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+            <div class="phone-list-container">
+              <h4>Phone Numbers</h4>
+              <ul id="phoneList" class="phone-list"></ul>
             </div>
-            <div id="phoneValidationMsg" class="validation-msg"></div>
 
-            <div id="phoneList" class="phone-list">
-              <!-- Phone numbers will be added here dynamically -->
+            <div class="alert-preferences">
+              <h4>Alert Preferences</h4>
+              <div class="preference-item">
+                <input type="checkbox" id="smsRedAlerts" onchange="localStorage.setItem('smsRedAlerts', this.checked)">
+                <label for="smsRedAlerts">Red Alerts (Critical)</label>
+              </div>
+              <div class="preference-item">
+                <input type="checkbox" id="smsAmberAlerts" onchange="localStorage.setItem('smsAmberAlerts', this.checked)">
+                <label for="smsAmberAlerts">Amber Alerts (Warning)</label>
+              </div>
+              <div class="preference-item">
+                <input type="checkbox" id="smsGreenAlerts" onchange="localStorage.setItem('smsGreenAlerts', this.checked)">
+                <label for="smsGreenAlerts">Green Alerts (Info)</label>
+              </div>
             </div>
-          </div>
 
-          <!-- Common Alert Preferences Section -->
-          <div class="alert-preferences">
-            <h3>Alert Preferences</h3>
-            <div class="alert-toggle">
-              <input type="checkbox" id="redAlertEnabled" checked>
-              <label for="redAlertEnabled">Red Alerts (Critical)</label>
-            </div>
-            <div class="alert-toggle">
-              <input type="checkbox" id="amberAlertEnabled" checked>
-              <label for="amberAlertEnabled">Amber Alerts (Warning)</label>
-            </div>
-            <div class="alert-toggle">
-              <input type="checkbox" id="greenAlertEnabled">
-              <label for="greenAlertEnabled">Green Alerts (Info)</label>
-            </div>
-          </div>
-
-          <!-- Test Alerts Section -->
-          <div class="test-alerts-section">
-            <button id="testEmailBtn" class="test-btn">Send Test Email</button>
-            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
-            <div id="testAlertStatus" class="test-alert-status"></div>
+            <button onclick="sendTestSMS()" class="test-btn">Send Test SMS</button>
           </div>
         </div>
       </div>
@@ -522,7 +517,7 @@
     const addPhoneBtn = document.getElementById('addPhoneBtn');
     const phoneList = document.getElementById('phoneList');
     const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
+    const smsAlertEnabled = document.getElementById('smsEnabled');
     const testSmsBtn = document.getElementById('testSmsBtn');
     const testAlertStatus = document.getElementById('testAlertStatus');
 

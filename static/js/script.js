@@ -3,12 +3,21 @@ let smsEnabled = localStorage.getItem('smsEnabled') === 'true';
 let phoneNumbers = JSON.parse(localStorage.getItem('phoneNumbers') || '[]');
 
 function initializeSMSSettings() {
-    document.getElementById('smsEnabled').checked = smsEnabled;
+    const smsEnabledCheckbox = document.getElementById('smsEnabled');
     const phoneList = document.getElementById('phoneList');
-    phoneList.innerHTML = '';
-    phoneNumbers.forEach(phone => {
-        addPhoneToList(phone);
-    });
+    
+    if (smsEnabledCheckbox) {
+        smsEnabledCheckbox.checked = smsEnabled;
+    }
+    
+    if (phoneList) {
+        phoneList.innerHTML = '';
+        phoneNumbers.forEach(phone => {
+            addPhoneToList(phone);
+        });
+    } else {
+        console.warn('Phone list element not found');
+    }
 }
 
 function toggleSMSAlerts() {
@@ -24,8 +33,14 @@ function validatePhoneNumber(phone) {
 
 function addPhoneNumber() {
     const phoneInput = document.getElementById('phoneInput');
-    const phone = phoneInput.value.trim();
     const validationMsg = document.getElementById('phone-validation-msg');
+    
+    if (!phoneInput || !validationMsg) {
+        console.error('Required elements not found');
+        return;
+    }
+
+    const phone = phoneInput.value.trim();
 
     if (!validatePhoneNumber(phone)) {
         validationMsg.textContent = 'Please enter a valid phone number';
@@ -48,6 +63,11 @@ function addPhoneNumber() {
 
 function addPhoneToList(phone) {
     const phoneList = document.getElementById('phoneList');
+    if (!phoneList) {
+        console.error('Phone list element not found');
+        return;
+    }
+
     const li = document.createElement('li');
     li.textContent = phone;
     const removeBtn = document.createElement('button');
@@ -118,17 +138,22 @@ async function sendSMSAlert(message, alertType) {
 }
 
 async function sendTestSMS() {
-    if (!smsEnabled || phoneNumbers.length === 0) {
-        alert('Please enable SMS alerts and add at least one phone number');
+    if (!smsEnabled) {
+        showNotification('Please enable SMS alerts first', 'error');
+        return;
+    }
+
+    if (phoneNumbers.length === 0) {
+        showNotification('Please add at least one phone number', 'error');
         return;
     }
 
     try {
-        await sendSMSAlert('Test', 'This is a test SMS alert');
-        alert('Test SMS sent successfully!');
+        await sendSMSAlert('Test Alert: This is a test message from your VPL Monitoring Dashboard', 'test');
+        showNotification('Test SMS sent successfully!', 'success');
     } catch (error) {
-        alert('Failed to send test SMS');
-        console.error(error);
+        showNotification('Failed to send test SMS: ' + error.message, 'error');
+        console.error('Test SMS Error:', error);
     }
 }
 

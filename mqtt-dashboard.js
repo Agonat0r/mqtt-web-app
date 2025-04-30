@@ -1294,8 +1294,12 @@ async function sendSMS(phones, message) {
 
 function addPhoneSubscriber() {
     const phoneInput = document.getElementById('phoneInput-main');
+    if (!phoneInput) {
+        logSMSDebug('Error: Phone input element not found');
+        return;
+    }
+
     const phoneNumber = phoneInput.value.trim();
-    
     logSMSDebug('Adding phone subscriber', { phoneNumber });
 
     if (!phoneNumber) {
@@ -1304,17 +1308,22 @@ function addPhoneSubscriber() {
         return;
     }
 
-    // Basic phone number validation
-    const phoneRegex = /^\+?[\d\s-()]{10,}$/;
+    // E.164 format validation (e.g., +1234567890)
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
     if (!phoneRegex.test(phoneNumber)) {
-        showMessage('Please enter a valid phone number (e.g., +1234567890)', 'error');
-        logSMSDebug('Error: Invalid phone number format');
+        showMessage('Please enter a valid phone number in E.164 format (e.g., +1234567890)', 'error');
+        logSMSDebug('Error: Invalid phone number format. Must be in E.164 format');
         return;
     }
 
     const phoneList = document.getElementById('phoneList');
+    if (!phoneList) {
+        logSMSDebug('Error: Phone list element not found');
+        return;
+    }
+
     const existingPhones = Array.from(phoneList.children).map(item => 
-        item.textContent.split(' ')[0]
+        item.querySelector('span')?.textContent.trim()
     );
 
     if (existingPhones.includes(phoneNumber)) {
@@ -1326,8 +1335,8 @@ function addPhoneSubscriber() {
     const phoneItem = document.createElement('div');
     phoneItem.className = 'phone-item';
     phoneItem.innerHTML = `
-        ${phoneNumber}
-        <button onclick="this.parentElement.remove()">Remove</button>
+        <span>${phoneNumber}</span>
+        <button onclick="removePhoneFromList(this)">Remove</button>
     `;
     phoneList.appendChild(phoneItem);
     phoneInput.value = '';
@@ -1336,13 +1345,26 @@ function addPhoneSubscriber() {
     showMessage('Phone number added successfully', 'success');
 }
 
+function removePhoneFromList(button) {
+    const phoneItem = button.parentElement;
+    const phoneNumber = phoneItem.querySelector('span').textContent;
+    logSMSDebug('Removing phone from list', { phoneNumber });
+    phoneItem.remove();
+    showMessage('Phone number removed', 'success');
+}
+
 async function sendTestSMS() {
     logSMSDebug('Starting test SMS process');
     
     const phoneList = document.getElementById('phoneList');
-    const phones = Array.from(phoneList.children).map(item => 
-        item.textContent.split(' ')[0].trim()
-    );
+    if (!phoneList) {
+        logSMSDebug('Error: Phone list element not found');
+        return;
+    }
+
+    const phones = Array.from(phoneList.children)
+        .map(item => item.querySelector('span')?.textContent.trim())
+        .filter(phone => phone); // Remove any undefined/empty values
 
     logSMSDebug('Collected phone numbers', { phones });
 
@@ -1353,13 +1375,74 @@ async function sendTestSMS() {
     }
 
     const testMessage = 'This is a test SMS from your MQTT Dashboard.';
+    
     try {
+        const testButton = document.getElementById('testSmsBtn');
+        if (testButton) {
+            testButton.disabled = true;
+            testButton.textContent = 'Sending...';
+        }
+
+        logSMSDebug('Sending test SMS', { phones, message: testMessage });
         await sendSMS(phones, testMessage);
         logSMSDebug('Test SMS sent successfully');
+        
+        if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Send Test SMS';
+        }
     } catch (error) {
         logSMSDebug('Failed to send test SMS', { error: error.message });
+        if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Send Test SMS';
+        }
     }
 }
+
+// Add styles for phone items
+const style = document.createElement('style');
+style.textContent += `
+    .phone-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        margin: 4px 0;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+    }
+    .phone-item button {
+        background-color: #ff4444;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .phone-input {
+        width: 200px;
+        padding: 8px;
+        margin-right: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    #smsDebugInfo {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    #smsDebugLog {
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+`;
+document.head.appendChild(style);
 
 /**
  * Loads phone subscribers from Firestore and updates the UI

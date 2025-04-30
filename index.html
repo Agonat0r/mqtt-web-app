@@ -13,7 +13,20 @@
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <!-- EmailJS -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script type="text/javascript">
+    // EmailJS configuration
+    const EMAILJS_PUBLIC_KEY = '7osg1XmfdRC2z68Xt'; // Replace with your actual public key
+    const EMAILJS_SERVICE_ID = 'service_lsa1r4i'; // Replace with your actual service ID
+    const EMAILJS_TEMPLATE_ID = 'template_vnrbr1d'; // Replace with your actual template ID
+    
+    // Initialize EmailJS
+    (function() {
+      console.log('Initializing EmailJS...');
+      emailjs.init(EMAILJS_PUBLIC_KEY);
+      console.log('EmailJS initialized successfully');
+    })();
+  </script>
 
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css">
@@ -697,20 +710,33 @@
 
     // Function to send email alerts
     async function sendEmailAlert(type, message) {
-      if (!emailAlertEnabled.checked) return;
+      console.log('Attempting to send email alert:', { type, message });
+      
+      if (!emailAlertEnabled.checked) {
+        console.log('Email alerts are disabled');
+        return;
+      }
       
       const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
-      if (!alertTypeEnabled) return;
+      if (!alertTypeEnabled) {
+        console.log(`${type} alerts are disabled`);
+        return;
+      }
 
       const emails = Array.from(emailList.querySelectorAll('.email-text'))
         .map(span => span.textContent);
       
-      if (emails.length === 0) return;
+      if (emails.length === 0) {
+        console.log('No email addresses found in the list');
+        return;
+      }
+
+      console.log('Sending email alert to:', emails);
 
       try {
         const response = await emailjs.send(
-          'service_lsa1r4i',  // Using existing service ID
-          'template_vnrbr1d', // Using existing template ID
+          'service_lsa1r4i',
+          'template_vnrbr1d',
           {
             to_email: emails.join(', '),
             alert_type: type.toUpperCase(),
@@ -721,6 +747,12 @@
         console.log('Email alert sent successfully:', response);
       } catch (error) {
         console.error('Failed to send email alert:', error);
+        // Show error in UI
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = `Failed to send email: ${error.message}`;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
       }
     }
 
@@ -970,13 +1002,24 @@
 
     // Function to send SMS alerts using email-to-SMS gateways
     async function sendSmsAlert(type, message) {
-      if (!smsAlertEnabled.checked) return;
+      console.log('Attempting to send SMS alert:', { type, message });
+      
+      if (!smsAlertEnabled.checked) {
+        console.log('SMS alerts are disabled');
+        return;
+      }
       
       const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
-      if (!alertTypeEnabled) return;
+      if (!alertTypeEnabled) {
+        console.log(`${type} alerts are disabled`);
+        return;
+      }
 
       const phoneItems = Array.from(phoneList.querySelectorAll('.phone-item'));
-      if (phoneItems.length === 0) return;
+      if (phoneItems.length === 0) {
+        console.log('No phone numbers found in the list');
+        return;
+      }
 
       const errors = [];
 
@@ -985,6 +1028,8 @@
           try {
             const phoneText = phoneItem.querySelector('.phone-text').textContent;
             const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+            
+            console.log('Processing phone:', { phoneText, carrier });
             
             // Format phone number
             const formattedPhone = formatPhoneForSMS(phoneText);
@@ -996,9 +1041,9 @@
             }
 
             const smsEmail = `${formattedPhone}@${gateway}`;
-            console.log('Sending SMS via email gateway:', smsEmail); // Debug log
+            console.log('Sending SMS via email gateway:', smsEmail);
             
-            await emailjs.send(
+            const response = await emailjs.send(
               'service_lsa1r4i',
               'template_vnrbr1d',
               {
@@ -1008,8 +1053,12 @@
                 timestamp: new Date().toLocaleString()
               }
             );
+            
+            console.log('SMS sent successfully to:', smsEmail, response);
           } catch (error) {
-            errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`);
+            const errorMsg = `Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`;
+            console.error(errorMsg);
+            errors.push(errorMsg);
           }
         }
 
@@ -1017,10 +1066,15 @@
           throw new Error(errors.join('\n'));
         }
         
-        console.log('SMS alerts sent successfully via email gateways');
+        console.log('All SMS alerts sent successfully');
       } catch (error) {
         console.error('SMS Alert Errors:', error);
-        // You might want to show these errors to the user in the UI
+        // Show error in UI
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = `Failed to send SMS: ${error.message}`;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
       }
     }
 
@@ -1216,7 +1270,17 @@
     }
 
     .error-message {
-      background-color: #f44336;
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #ff4444;
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      max-width: 300px;
+      word-wrap: break-word;
     }
 
     @keyframes fadeIn {

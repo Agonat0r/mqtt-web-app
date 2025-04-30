@@ -3,7 +3,8 @@ const twilio = require('twilio');
 exports.handler = async function(event, context) {
     console.log('SMS Function Started', {
         method: event.httpMethod,
-        headers: event.headers
+        headers: event.headers,
+        path: event.path
     });
 
     // Only allow POST requests
@@ -27,79 +28,81 @@ exports.handler = async function(event, context) {
 
     console.log('Environment Variables Check:', envCheck);
 
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-        console.error('Missing Required Environment Variables');
+    // Verify all required environment variables are present
+    if (!Object.values(envCheck).every(Boolean)) {
+        console.log('Missing Environment Variables');
         return {
             statusCode: 500,
             body: JSON.stringify({
                 error: 'Configuration Error',
                 message: 'Missing required Twilio configuration. Please check environment variables.',
-                missing: Object.keys(envCheck).filter(key => !envCheck[key])
+                missingVars: Object.entries(envCheck)
+                    .filter(([_, exists]) => !exists)
+                    .map(([name]) => name)
             })
         };
     }
 
     try {
+        // Parse request body
+        const data = JSON.parse(event.body);
+        console.log('Received Request Data:', {
+            hasPhones: !!data.phones,
+            phoneCount: data.phones?.length,
+            hasMessage: !!data.message,
+            messageLength: data.message?.length
+        });
+
+        const { phones, message } = data;
+
+        // Validate input
+        if (!phones || !Array.isArray(phones) || phones.length === 0) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({
+                    error: 'Invalid Request',
+                    message: 'No phone numbers provided'
+                })
+            };
+        }
+
+        if (!message) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({
+                    error: 'Invalid Request',
+                    message: 'No message content provided'
+                })
+            };
+        }
+
         // Initialize Twilio client
-        console.log('Initializing Twilio client');
         const client = twilio(
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
         );
 
-        // Parse request body
-        console.log('Parsing request body');
-        const data = JSON.parse(event.body);
-        console.log('Received data:', {
-            numberOfPhones: data.phones?.length,
-            hasMessage: !!data.message,
-            timestamp: data.timestamp
-        });
-
-        if (!data.phones || !data.message) {
-            console.error('Invalid request data');
-            return {
-                statusCode: 400,
-                body: JSON.stringify({
-                    error: 'Invalid Request',
-                    message: 'Both phones and message are required',
-                    received: {
-                        hasPhones: !!data.phones,
-                        hasMessage: !!data.message
-                    }
-                })
-            };
-        }
-
+        console.log('Sending SMS messages...');
+        
         // Send SMS to each phone number
-        console.log('Starting to send messages');
-        const results = await Promise.all(data.phones.map(async (phone) => {
+        const results = await Promise.all(phones.map(async (phone) => {
             try {
-                console.log('Sending SMS to:', phone);
-                const message = await client.messages.create({
-                    body: data.message,
+                const result = await client.messages.create({
+                    body: message,
                     to: phone,
                     from: process.env.TWILIO_PHONE_NUMBER
                 });
-                console.log('SMS sent successfully to:', phone, 'SID:', message.sid);
-                return {
-                    phone,
-                    status: 'success',
-                    sid: message.sid
-                };
+                console.log('SMS sent successfully to:', phone, 'SID:', result.sid);
+                return { phone, status: 'success', sid: result.sid };
             } catch (error) {
-                console.error('Error sending to:', phone, error.message);
-                return {
-                    phone,
-                    status: 'error',
-                    error: error.message
-                };
+                console.error('Failed to send SMS to:', phone, 'Error:', error.message);
+                return { phone, status: 'failed', error: error.message };
             }
         }));
 
-        const failures = results.filter(r => r.status === 'error');
-        if (failures.length > 0) {
-            console.warn('Some messages failed to send:', failures);
+        const failedMessages = results.filter(r => r.status === 'failed');
+        
+        if (failedMessages.length > 0) {
             return {
                 statusCode: 207,
                 body: JSON.stringify({
@@ -109,7 +112,6 @@ exports.handler = async function(event, context) {
             };
         }
 
-        console.log('All messages sent successfully');
         return {
             statusCode: 200,
             body: JSON.stringify({
@@ -119,7 +121,7 @@ exports.handler = async function(event, context) {
         };
 
     } catch (error) {
-        console.error('Function error:', error);
+        console.error('Function Error:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({

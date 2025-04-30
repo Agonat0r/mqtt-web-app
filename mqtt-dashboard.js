@@ -1254,7 +1254,7 @@ async function sendSMS(phones, message) {
         }
 
         logSMSDebug('Making API request to Netlify function');
-        const response = await fetch('/.netlify/functions/send-sms', {
+        const response = await fetch('/api/send-sms', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -80,12 +80,71 @@ body {
 
 /* Terminal Container */
 .terminal-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  height: calc(100vh - 120px);
+  background: #1e1e1e;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 10px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.terminal-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.terminal-btn {
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.terminal-btn:hover {
+  background: #444;
+}
+
+#controlTerminal {
+  flex: 1;
+  background: #000;
+  color: #00ff00;
+  font-family: monospace;
+  padding: 10px;
+  overflow-y: auto;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#controlTerminal .timestamp {
+  color: #888;
+}
+
+#controlTerminal .command {
+  color: #00ff00;
+}
+
+#controlTerminal .response {
+  color: #0088ff;
+}
+
+#controlTerminal .error {
+  color: #ff0000;
+}
+
+/* Terminal Container */
 .terminal-section {
   background: white;
   border-radius: 8px;

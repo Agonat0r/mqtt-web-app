@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAllText();
     initializeMQTTClient();
     loadPhoneSubscribers();
+    initializeControlTerminal();
 });
 
 /**
@@ -142,6 +143,8 @@ function initializeEventHandlers() {
   if (testEmailButton) {
     testEmailButton.addEventListener('click', sendTestEmail);
   }
+
+  initializeControlTerminal();
 }
 
 /**
@@ -1298,7 +1301,6 @@ function exportLog(targetId) {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
     
     showMessage(t('logExported'), 'success');
 }
@@ -1518,98 +1520,134 @@ async function removePhoneSubscriber(docId) {
     }
 }
 
-// Control functions for VPL
+// Add this function to log control actions
+function logToControlTerminal(action, status = 'executed') {
+  const terminal = document.getElementById('controlTerminal');
+  if (!terminal) return;
+
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] Control Action ${status}: ${action}\n`;
+  
+  terminal.textContent += logEntry;
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+// Modify the startAction function to include logging
 function startAction(direction) {
-    if (!client) {
-        showMessage('MQTT client not connected', 'error');
-        return;
-    }
-    
-    const command = direction.toUpperCase();
-    const payload = {
-        type: 'command',
-        message: `COMMAND:${command}`,
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
-        if (err) {
-            console.error('Failed to send command:', err);
-            logToCommandTerminal('Failed to send command', 'error');
-        } else {
-            logToCommandTerminal(`> ${command}`, 'command');
-        }
-    });
+  const timestamp = new Date().toISOString();
+  const command = `COMMAND:${direction.toUpperCase()}`;
+  
+  // Log to control terminal
+  logToControlTerminal(`Movement ${direction.toUpperCase()}`);
+  
+  // Create message in the same format as HMIESP32.C
+  const msg = {
+    type: "command",
+    message: command,
+    timestamp: timestamp
+  };
+
+  // Add to command terminal
+  logToCommandTerminal(command);
+
+  // Send via MQTT
+  if (client && client.connected) {
+    client.publish("usf/logs/command", JSON.stringify(msg));
+  }
 }
 
+// Modify the stopAction function to include logging
 function stopAction() {
-    if (!client) {
-        showMessage('MQTT client not connected', 'error');
-        return;
-    }
-    
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:STOP',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
-        if (err) {
-            console.error('Failed to send stop command:', err);
-            logToCommandTerminal('Failed to send stop command', 'error');
-        } else {
-            logToCommandTerminal('> STOP', 'command');
-        }
-    });
+  const timestamp = new Date().toISOString();
+  const command = "COMMAND:STOP";
+  
+  // Log to control terminal
+  logToControlTerminal('Movement STOP');
+  
+  // Create message in the same format as HMIESP32.C
+  const msg = {
+    type: "command",
+    message: command,
+    timestamp: timestamp
+  };
+
+  // Add to command terminal
+  logToCommandTerminal(command);
+
+  // Send via MQTT
+  if (client && client.connected) {
+    client.publish("usf/logs/command", JSON.stringify(msg));
+  }
 }
 
+// Modify the applyBrake function to include logging
 function applyBrake() {
-    if (!client) {
-        showMessage('MQTT client not connected', 'error');
-        return;
-    }
-    
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:BRAKE',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
-        if (err) {
-            console.error('Failed to send brake command:', err);
-            logToCommandTerminal('Failed to send brake command', 'error');
-        } else {
-            logToCommandTerminal('> BRAKE', 'command');
-        }
-    });
+  const timestamp = new Date().toISOString();
+  const command = "COMMAND:BRAKE";
+  
+  // Log to control terminal
+  logToControlTerminal('BRAKE APPLIED');
+  
+  // Create message in the same format as HMIESP32.C
+  const msg = {
+    type: "command",
+    message: command,
+    timestamp: timestamp
+  };
+
+  // Add to command terminal
+  logToCommandTerminal(command);
+
+  // Send via MQTT
+  if (client && client.connected) {
+    client.publish("usf/logs/command", JSON.stringify(msg));
+  }
 }
 
+// Modify the releaseBrake function to include logging
 function releaseBrake() {
-    if (!client) {
-        showMessage('MQTT client not connected', 'error');
-        return;
+  const timestamp = new Date().toISOString();
+  const command = "COMMAND:RELEASE";
+  
+  // Log to control terminal
+  logToControlTerminal('BRAKE RELEASED');
+  
+  // Create message in the same format as HMIESP32.C
+  const msg = {
+    type: "command",
+    message: command,
+    timestamp: timestamp
+  };
+
+  // Add to command terminal
+  logToCommandTerminal(command);
+
+  // Send via MQTT
+  if (client && client.connected) {
+    client.publish("usf/logs/command", JSON.stringify(msg));
+  }
+}
+
+// Add MQTT message handler for control responses
+client.on('message', function(topic, message) {
+  try {
+    const msg = JSON.parse(message.toString());
+    
+    // Handle control responses
+    if (topic === "usf/logs/command" && msg.type === "command") {
+      // Log command responses to control terminal
+      logToControlTerminal(msg.message, 'received');
     }
     
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:RELEASE',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
-        if (err) {
-            console.error('Failed to send release command:', err);
-            logToCommandTerminal('Failed to send release command', 'error');
-        } else {
-            logToCommandTerminal('> RELEASE', 'command');
-        }
-    });
-}
+    // ... existing message handling code ...
+  } catch (error) {
+    console.error('Error processing MQTT message:', error);
+  }
+});
 
 // Add styles for control buttons
-document.head.querySelector('style').textContent += `
+const controlStyles = document.createElement('style');
+controlStyles.textContent = `
     .control-buttons {
         display: flex;
         flex-direction: column;
@@ -1658,3 +1696,241 @@ document.head.querySelector('style').textContent += `
     .control-btn:nth-child(4):hover { background-color: #f57c00; }
     .control-btn:nth-child(5):hover { background-color: #388E3C; }
 `;
+document.head.appendChild(controlStyles);
+
+// Add functions to handle control terminal buttons
+function clearControlTerminal() {
+    const terminal = document.getElementById('controlTerminal');
+    if (terminal) {
+        terminal.textContent = 'Waiting for control actions...\n';
+    }
+}
+
+function exportControlTerminal() {
+    const terminal = document.getElementById('controlTerminal');
+    if (!terminal) return;
+    
+    const content = terminal.textContent;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `control-log-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function emailControlTerminal() {
+    const terminal = document.getElementById('controlTerminal');
+    if (!terminal) return;
+    
+    const content = terminal.textContent;
+    const templateParams = {
+        to_email: document.getElementById('emailInput').value,
+        subject: 'VPL Control Terminal Log',
+        message: content
+    };
+    
+    emailjs.send('service_lsa1r4i', 'template_vnrbr1d', templateParams)
+        .then(function(response) {
+            showMessage('Control terminal log sent successfully!', 'success');
+        }, function(error) {
+            showMessage('Failed to send control terminal log: ' + error, 'error');
+        });
+}
+
+/**
+ * Initializes the control terminal functionality including clear, export, and email features
+ */
+function initializeControlTerminal() {
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (!controlTerminal) {
+        console.error('Control terminal element not found');
+        return;
+    }
+
+    // Get modal elements
+    const modal = document.getElementById('emailModal');
+    const closeBtn = modal.querySelector('.close');
+    const emailForm = document.getElementById('emailForm');
+    const logContentInput = document.getElementById('logContent');
+
+    // Clear button handler
+    const clearButton = document.querySelector('[data-action="clear-control"]');
+    if (clearButton) {
+        clearButton.addEventListener('click', () => {
+            controlTerminal.innerHTML = '';
+        });
+    }
+
+    // Export button handler
+    const exportButton = document.querySelector('[data-action="export-control"]');
+    if (exportButton) {
+        exportButton.addEventListener('click', () => {
+            const entries = Array.from(controlTerminal.children).map(entry => entry.textContent);
+            const content = entries.join('\n');
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `control-terminal-log-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+    }
+
+    // Email button handler
+    const emailButton = document.querySelector('[data-action="email-control"]');
+    if (emailButton) {
+        emailButton.addEventListener('click', () => {
+            const entries = Array.from(controlTerminal.children).map(entry => entry.textContent);
+            const content = entries.join('\n');
+            logContentInput.value = content;
+            modal.style.display = 'block';
+        });
+    }
+
+    // Close modal when clicking the close button
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // Handle email form submission
+    emailForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const emailInput = document.getElementById('emailInput');
+        const logContent = logContentInput.value;
+
+        try {
+            const response = await emailjs.send('service_lsa1r4i', 'template_vnrbr1d', {
+                to_email: emailInput.value,
+                message: logContent,
+                subject: `Control Terminal Log - ${new Date().toLocaleDateString()}`
+            });
+
+            if (response.status === 200) {
+                alert('Log sent successfully!');
+                modal.style.display = 'none';
+                emailForm.reset();
+            } else {
+                throw new Error('Failed to send email');
+            }
+        } catch (error) {
+            console.error('Error sending email:', error);
+            alert('Failed to send email. Please try again.');
+        }
+    });
+}
+
+/**
+ * Appends a message to the control terminal with timestamp
+ * @param {string} message - The message to append
+ * @param {string} type - The type of message ('command' or 'response')
+ */
+function appendToControlTerminal(message, type = 'command') {
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (!controlTerminal) return;
+
+    const timestamp = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `terminal-entry ${type}`;
+    entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+    controlTerminal.appendChild(entry);
+    controlTerminal.scrollTop = controlTerminal.scrollHeight;
+}
+
+/**
+ * Handles incoming MQTT messages for the control terminal
+ * @param {string} topic - The MQTT topic
+ * @param {string} message - The message content
+ */
+function handleControlMessage(topic, message) {
+    if (topic === 'usf/logs/command') {
+        try {
+            const msgObj = JSON.parse(message.toString());
+            appendToControlTerminal(msgObj.message, 'command');
+        } catch (e) {
+            appendToControlTerminal(message.toString(), 'command');
+        }
+    }
+}
+
+// Add styles for the control terminal
+const controlTerminalStyles = document.createElement('style');
+controlTerminalStyles.textContent = `
+    #controlTerminal {
+        height: 300px;
+        overflow-y: auto;
+        background-color: #1e1e1e;
+        color: #fff;
+        font-family: 'Courier New', monospace;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
+    .terminal-entry {
+        margin: 4px 0;
+        line-height: 1.4;
+    }
+
+    .terminal-entry.command {
+        color: #4CAF50;
+    }
+
+    .terminal-entry.response {
+        color: #2196F3;
+    }
+
+    .terminal-entry .timestamp {
+        color: #888;
+        margin-right: 8px;
+    }
+
+    .terminal-container .button-group {
+        margin-bottom: 10px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .terminal-container button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        background-color: #333;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .terminal-container button:hover {
+        background-color: #444;
+    }
+
+    .terminal-container button:active {
+        background-color: #555;
+    }
+
+    .terminal-container button.clear {
+        background-color: #f44336;
+    }
+
+    .terminal-container button.export {
+        background-color: #2196F3;
+    }
+
+    .terminal-container button.email {
+        background-color: #4CAF50;
+    }
+`;
+
+document.head.appendChild(controlTerminalStyles);

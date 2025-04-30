@@ -668,6 +668,9 @@
       const addPhoneBtn = document.getElementById('addPhoneBtn');
       const phoneValidationMsg = document.getElementById('phoneValidationMsg');
       const smsAlertEnabled = document.getElementById('smsAlertEnabled');
+      const testSmsBtn = document.getElementById('testSmsBtn');
+      const testAlertStatus = document.getElementById('testAlertStatus');
+      const phoneList = document.getElementById('phoneList');
 
       // Load saved phone numbers
       const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
@@ -726,6 +729,60 @@
           localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
         });
       }
+
+      // Test SMS button click handler
+      if (testSmsBtn) {
+        testSmsBtn.addEventListener('click', async () => {
+          if (!smsAlertEnabled.checked) {
+            testAlertStatus.textContent = 'Please enable SMS alerts first';
+            testAlertStatus.style.color = '#ff4444';
+            return;
+          }
+
+          const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+            .map(span => span.textContent);
+          
+          if (phones.length === 0) {
+            testAlertStatus.textContent = 'Please add at least one phone number';
+            testAlertStatus.style.color = '#ff4444';
+            return;
+          }
+
+          testSmsBtn.disabled = true;
+          testAlertStatus.textContent = 'Sending test SMS...';
+          testAlertStatus.style.color = '#2196F3';
+
+          try {
+            const response = await fetch('/api/send-sms', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                phones: phones,
+                message: 'This is a test SMS to verify your alert configuration.',
+                timestamp: new Date().toLocaleString()
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to send SMS');
+            }
+
+            testAlertStatus.textContent = 'Test SMS sent successfully!';
+            testAlertStatus.style.color = '#4CAF50';
+          } catch (error) {
+            console.error('Failed to send test SMS:', error);
+            testAlertStatus.textContent = 'Failed to send test SMS. Please try again.';
+            testAlertStatus.style.color = '#ff4444';
+          } finally {
+            testSmsBtn.disabled = false;
+            setTimeout(() => {
+              testAlertStatus.textContent = '';
+            }, 5000);
+          }
+        });
+      }
     });
 
     // Function to send SMS alerts using Twilio
@@ -763,58 +820,6 @@
         console.error('Failed to send SMS alert:', error);
       }
     }
-
-    // Test SMS button click handler
-    testSmsBtn.addEventListener('click', async () => {
-      if (!smsAlertEnabled.checked) {
-        testAlertStatus.textContent = 'Please enable SMS alerts first';
-        testAlertStatus.style.color = '#ff4444';
-        return;
-      }
-
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      
-      if (phones.length === 0) {
-        testAlertStatus.textContent = 'Please add at least one phone number';
-        testAlertStatus.style.color = '#ff4444';
-        return;
-      }
-
-      testSmsBtn.disabled = true;
-      testAlertStatus.textContent = 'Sending test SMS...';
-      testAlertStatus.style.color = '#2196F3';
-
-      try {
-        const response = await fetch('/api/send-sms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            phones: phones,
-            message: 'This is a test SMS to verify your alert configuration.',
-            timestamp: new Date().toLocaleString()
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to send SMS');
-        }
-
-        testAlertStatus.textContent = 'Test SMS sent successfully!';
-        testAlertStatus.style.color = '#4CAF50';
-      } catch (error) {
-        console.error('Failed to send test SMS:', error);
-        testAlertStatus.textContent = 'Failed to send test SMS. Please try again.';
-        testAlertStatus.style.color = '#ff4444';
-      } finally {
-        testSmsBtn.disabled = false;
-        setTimeout(() => {
-          testAlertStatus.textContent = '';
-        }, 5000);
-      }
-    });
 
     // Add handler for email alerts
     client.on('message', function(topic, message) {

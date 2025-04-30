@@ -1229,15 +1229,31 @@ async function sendTestEmail() {
     }
 }
 
-/**
- * Sends an SMS alert using the Netlify Function
- * @param {string[]} phones - Array of phone numbers to send the SMS to
- * @param {string} message - The message to send
- * @returns {Promise<void>}
- */
+// Debug logging function
+function logSMSDebug(message, data = null) {
+    const debugLog = document.getElementById('smsDebugLog');
+    const timestamp = new Date().toLocaleTimeString();
+    let logMessage = `[${timestamp}] ${message}`;
+    if (data) {
+        logMessage += '\n' + JSON.stringify(data, null, 2);
+    }
+    debugLog.textContent = logMessage + '\n\n' + debugLog.textContent;
+    document.getElementById('smsDebugInfo').style.display = 'block';
+}
+
 async function sendSMS(phones, message) {
+    logSMSDebug('Starting SMS send process', { phones, message });
+    
     try {
-        console.log('Sending SMS to:', phones);
+        // Validate inputs
+        if (!phones || phones.length === 0) {
+            throw new Error('No phone numbers provided');
+        }
+        if (!message) {
+            throw new Error('No message provided');
+        }
+
+        logSMSDebug('Making API request to Netlify function');
         const response = await fetch('/.netlify/functions/send-sms', {
             method: 'POST',
             headers: {
@@ -1250,66 +1266,98 @@ async function sendSMS(phones, message) {
             })
         });
 
-        console.log('SMS API Response status:', response.status);
+        logSMSDebug('Received response from API', {
+            status: response.status,
+            statusText: response.statusText
+        });
+
         const data = await response.json();
-        console.log('SMS API Response data:', data);
+        logSMSDebug('Parsed response data', data);
         
         if (!response.ok) {
             throw new Error(data.message || `Failed to send SMS: ${response.status} ${response.statusText}`);
         }
 
         showMessage('SMS alert sent successfully', 'success');
+        logSMSDebug('SMS sent successfully');
         return data;
     } catch (error) {
         console.error('Error sending SMS:', error);
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            response: error.response
+        logSMSDebug('Error sending SMS', {
+            error: error.message,
+            stack: error.stack
         });
         showMessage('Failed to send SMS: ' + error.message, 'error');
         throw error;
     }
 }
 
-/**
- * Sends a test SMS to verify SMS alert configuration
- */
-async function sendTestSMS() {
-    const phoneList = document.querySelectorAll('#phoneList .phone-item span');
-    if (phoneList.length === 0) {
-        showMessage('Please add at least one phone number first', 'error');
+function addPhoneSubscriber() {
+    const phoneInput = document.getElementById('phoneInput-main');
+    const phoneNumber = phoneInput.value.trim();
+    
+    logSMSDebug('Adding phone subscriber', { phoneNumber });
+
+    if (!phoneNumber) {
+        showMessage('Please enter a phone number', 'error');
+        logSMSDebug('Error: Empty phone number');
         return;
     }
 
+    // Basic phone number validation
+    const phoneRegex = /^\+?[\d\s-()]{10,}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        showMessage('Please enter a valid phone number (e.g., +1234567890)', 'error');
+        logSMSDebug('Error: Invalid phone number format');
+        return;
+    }
+
+    const phoneList = document.getElementById('phoneList');
+    const existingPhones = Array.from(phoneList.children).map(item => 
+        item.textContent.split(' ')[0]
+    );
+
+    if (existingPhones.includes(phoneNumber)) {
+        showMessage('This phone number is already in the list', 'error');
+        logSMSDebug('Error: Duplicate phone number');
+        return;
+    }
+
+    const phoneItem = document.createElement('div');
+    phoneItem.className = 'phone-item';
+    phoneItem.innerHTML = `
+        ${phoneNumber}
+        <button onclick="this.parentElement.remove()">Remove</button>
+    `;
+    phoneList.appendChild(phoneItem);
+    phoneInput.value = '';
+
+    logSMSDebug('Phone subscriber added successfully', { phoneNumber });
+    showMessage('Phone number added successfully', 'success');
+}
+
+async function sendTestSMS() {
+    logSMSDebug('Starting test SMS process');
+    
+    const phoneList = document.getElementById('phoneList');
+    const phones = Array.from(phoneList.children).map(item => 
+        item.textContent.split(' ')[0].trim()
+    );
+
+    logSMSDebug('Collected phone numbers', { phones });
+
+    if (phones.length === 0) {
+        showMessage('Please add at least one phone number', 'error');
+        logSMSDebug('Error: No phone numbers in list');
+        return;
+    }
+
+    const testMessage = 'This is a test SMS from your MQTT Dashboard.';
     try {
-        // Disable the test button while sending
-        const testButton = document.querySelector('#testSMSBtn');
-        if (testButton) {
-            testButton.disabled = true;
-            testButton.textContent = 'Sending...';
-        }
-
-        // Get all phone numbers
-        const phones = Array.from(phoneList).map(el => el.textContent);
-
-        // Send test SMS
-        await sendSMS(
-            phones,
-            "Test Alert: This is a test message from your VPL Monitoring System."
-        );
-
-        showMessage('Test SMS sent successfully!', 'success');
+        await sendSMS(phones, testMessage);
+        logSMSDebug('Test SMS sent successfully');
     } catch (error) {
-        console.error('Failed to send test SMS:', error);
-        showMessage('Failed to send test SMS: ' + error.message, 'error');
-    } finally {
-        // Re-enable the test button
-        const testButton = document.querySelector('#testSMSBtn');
-        if (testButton) {
-            testButton.disabled = false;
-            testButton.textContent = 'Send Test SMS';
-        }
+        logSMSDebug('Failed to send test SMS', { error: error.message });
     }
 }
 
@@ -1346,33 +1394,6 @@ async function loadPhoneSubscribers() {
     } catch (error) {
         console.error('Error loading phone numbers:', error);
         showMessage(t('errorLoadingPhones'), 'error');
-    }
-}
-
-/**
- * Adds a new phone subscriber to Firestore
- */
-async function addPhoneSubscriber() {
-    const phoneInput = document.getElementById('phoneInput');
-    const phone = phoneInput.value.trim();
-    
-    if (!phone) {
-        showMessage(t('enterValidPhone'), 'error');
-        return;
-    }
-
-    try {
-        await phoneCollection.add({
-            phone: phone,
-            createdAt: new Date()
-        });
-        
-        phoneInput.value = '';
-        await loadPhoneSubscribers();
-        showMessage(t('phoneAdded'), 'success');
-    } catch (error) {
-        console.error('Error adding phone:', error);
-        showMessage(t('errorAddingPhone'), 'error');
     }
 }
 

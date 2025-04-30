@@ -223,15 +223,19 @@
               <span>Enable SMS Alerts</span>
             </div>
 
-            <div class="phone-input-section">
-              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
-              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+            <!-- Phone Input Section -->
+            <div class="input-section">
+                <input type="tel" id="phoneInput-main" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+                <button onclick="addPhoneSubscriber()" data-translate="addPhone">Add Phone</button>
             </div>
-            <div id="phoneValidationMsg" class="validation-msg"></div>
+            <div id="phoneList" class="phone-list"></div>
+            <button id="testSmsBtn" class="test-btn" onclick="sendTestSMS()">Send Test SMS</button>
+          </div>
 
-            <div id="phoneList" class="phone-list">
-              <!-- Phone numbers will be added here dynamically -->
-            </div>
+          <!-- Debug Information -->
+          <div id="smsDebugInfo" class="debug-info" style="display: none;">
+              <h4>SMS Debug Information</h4>
+              <pre id="smsDebugLog"></pre>
           </div>
 
           <!-- Common Alert Preferences Section -->
@@ -269,9 +273,9 @@
           <div class="email-alerts">
             <h3 data-translate="emailAlerts">Email Alerts</h3>
             <div id="emailList"></div>
-            <div class="add-email">
-              <input type="email" id="emailInput" data-translate="enterEmail" placeholder="Enter email address">
-              <button onclick="addEmailSubscriber()" data-translate="addEmail">Add Email</button>
+            <div class="email-settings">
+                <input type="email" id="emailInput-settings" data-translate="enterEmail" placeholder="Enter email address">
+                <button onclick="addEmailSubscriber()" data-translate="addEmail">Add Email</button>
             </div>
             <button id="testEmailBtn" data-translate="sendTestEmail">Send Test Email</button>
           </div>
@@ -296,10 +300,10 @@
     <!-- Email Modal -->
     <div id="emailModal" class="modal hidden">
       <div class="modal-content">
-        <h3 data-translate="emailModalTitle">Send Log via Email</h3>
-        <input type="email" id="emailInput" placeholder="Enter email address" data-translate="emailPlaceholder">
-        <div class="modal-buttons">
-          <button data-action="send-email" data-translate="sendEmail">Send</button>
+        <h3 data-translate="sendEmailLog">Send Log via Email</h3>
+        <input type="email" id="emailInput-modal" data-translate="enterEmail" placeholder="Enter email address">
+        <div class="button-group">
+          <button data-action="send-email" data-translate="send">Send</button>
           <button data-action="close-modal" data-translate="cancel">Cancel</button>
         </div>
       </div>
@@ -550,7 +554,7 @@
     }
 
     // SMS Alert Management
-    const phoneInput = document.getElementById('phoneInput');
+    const phoneInput = document.getElementById('phoneInput-main');
     const addPhoneBtn = document.getElementById('addPhoneBtn');
     const phoneList = document.getElementById('phoneList');
     const phoneValidationMsg = document.getElementById('phoneValidationMsg');
@@ -886,25 +890,25 @@
       border-radius: 4px;
     }
 
-    .modal-buttons {
+    .button-group {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
     }
 
-    .modal-buttons button {
+    .button-group button {
       padding: 8px 16px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
 
-    .modal-buttons button[data-action="send-email"] {
+    .button-group button[data-action="send-email"] {
       background-color: #4CAF50;
       color: white;
     }
 
-    .modal-buttons button[data-action="close-modal"] {
+    .button-group button[data-action="close-modal"] {
       background-color: #f44336;
       color: white;
     }

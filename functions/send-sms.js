@@ -1,109 +1,132 @@
 const twilio = require('twilio');
 
-// Initialize Twilio client with environment variables
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
 exports.handler = async function(event, context) {
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ message: 'Method Not Allowed' })
+    console.log('SMS Function Started', {
+        method: event.httpMethod,
+        headers: event.headers
+    });
+
+    // Only allow POST requests
+    if (event.httpMethod !== 'POST') {
+        console.log('Method Not Allowed:', event.httpMethod);
+        return {
+            statusCode: 405,
+            body: JSON.stringify({ 
+                error: 'Method Not Allowed',
+                message: 'Only POST requests are allowed'
+            })
+        };
+    }
+
+    // Check environment variables
+    const envCheck = {
+        TWILIO_ACCOUNT_SID: !!process.env.TWILIO_ACCOUNT_SID,
+        TWILIO_AUTH_TOKEN: !!process.env.TWILIO_AUTH_TOKEN,
+        TWILIO_PHONE_NUMBER: !!process.env.TWILIO_PHONE_NUMBER
     };
-  }
 
-  try {
-    // Log environment variable presence (not their values)
-    console.log('Environment variables check:', {
-      hasSID: !!process.env.TWILIO_ACCOUNT_SID,
-      hasToken: !!process.env.TWILIO_AUTH_TOKEN,
-      hasPhone: !!process.env.TWILIO_PHONE_NUMBER
-    });
-
-    const data = JSON.parse(event.body);
-    const { phones, message, timestamp } = data;
-
-    console.log('Received request:', {
-      numberOfPhones: phones?.length,
-      hasMessage: !!message,
-      timestamp
-    });
-
-    if (!phones || !Array.isArray(phones) || phones.length === 0) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: 'No phone numbers provided' })
-      };
-    }
-
-    if (!message) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: 'No message provided' })
-      };
-    }
+    console.log('Environment Variables Check:', envCheck);
 
     if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ 
-          message: 'Twilio configuration missing',
-          details: {
-            hasSID: !!process.env.TWILIO_ACCOUNT_SID,
-            hasToken: !!process.env.TWILIO_AUTH_TOKEN,
-            hasPhone: !!process.env.TWILIO_PHONE_NUMBER
-          }
-        })
-      };
+        console.error('Missing Required Environment Variables');
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                error: 'Configuration Error',
+                message: 'Missing required Twilio configuration. Please check environment variables.',
+                missing: Object.keys(envCheck).filter(key => !envCheck[key])
+            })
+        };
     }
 
-    // Send SMS to each phone number
-    const results = await Promise.all(
-      phones.map(phone => 
-        client.messages.create({
-          body: `${message}\nTimestamp: ${timestamp}`,
-          to: phone,
-          from: process.env.TWILIO_PHONE_NUMBER
-        })
-      )
-    );
+    try {
+        // Initialize Twilio client
+        console.log('Initializing Twilio client');
+        const client = twilio(
+            process.env.TWILIO_ACCOUNT_SID,
+            process.env.TWILIO_AUTH_TOKEN
+        );
 
-    console.log('SMS sent successfully:', {
-      numberOfMessages: results.length,
-      messageIds: results.map(r => r.sid)
-    });
+        // Parse request body
+        console.log('Parsing request body');
+        const data = JSON.parse(event.body);
+        console.log('Received data:', {
+            numberOfPhones: data.phones?.length,
+            hasMessage: !!data.message,
+            timestamp: data.timestamp
+        });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        message: 'SMS sent successfully',
-        results: results.map(r => r.sid)
-      })
-    };
-  } catch (error) {
-    console.error('Error sending SMS:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      status: error.status,
-      moreInfo: error.moreInfo
-    });
-
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ 
-        message: 'Error sending SMS',
-        error: {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          status: error.status,
-          moreInfo: error.moreInfo
+        if (!data.phones || !data.message) {
+            console.error('Invalid request data');
+            return {
+                statusCode: 400,
+                body: JSON.stringify({
+                    error: 'Invalid Request',
+                    message: 'Both phones and message are required',
+                    received: {
+                        hasPhones: !!data.phones,
+                        hasMessage: !!data.message
+                    }
+                })
+            };
         }
-      })
-    };
-  }
+
+        // Send SMS to each phone number
+        console.log('Starting to send messages');
+        const results = await Promise.all(data.phones.map(async (phone) => {
+            try {
+                console.log('Sending SMS to:', phone);
+                const message = await client.messages.create({
+                    body: data.message,
+                    to: phone,
+                    from: process.env.TWILIO_PHONE_NUMBER
+                });
+                console.log('SMS sent successfully to:', phone, 'SID:', message.sid);
+                return {
+                    phone,
+                    status: 'success',
+                    sid: message.sid
+                };
+            } catch (error) {
+                console.error('Error sending to:', phone, error.message);
+                return {
+                    phone,
+                    status: 'error',
+                    error: error.message
+                };
+            }
+        }));
+
+        const failures = results.filter(r => r.status === 'error');
+        if (failures.length > 0) {
+            console.warn('Some messages failed to send:', failures);
+            return {
+                statusCode: 207,
+                body: JSON.stringify({
+                    message: 'Some messages failed to send',
+                    results: results
+                })
+            };
+        }
+
+        console.log('All messages sent successfully');
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'All messages sent successfully',
+                results: results
+            })
+        };
+
+    } catch (error) {
+        console.error('Function error:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                error: 'Server Error',
+                message: error.message,
+                details: error.stack
+            })
+        };
+    }
 }; 

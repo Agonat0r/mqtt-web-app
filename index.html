@@ -226,7 +226,7 @@
             <!-- Phone Input Section -->
             <div class="input-section">
                 <input type="tel" id="phoneInput-main" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
-                <button onclick="addPhoneSubscriber()">Add Phone</button>
+                <button id="addPhoneBtn">Add Phone</button>
             </div>
             <div id="phoneList" class="phone-list"></div>
             <button id="testSmsBtn" onclick="sendTestSMS()">Send Test SMS</button>
@@ -601,9 +601,12 @@
       localStorage.setItem('smsAlerts', JSON.stringify(phones));
     }
 
-    // Add phone button click handler
-    addPhoneBtn.addEventListener('click', () => {
+    // Add phone subscriber function
+    function addPhoneSubscriber() {
+      const phoneInput = document.getElementById('phoneInput-main');
+      const phoneValidationMsg = document.getElementById('phoneValidationMsg');
       const phone = phoneInput.value.trim();
+
       if (!phone) {
         phoneValidationMsg.textContent = 'Please enter a phone number';
         phoneValidationMsg.style.color = '#ff4444';
@@ -615,7 +618,7 @@
         return;
       }
       
-      const existingPhones = Array.from(phoneList.querySelectorAll('.phone-text'))
+      const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
         .map(span => span.textContent);
       if (existingPhones.includes(phone)) {
         phoneValidationMsg.textContent = 'This phone number is already in the list';
@@ -630,7 +633,10 @@
       setTimeout(() => {
         phoneValidationMsg.textContent = '';
       }, 3000);
-    });
+    }
+
+    // Add phone button click handler
+    document.getElementById('addPhoneBtn').addEventListener('click', addPhoneSubscriber);
 
     // Save SMS alert enabled state
     smsAlertEnabled.addEventListener('change', () => {

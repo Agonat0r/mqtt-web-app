@@ -58,9 +58,9 @@
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
             <pre id="messageLog" class="terminal"></pre>
             <div class="terminal-controls">
-              <button onclick="clearLog('messageLog')" data-translate="clearLog">Clear Log</button>
-              <button data-action="export-log" data-target="messageLog" data-translate="exportLog">Export Log</button>
-              <button data-action="email-log" data-target="messageLog" data-translate="emailLog">Email Log</button>
+              <button onclick="clearTerminal('messageLog')" class="btn btn-danger">Clear Log</button>
+              <button onclick="exportLog('messageLog')" class="btn btn-success">Export Log</button>
+              <button onclick="emailLog('messageLog')" class="btn btn-success">Email Log</button>
             </div>
           </div>
 
@@ -70,9 +70,9 @@
             <pre id="command-log" class="terminal"></pre>
             <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
             <div class="terminal-controls">
-              <button onclick="clearLog('command-log')" data-translate="clearLog">Clear Log</button>
-              <button data-action="export-log" data-target="command-log" data-translate="exportLog">Export Log</button>
-              <button data-action="email-log" data-target="command-log" data-translate="emailLog">Email Log</button>
+              <button onclick="clearTerminal('command-log')" class="btn btn-danger">Clear Log</button>
+              <button onclick="exportLog('command-log')" class="btn btn-success">Export Log</button>
+              <button onclick="emailLog('command-log')" class="btn btn-success">Email Log</button>
             </div>
           </div>
         </div>
@@ -702,9 +702,51 @@
         }
     });
 
-    // Add this function to handle clearing logs
-    function clearLog(elementId) {
-      document.getElementById(elementId).textContent = '';
+    // Function to clear terminal logs
+    function clearTerminal(elementId) {
+      const terminal = document.getElementById(elementId);
+      if (terminal) {
+        terminal.innerHTML = '';
+        // Add initial message based on terminal type
+        if (elementId === 'messageLog') {
+          terminal.innerHTML = 'Waiting for messages...\n';
+        } else if (elementId === 'command-log') {
+          terminal.innerHTML = 'Waiting for commands...\n';
+        }
+      }
+    }
+
+    // Function to export log
+    function exportLog(elementId) {
+      const terminal = document.getElementById(elementId);
+      if (terminal) {
+        const content = terminal.innerText;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = elementId + '_export.txt';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    }
+
+    // Function to email log
+    function emailLog(elementId) {
+      const terminal = document.getElementById(elementId);
+      if (terminal) {
+        const content = terminal.innerText;
+        // Show email modal
+        const emailModal = document.getElementById('emailModal');
+        if (emailModal) {
+          emailModal.classList.remove('hidden');
+          // Store the log content and terminal ID for use when sending
+          emailModal.dataset.content = content;
+          emailModal.dataset.sourceId = elementId;
+        }
+      }
     }
   </script>
 

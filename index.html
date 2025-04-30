@@ -631,31 +631,24 @@
       }
     }
 
-    // SMS Alert Management
-    const phoneInput = document.getElementById('phoneInput');
-    const addPhoneBtn = document.getElementById('addPhoneBtn');
-    const phoneList = document.getElementById('phoneList');
-    const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
-    const testSmsBtn = document.getElementById('testSmsBtn');
-    const testAlertStatus = document.getElementById('testAlertStatus');
-
-    // Load saved SMS settings
-    window.addEventListener('load', () => {
-      const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
-      savedPhones.forEach(phone => addPhoneToList(phone));
-      
-      const smsEnabled = localStorage.getItem('smsAlertEnabled') === 'true';
-      smsAlertEnabled.checked = smsEnabled;
-    });
-
-    // Phone number validation function
-    function isValidPhone(phone) {
-      return /^\+[1-9]\d{1,14}$/.test(phone);
+    // Move these functions to the global scope
+    window.isValidPhone = function(phone) {
+      return /^\+?[1-9]\d{1,14}$/.test(phone);
     }
 
-    // Add phone to the list
-    function addPhoneToList(phone, carrier) {
+    window.removePhone = function(button) {
+      button.parentElement.remove();
+      savePhones();
+    }
+
+    window.savePhones = function() {
+      const phoneList = document.getElementById('phoneList');
+      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+        .map(span => span.textContent);
+      localStorage.setItem('smsAlerts', JSON.stringify(phones));
+    }
+
+    window.addPhoneToList = function(phone, carrier) {
       const phoneList = document.getElementById('phoneList');
       const phoneItem = document.createElement('div');
       phoneItem.className = 'phone-item';
@@ -668,57 +661,71 @@
       savePhones();
     }
 
-    // Remove phone from the list
-    function removePhone(button) {
-      button.parentElement.remove();
-      savePhones();
-    }
-
-    // Save phones to localStorage
-    function savePhones() {
-      const phoneList = document.getElementById('phoneList');
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      localStorage.setItem('smsAlerts', JSON.stringify(phones));
-    }
-
     // Add phone button click handler
-    addPhoneBtn.addEventListener('click', () => {
-      const phone = phoneInput.value.trim();
-      const carrier = document.getElementById('carrierSelect').value;
-      
-      if (!phone) {
-        phoneValidationMsg.textContent = 'Please enter a phone number';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      
-      if (!isValidPhone(phone)) {
-        phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      
-      const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      if (existingPhones.includes(phone)) {
-        phoneValidationMsg.textContent = 'This phone number is already in the list';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
+    document.addEventListener('DOMContentLoaded', function() {
+      const phoneInput = document.getElementById('phoneInput');
+      const carrierSelect = document.getElementById('carrierSelect');
+      const addPhoneBtn = document.getElementById('addPhoneBtn');
+      const phoneValidationMsg = document.getElementById('phoneValidationMsg');
+      const smsAlertEnabled = document.getElementById('smsAlertEnabled');
+
+      // Load saved phone numbers
+      const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
+      savedPhones.forEach(phone => {
+        const carrier = localStorage.getItem(`carrier_${phone}`) || 'Unknown';
+        addPhoneToList(phone, carrier);
+      });
+
+      // Load SMS alert enabled state
+      const smsEnabled = localStorage.getItem('smsAlertEnabled') === 'true';
+      if (smsAlertEnabled) {
+        smsAlertEnabled.checked = smsEnabled;
       }
 
-      addPhoneToList(phone, carrier);
-      phoneInput.value = '';
-      phoneValidationMsg.textContent = 'Phone number added successfully';
-      phoneValidationMsg.style.color = '#4CAF50';
-      setTimeout(() => {
-        phoneValidationMsg.textContent = '';
-      }, 3000);
-    });
+      if (addPhoneBtn) {
+        addPhoneBtn.addEventListener('click', function() {
+          const phone = phoneInput.value.trim();
+          const carrier = carrierSelect.value;
+          
+          if (!phone) {
+            phoneValidationMsg.textContent = 'Please enter a phone number';
+            phoneValidationMsg.style.color = '#ff4444';
+            return;
+          }
+          
+          if (!isValidPhone(phone)) {
+            phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
+            phoneValidationMsg.style.color = '#ff4444';
+            return;
+          }
+          
+          const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
+            .map(span => span.textContent);
+          if (existingPhones.includes(phone)) {
+            phoneValidationMsg.textContent = 'This phone number is already in the list';
+            phoneValidationMsg.style.color = '#ff4444';
+            return;
+          }
 
-    // Save SMS alert enabled state
-    smsAlertEnabled.addEventListener('change', () => {
-      localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
+          // Save carrier preference
+          localStorage.setItem(`carrier_${phone}`, carrier);
+          
+          addPhoneToList(phone, carrier);
+          phoneInput.value = '';
+          phoneValidationMsg.textContent = 'Phone number added successfully';
+          phoneValidationMsg.style.color = '#4CAF50';
+          setTimeout(() => {
+            phoneValidationMsg.textContent = '';
+          }, 3000);
+        });
+      }
+
+      // Save SMS alert enabled state
+      if (smsAlertEnabled) {
+        smsAlertEnabled.addEventListener('change', function() {
+          localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
+        });
+      }
     });
 
     // Function to send SMS alerts using Twilio

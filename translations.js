@@ -6,20 +6,25 @@ export const translations = {
     username: "Username",
     password: "Password",
     loginButton: "Login",
-    invalidCredentials: "❌ Invalid credentials",
+    loginSuccess: "Login successful",
+    loginError: "Login failed",
+    invalidCredentials: "Invalid username or password",
+    enterCredentials: "Please enter username and password",
 
     // Navigation
     dashboard: "VPL Monitoring Dashboard",
     status: "Status",
     general: "General",
+    controls: "Controls",
     commands: "Commands",
     alerts: "Alerts",
     customization: "Customization",
+    emailAlerts: "Email Alerts",
 
     // Status Panel
-    liftSystemStatus: "Lift System Status",
     connectionStatus: "Connection Status",
     notConnected: "Not Connected",
+    connected: "Connected",
     lastUpdate: "Last Update",
     never: "Never",
     vplState: "VPL State",
@@ -30,64 +35,79 @@ export const translations = {
 
     // Console
     generalConsole: "General Terminal",
-    terminal: "🖥️ Terminal",
     commandConsole: "Command Terminal",
-    alertConsole: "Alert Console",
+    alertConsole: "Alert Terminal",
+    clearTerminal: "Clear",
+    exportLog: "Export",
+    emailLog: "Email",
     waitingMessages: "Waiting for messages...",
-    terminalInitialized: "[Terminal Initialized]",
     waitingCommands: "Waiting for commands...",
     waitingAlerts: "Waiting for alerts...",
-    typeCommand: "Type a command...",
+    typeCommand: "Type a command and press Enter",
 
     // Customization
-    theme: "Theme:",
+    theme: "Theme",
     themeDefault: "Default Theme",
     themeDark: "Dark Theme",
     themeUsf: "USF Theme",
-    font: "Font:",
+    font: "Font",
     fontDefault: "Default Font",
     fontMonospace: "Monospace",
     fontSansSerif: "Sans Serif",
     showBorders: "Show Borders",
     reset: "Reset to Default",
+    languageChanged: "Language changed successfully",
+    themeChanged: "Theme changed successfully",
+
+    // Email Alerts
+    emailSettings: "Email Settings",
+    enterEmail: "Enter email address",
+    addEmail: "Add Email",
+    remove: "Remove",
+    invalidEmail: "Invalid email address",
+    emailAdded: "Email added successfully",
+    emailRemoved: "Email removed successfully",
+    errorAddingEmail: "Error adding email",
+    errorRemovingEmail: "Error removing email",
+    errorLoadingEmails: "Error loading emails",
+    sending: "Sending...",
+    sendEmail: "Send Email",
+    emailSent: "Email sent successfully",
+    emailError: "Failed to send email",
+    logExported: "Log exported successfully",
+
+    // SMS Alerts
+    smsSettings: "SMS Settings",
+    enterPhone: "Enter phone number",
+    addPhone: "Add Phone",
+    invalidPhone: "Invalid phone number",
+    phoneAdded: "Phone number added successfully",
+    phoneRemoved: "Phone number removed successfully",
+    errorAddingPhone: "Error adding phone number",
+    errorRemovingPhone: "Error removing phone number",
+    errorLoadingPhones: "Error loading phone numbers",
+    sendingSMS: "Sending SMS...",
+    smsSent: "SMS sent successfully",
+    smsError: "Failed to send SMS",
 
     // Language
     language: "Language:",
     languageChanged: "Language updated",
 
     // Logs and Email
-    clearTerminal: "Clear Terminal",
-    exportLog: "Export Log",
-    emailLog: "Email Log",
-    logExported: "Log exported successfully",
-    enterEmail: "Enter email address...",
-    sendEmail: "Send",
-    cancel: "Cancel",
-    emailSent: "Email sent successfully",
-    emailError: "Error sending email",
     logCleared: "Log cleared",
 
     // Connection Status
-    connected: "✅ Connected to MQTT broker",
     subscribed: "🔔 Subscribed to topic: ",
     mqttError: "❌ MQTT Error: ",
     reconnecting: "🔁 Reconnecting...",
 
     phoneAlerts: "Phone Alerts",
-    enterPhone: "Enter phone number",
-    addPhone: "Add Phone",
-    sendTestSMS: "Send Test SMS",
-    phoneAdded: "Phone number added successfully",
-    phoneRemoved: "Phone number removed",
-    errorAddingPhone: "Error adding phone number",
-    errorRemovingPhone: "Error removing phone number",
-    errorLoadingPhones: "Error loading phone numbers",
     enterValidPhone: "Please enter a valid phone number",
 
     emailModalTitle: "Send Log via Email",
     emailPlaceholder: "Enter email address",
     sending: "Sending...",
-    invalidEmail: "Please enter a valid email address",
     enterEmailAddress: "Please enter an email address"
   },
   de: {
@@ -171,7 +191,7 @@ export const translations = {
   },
   es: {
     // Login
-    loginTitle: "🔐 Inicio de Sesión MQTT USF Harmar",
+    loginTitle: "🔐 USF Harmar MQTT Inicio de Sesión",
     username: "Usuario",
     password: "Contraseña",
     loginButton: "Iniciar Sesión",
@@ -261,7 +281,7 @@ export const translations = {
   },
   fr: {
     // Login
-    loginTitle: "🔐 Connexion MQTT USF Harmar",
+    loginTitle: "🔐 USF Harmar MQTT Connexion",
     username: "Nom d'utilisateur",
     password: "Mot de passe",
     loginButton: "Connexion",

@@ -516,18 +516,26 @@ const messageLog = document.getElementById('messageLog');
 const commandLog = document.getElementById('command-log');
 const terminalInput = document.getElementById('terminal-input');
 
-// Connect to MQTT broker
+// Connect to MQTT broker using MQTT.js
 const client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
     username: brokerConfig.username,
     password: brokerConfig.password,
     clientId: brokerConfig.clientId,
-    clean: true
+    clean: true,
+    rejectUnauthorized: false // Add this if you have SSL certificate issues
 });
 
 // MQTT connection handling
 client.on('connect', () => {
     console.log('Connected to MQTT broker');
     logToTerminal('Connected to MQTT broker', 'success');
+    
+    // Update connection status indicator
+    const statusIndicator = document.getElementById('connectionStatus');
+    if (statusIndicator) {
+        statusIndicator.textContent = 'Connected';
+        statusIndicator.className = 'status-indicator status-connected';
+    }
     
     // Subscribe to all relevant topics
     const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];

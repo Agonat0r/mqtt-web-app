@@ -1518,92 +1518,85 @@ async function removePhoneSubscriber(docId) {
     }
 }
 
-// Control functions for VPL
-function startAction(direction) {
-    if (!client) {
-        showMessage('MQTT client not connected', 'error');
+/**
+ * Logs a message to the control terminal with proper styling
+ * @param {string} message - The message to log
+ * @param {string} type - The type of log ('info', 'error', 'command')
+ */
+function logToControlTerminal(message, type = 'info') {
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (!controlTerminal) {
+        console.error('Control terminal element not found');
         return;
     }
+
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    logEntry.textContent = `[${timestamp}] ${message}`;
     
-    const command = direction.toUpperCase();
-    const payload = {
-        type: 'command',
-        message: `COMMAND:${command}`,
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+    controlTerminal.appendChild(logEntry);
+    controlTerminal.scrollTop = controlTerminal.scrollHeight;
+}
+
+// Update the control functions to use the new log types
+function startAction(direction) {
+    if (!client) {
+        logToControlTerminal('MQTT client not connected. Cannot send command.', 'error');
+        return;
+    }
+
+    const command = direction.toLowerCase();
+    client.publish('usf/logs/command', command, (err) => {
         if (err) {
-            console.error('Failed to send command:', err);
-            logToCommandTerminal('Failed to send command', 'error');
+            logToControlTerminal(`Failed to send ${command} command: ${err}`, 'error');
         } else {
-            logToCommandTerminal(`> ${command}`, 'command');
+            logToControlTerminal(`Sent ${command} command`, 'command');
         }
     });
 }
 
 function stopAction() {
     if (!client) {
-        showMessage('MQTT client not connected', 'error');
+        logToControlTerminal('MQTT client not connected. Cannot send stop command.', 'error');
         return;
     }
-    
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:STOP',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+
+    client.publish('usf/logs/command', 'stop', (err) => {
         if (err) {
-            console.error('Failed to send stop command:', err);
-            logToCommandTerminal('Failed to send stop command', 'error');
+            logToControlTerminal(`Failed to send stop command: ${err}`, 'error');
         } else {
-            logToCommandTerminal('> STOP', 'command');
+            logToControlTerminal('Sent stop command', 'command');
         }
     });
 }
 
 function applyBrake() {
     if (!client) {
-        showMessage('MQTT client not connected', 'error');
+        logToControlTerminal('MQTT client not connected. Cannot apply brake.', 'error');
         return;
     }
-    
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:BRAKE',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+
+    client.publish('usf/logs/command', 'brake', (err) => {
         if (err) {
-            console.error('Failed to send brake command:', err);
-            logToCommandTerminal('Failed to send brake command', 'error');
+            logToControlTerminal(`Failed to apply brake: ${err}`, 'error');
         } else {
-            logToCommandTerminal('> BRAKE', 'command');
+            logToControlTerminal('Applied brake', 'command');
         }
     });
 }
 
 function releaseBrake() {
     if (!client) {
-        showMessage('MQTT client not connected', 'error');
+        logToControlTerminal('MQTT client not connected. Cannot release brake.', 'error');
         return;
     }
-    
-    const payload = {
-        type: 'command',
-        message: 'COMMAND:RELEASE',
-        timestamp: new Date().toISOString()
-    };
-    
-    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+
+    client.publish('usf/logs/command', 'release', (err) => {
         if (err) {
-            console.error('Failed to send release command:', err);
-            logToCommandTerminal('Failed to send release command', 'error');
+            logToControlTerminal(`Failed to release brake: ${err}`, 'error');
         } else {
-            logToCommandTerminal('> RELEASE', 'command');
+            logToControlTerminal('Released brake', 'command');
         }
     });
 }

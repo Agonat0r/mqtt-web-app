@@ -540,3 +540,34 @@ body {
     background-color: #004a80;
     color: white;
 }
+
+#controlTerminal {
+    height: 300px;
+    overflow-y: auto;
+    background: #1e1e1e;
+    color: #fff;
+    padding: 10px;
+    font-family: monospace;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+#controlTerminal .log-entry {
+    padding: 4px 8px;
+    border-radius: 2px;
+    margin: 2px 0;
+}
+
+#controlTerminal .log-entry.info {
+    color: #4CAF50;
+}
+
+#controlTerminal .log-entry.error {
+    color: #f44336;
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+#controlTerminal .log-entry.command {
+    color: #2196F3;
+    background-color: rgba(33, 150, 243, 0.1);
+}

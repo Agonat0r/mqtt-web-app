@@ -130,6 +130,17 @@
           <button onclick="applyBrake()" class="control-btn">APPLY BRAKE</button>
           <button onclick="releaseBrake()" class="control-btn">RELEASE BRAKE</button>
         </div>
+        
+        <!-- Add Control Terminal -->
+        <div class="control-terminal-section">
+          <h3>Control Terminal</h3>
+          <div id="controlTerminal" class="terminal">Waiting for control commands...</div>
+          <div class="terminal-buttons">
+            <button data-action="clearTerminal" data-target="controlTerminal" class="terminal-btn">Clear</button>
+            <button data-action="export-log" data-target="controlTerminal" class="terminal-btn">Export</button>
+            <button data-action="email-log" data-target="controlTerminal" class="terminal-btn">Email</button>
+          </div>
+        </div>
       </div>
 
       <!-- Alerts Tab -->

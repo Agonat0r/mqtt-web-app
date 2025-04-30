@@ -1237,6 +1237,7 @@ async function sendTestEmail() {
  */
 async function sendSMS(phones, message) {
     try {
+        console.log('Sending SMS to:', phones);
         const response = await fetch('/.netlify/functions/send-sms', {
             method: 'POST',
             headers: {
@@ -1249,16 +1250,23 @@ async function sendSMS(phones, message) {
             })
         });
 
+        console.log('SMS API Response status:', response.status);
         const data = await response.json();
+        console.log('SMS API Response data:', data);
         
         if (!response.ok) {
-            throw new Error(data.message || 'Failed to send SMS');
+            throw new Error(data.message || `Failed to send SMS: ${response.status} ${response.statusText}`);
         }
 
         showMessage('SMS alert sent successfully', 'success');
         return data;
     } catch (error) {
         console.error('Error sending SMS:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            response: error.response
+        });
         showMessage('Failed to send SMS: ' + error.message, 'error');
         throw error;
     }

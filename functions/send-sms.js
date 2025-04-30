@@ -16,8 +16,21 @@ exports.handler = async function(event, context) {
   }
 
   try {
+    // Log environment variable presence (not their values)
+    console.log('Environment variables check:', {
+      hasSID: !!process.env.TWILIO_ACCOUNT_SID,
+      hasToken: !!process.env.TWILIO_AUTH_TOKEN,
+      hasPhone: !!process.env.TWILIO_PHONE_NUMBER
+    });
+
     const data = JSON.parse(event.body);
     const { phones, message, timestamp } = data;
+
+    console.log('Received request:', {
+      numberOfPhones: phones?.length,
+      hasMessage: !!message,
+      timestamp
+    });
 
     if (!phones || !Array.isArray(phones) || phones.length === 0) {
       return {
@@ -33,6 +46,20 @@ exports.handler = async function(event, context) {
       };
     }
 
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ 
+          message: 'Twilio configuration missing',
+          details: {
+            hasSID: !!process.env.TWILIO_ACCOUNT_SID,
+            hasToken: !!process.env.TWILIO_AUTH_TOKEN,
+            hasPhone: !!process.env.TWILIO_PHONE_NUMBER
+          }
+        })
+      };
+    }
+
     // Send SMS to each phone number
     const results = await Promise.all(
       phones.map(phone => 
@@ -44,6 +71,11 @@ exports.handler = async function(event, context) {
       )
     );
 
+    console.log('SMS sent successfully:', {
+      numberOfMessages: results.length,
+      messageIds: results.map(r => r.sid)
+    });
+
     return {
       statusCode: 200,
       body: JSON.stringify({ 
@@ -52,12 +84,25 @@ exports.handler = async function(event, context) {
       })
     };
   } catch (error) {
-    console.error('Error sending SMS:', error);
+    console.error('Error sending SMS:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      moreInfo: error.moreInfo
+    });
+
     return {
       statusCode: 500,
       body: JSON.stringify({ 
         message: 'Error sending SMS',
-        error: error.message 
+        error: {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          status: error.status,
+          moreInfo: error.moreInfo
+        }
       })
     };
   }

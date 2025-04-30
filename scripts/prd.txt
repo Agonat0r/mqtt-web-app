@@ -1,0 +1,163 @@
+# VPL Monitoring Dashboard PRD
+
+## Overview
+The VPL (Vertical Platform Lift) Monitoring Dashboard is a web-based application that provides real-time monitoring and control capabilities for VPL systems. It uses MQTT for communication, offering a modern, responsive interface for operators and administrators to monitor system status, receive alerts, and manage configurations.
+
+## Core Features
+
+### Real-time Monitoring
+- Live display of VPL telemetry data (position, speed, temperature)
+- System state visualization (running, stopped, etc.)
+- Real-time status updates and alerts
+- Interactive terminal console for system messages
+
+### Communication Features
+- Email notifications for critical alerts using EmailJS
+- SMS alerts via Twilio integration
+- MQTT message logging and history
+- Message filtering and search capabilities
+
+### User Interface
+- Modern, responsive dashboard layout
+- Theme customization (Default, Dark, USF themes)
+- Font and display preferences
+- Internationalization support
+- Accessibility features
+
+### Security & Authentication
+- Basic authentication system
+- Secure MQTT connection over WSS
+- Protected API endpoints
+- Environment-specific configurations
+
+## Technical Architecture
+
+### Frontend Stack
+- HTML5/CSS3 for structure and styling
+- Vanilla JavaScript for core functionality
+- EmailJS for email notifications
+- Twilio for SMS functionality
+- MQTT.js for MQTT client operations
+
+### Backend Components
+- EMQX Cloud MQTT broker
+- Python backend for API endpoints
+- Netlify Functions for serverless operations
+- Firebase Firestore for data persistence
+
+### Data Models
+- MQTT Message Format:
+  ```javascript
+  {
+    "type": "telemetry" | "status" | "command" | "alert",
+    "data": {
+      // Telemetry data
+      "position": number,    // Position in mm
+      "speed": number,      // Speed in mm/s
+      "temperature": number // Temperature in °C
+      // Status data
+      "state": string      // VPL state
+    }
+  }
+  ```
+
+### Infrastructure
+- EMQX Cloud for MQTT broker (usf-harmar2025.cloud.emqx.io:8084)
+- Netlify for hosting and serverless functions
+- Firebase for database operations
+- EmailJS for email service
+- Twilio for SMS service
+
+## Development Roadmap
+
+### Phase 1: Core Functionality Stabilization
+- Fix remaining email functionality issues
+- Stabilize SMS alert system
+- Ensure proper file versioning and loading
+- Clean up and standardize JavaScript codebase
+
+### Phase 2: Enhanced Monitoring
+- Improve terminal console functionality
+- Add advanced message filtering
+- Enhance data visualization
+- Implement comprehensive error handling
+
+### Phase 3: Security & Performance
+- Strengthen authentication system
+- Implement proper session management
+- Add request rate limiting
+- Optimize MQTT message handling
+
+### Phase 4: User Experience Improvements
+- Enhance theme customization
+- Improve accessibility features
+- Add more language translations
+- Implement user preferences persistence
+
+## Logical Dependency Chain
+
+1. Core Infrastructure
+   - MQTT connection stability
+   - Basic authentication
+   - File organization and loading
+
+2. Communication Systems
+   - Email notification reliability
+   - SMS alert functionality
+   - Message logging and history
+
+3. User Interface
+   - Dashboard responsiveness
+   - Theme system
+   - Accessibility features
+
+4. Advanced Features
+   - Enhanced filtering
+   - Data visualization
+   - Performance optimizations
+
+## Risks and Mitigations
+
+### Technical Risks
+- MQTT connection stability
+  - Implement robust reconnection handling
+  - Add connection status monitoring
+  - Provide clear user feedback
+
+- Browser compatibility
+  - Implement feature detection
+  - Provide fallback options
+  - Test across major browsers
+
+### Integration Risks
+- Email/SMS service reliability
+  - Implement retry mechanisms
+  - Add proper error handling
+  - Provide alternative notification methods
+
+### Performance Risks
+- Message volume handling
+  - Implement message buffering
+  - Add rate limiting
+  - Optimize message processing
+
+## Appendix
+
+### MQTT Configuration
+- Broker: usf-harmar2025.cloud.emqx.io:8084
+- Protocol: WSS
+- Main topic: 'usf/messages'
+- Authentication required
+
+### Email Configuration
+- Service: EmailJS
+- Service ID: service_lsa1r4i
+- Template ID: template_vnrbr1d
+
+### Development Standards
+- Clean code organization
+- Comprehensive error handling
+- Proper documentation
+- Cross-browser compatibility
+- Responsive design
+- Accessibility compliance 

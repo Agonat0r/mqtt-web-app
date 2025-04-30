@@ -56,7 +56,7 @@ export const translations = {
     languageChanged: "Language updated",
 
     // Logs and Email
-    clearLog: "Clear Log",
+    clearTerminal: "Clear Terminal",
     exportLog: "Export Log",
     emailLog: "Email Log",
     logExported: "Log exported successfully",
@@ -129,7 +129,7 @@ export const translations = {
     languageChanged: "Sprache aktualisiert",
 
     // Logs and Email
-    clearLog: "Log Löschen",
+    clearTerminal: "Terminal Löschen",
     exportLog: "Log Exportieren",
     emailLog: "Per Email Senden",
     logExported: "Log erfolgreich exportiert",
@@ -202,7 +202,7 @@ export const translations = {
     languageChanged: "Idioma actualizado",
 
     // Logs and Email
-    clearLog: "Limpiar Registro",
+    clearTerminal: "Limpiar Terminal",
     exportLog: "Exportar Registro",
     emailLog: "Enviar por Email",
     logExported: "Registro exportado exitosamente",
@@ -275,7 +275,7 @@ export const translations = {
     languageChanged: "Langue mise à jour",
 
     // Logs and Email
-    clearLog: "Effacer Journal",
+    clearTerminal: "Effacer Terminal",
     exportLog: "Exporter Journal",
     emailLog: "Envoyer par Email",
     logExported: "Journal exporté avec succès",

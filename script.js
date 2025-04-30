@@ -66,7 +66,7 @@ function handleAction(event) {
       break;
     case 'clear-log':
       const targetId = target.getAttribute('data-target');
-      clearLog(targetId);
+      clearTerminal(targetId);
       break;
     case 'export-log':
       const exportId = target.getAttribute('data-target');
@@ -219,7 +219,7 @@ function updateAllText() {
 
     // Update all buttons
     document.querySelectorAll('[data-action="clear-log"]').forEach(btn => 
-        btn.textContent = translations[currentLang].clearLog);
+        btn.textContent = translations[currentLang].clearTerminal);
     document.querySelectorAll('[data-action="export-log"]').forEach(btn => 
         btn.textContent = translations[currentLang].exportLog);
     document.querySelectorAll('[data-action="email-log"]').forEach(btn => 
@@ -463,33 +463,33 @@ function resetCustomizations() {
 }
 
 /**
- * Clears the specified log with an animation effect.
- * @param {string} id - The ID of the log element to clear
+ * Clears the specified terminal with an animation effect.
+ * @param {string} id - The ID of the terminal element to clear
  */
-function clearLog(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  
-  // Add fade-out animation
-  el.style.transition = 'opacity 0.5s ease';
-  el.style.opacity = '0';
-  
-  // After fade out, clear content and show feedback
-  setTimeout(() => {
-    el.textContent = '';
+function clearTerminal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
     
-    // Create and add feedback message
-    const feedback = document.createElement('div');
-    feedback.className = 'log-entry info';
-    feedback.innerHTML = `[${new Date().toLocaleTimeString()}] Terminal cleared`;
+    // Add fade-out animation
+    el.style.transition = 'opacity 0.5s ease';
+    el.style.opacity = '0';
     
-    // Reset opacity and add feedback
-    el.style.opacity = '1';
-    el.appendChild(feedback);
-    
-    // Scroll to show feedback
-    el.scrollTop = el.scrollHeight;
-  }, 500);
+    // After fade out, clear content and show feedback
+    setTimeout(() => {
+        el.textContent = '';
+        
+        // Create and add feedback message
+        const feedback = document.createElement('div');
+        feedback.className = 'log-entry info';
+        feedback.innerHTML = `[${new Date().toLocaleTimeString()}] Terminal cleared`;
+        
+        // Reset opacity and add feedback
+        el.style.opacity = '1';
+        el.appendChild(feedback);
+        
+        // Scroll to show feedback
+        el.scrollTop = el.scrollHeight;
+    }, 500);
 }
 
 // Add styles for clear animation

@@ -58,7 +58,7 @@
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
             <div class="terminal" id="messageLog">Waiting for messages...</div>
             <div class="terminal-buttons">
-              <button onclick="clearLog('messageLog')" class="terminal-btn">Clear</button>
+              <button onclick="clearTerminal('messageLog')" class="terminal-btn">Clear</button>
               <button onclick="exportLog('messageLog')" class="terminal-btn">Export</button>
               <button onclick="emailLog('messageLog')" class="terminal-btn">Email</button>
             </div>
@@ -69,7 +69,7 @@
             <h2 id="commands-title" data-translate="commandConsole">Command Terminal</h2>
             <div class="terminal" id="commandLog">Waiting for commands...</div>
             <div class="terminal-buttons">
-              <button onclick="clearLog('commandLog')" class="terminal-btn">Clear</button>
+              <button onclick="clearTerminal('commandLog')" class="terminal-btn">Clear</button>
               <button onclick="exportLog('commandLog')" class="terminal-btn">Export</button>
               <button onclick="emailLog('commandLog')" class="terminal-btn">Email</button>
             </div>
@@ -114,7 +114,7 @@
         <h2>Command Console</h2>
         <pre id="command-history" class="terminal">Command history will appear here...</pre>
         <div class="terminal-controls">
-          <button data-action="clear-log" data-target="command-history" data-translate="clearLog">Clear History</button>
+          <button data-action="clear-log" data-target="command-history" data-translate="clearTerminal">Clear History</button>
           <button data-action="export-log" data-target="command-history" data-translate="exportLog">Export History</button>
           <button data-action="email-log" data-target="command-history" data-translate="emailLog">Email History</button>
         </div>
@@ -702,12 +702,10 @@
     });
 
     // Function to clear terminal logs
-    function clearLog(elementId) {
-      const terminal = document.getElementById(elementId);
-      if (terminal) {
-        terminal.innerHTML = elementId === 'messageLog' ? 
-          'Waiting for messages...\n' : 
-          'Waiting for commands...\n';
+    function clearTerminal(elementId) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.textContent = '';
       }
     }
 

@@ -876,37 +876,47 @@
           testAlertStatus2.textContent = 'Sending test SMS...';
           testAlertStatus2.style.color = '#2196F3';
 
+          const errors = [];
+
           try {
             for (const phoneItem of phoneItems) {
-              const phoneText = phoneItem.querySelector('.phone-text').textContent;
-              const carrierText = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
-              
-              // Format phone number
-              const formattedPhone = formatPhoneForSMS(phoneText);
-              
-              // Get carrier gateway
-              const gateway = carrierGateways[carrierText];
-              if (!gateway) {
-                throw new Error(`Unsupported carrier: ${carrierText}`);
-              }
-
-              const smsEmail = `${formattedPhone}@${gateway}`;
-              console.log('Sending SMS via email gateway:', smsEmail); // Debug log
-              
-              const response = await emailjs.send(
-                'service_lsa1r4i',
-                'template_vnrbr1d',
-                {
-                  to_email: smsEmail,
-                  alert_type: 'TEST',
-                  alert_message: 'This is a test SMS alert from your VPL Monitoring system.',
-                  timestamp: new Date().toLocaleString()
+              try {
+                const phoneText = phoneItem.querySelector('.phone-text').textContent;
+                const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+                
+                // Format phone number
+                const formattedPhone = formatPhoneForSMS(phoneText);
+                
+                // Get carrier gateway
+                const gateway = carrierGateways[carrier];
+                if (!gateway) {
+                  throw new Error(`Unsupported carrier: ${carrier}`);
                 }
-              );
 
-              if (response.status !== 200) {
-                throw new Error(`EmailJS API error: ${response.text}`);
+                const smsEmail = `${formattedPhone}@${gateway}`;
+                console.log('Sending test SMS via email gateway:', smsEmail); // Debug log
+                
+                const response = await emailjs.send(
+                  'service_lsa1r4i',
+                  'template_vnrbr1d',
+                  {
+                    to_email: smsEmail,
+                    alert_type: 'TEST',
+                    alert_message: 'This is a test SMS alert from your VPL Monitoring system.',
+                    timestamp: new Date().toLocaleString()
+                  }
+                );
+
+                if (response.status !== 200) {
+                  throw new Error(`EmailJS API error: ${response.text}`);
+                }
+              } catch (error) {
+                errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`);
               }
+            }
+
+            if (errors.length > 0) {
+              throw new Error(errors.join('\n'));
             }
 
             testAlertStatus2.textContent = 'Test SMS sent! Please wait a few minutes to receive it.';
@@ -918,7 +928,9 @@
           } finally {
             testSmsBtn2.disabled = false;
             setTimeout(() => {
-              testAlertStatus2.textContent = '';
+              if (testAlertStatus2.style.color === '#4CAF50') {
+                testAlertStatus2.textContent = '';
+              }
             }, 10000);
           }
         });
@@ -931,24 +943,29 @@
       'att': 'txt.att.net',
       'tmobile': 'tmomail.net',
       'sprint': 'messaging.sprintpcs.com',
-      'boost': 'myboostmobile.com',
-      'cricket': 'sms.cricketwireless.net',
+      'boost': 'sms.myboostmobile.com',
+      'cricket': 'mms.cricketwireless.net',
       'uscellular': 'email.uscc.net',
       'metro': 'mymetropcs.com'
     };
 
     // Function to format phone number for SMS gateway
     function formatPhoneForSMS(phone) {
-      // Remove all non-digits
+      // Remove all non-digits and any leading '+'
       const digits = phone.replace(/\D/g, '');
       
-      // Ensure we have a proper US number (10 digits)
+      // For AT&T, some carriers require 10 digits (no country code)
+      // If number starts with '1' and has 11 digits, remove the '1'
+      if (digits.length === 11 && digits.startsWith('1')) {
+        return digits.substring(1);
+      }
+      
+      // If it's already 10 digits, use as is
       if (digits.length === 10) {
         return digits;
-      } else if (digits.length === 11 && digits.startsWith('1')) {
-        return digits.substring(1); // Remove leading '1'
       }
-      throw new Error('Invalid phone number format. Please use 10-digit US number.');
+      
+      throw new Error('Invalid phone number format. Please use 10-digit US number or 11-digit number starting with 1');
     }
 
     // Function to send SMS alerts using email-to-SMS gateways
@@ -961,33 +978,49 @@
       const phoneItems = Array.from(phoneList.querySelectorAll('.phone-item'));
       if (phoneItems.length === 0) return;
 
+      const errors = [];
+
       try {
         for (const phoneItem of phoneItems) {
-          const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
-          const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
-          const gateway = carrierGateways[carrier];
-          
-          if (!gateway) {
-            console.error(`Unknown carrier gateway for ${carrier}`);
-            continue;
-          }
-
-          const smsEmail = `${phone}@${gateway}`;
-          
-          await emailjs.send(
-            'service_lsa1r4i',  // Your EmailJS service ID
-            'template_vnrbr1d', // Your EmailJS template ID
-            {
-              to_email: smsEmail,
-              alert_type: type.toUpperCase(),
-              alert_message: message,
-              timestamp: new Date().toLocaleString()
+          try {
+            const phoneText = phoneItem.querySelector('.phone-text').textContent;
+            const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+            
+            // Format phone number
+            const formattedPhone = formatPhoneForSMS(phoneText);
+            
+            // Get carrier gateway
+            const gateway = carrierGateways[carrier];
+            if (!gateway) {
+              throw new Error(`Unsupported carrier: ${carrier}`);
             }
-          );
+
+            const smsEmail = `${formattedPhone}@${gateway}`;
+            console.log('Sending SMS via email gateway:', smsEmail); // Debug log
+            
+            await emailjs.send(
+              'service_lsa1r4i',
+              'template_vnrbr1d',
+              {
+                to_email: smsEmail,
+                alert_type: type.toUpperCase(),
+                alert_message: message,
+                timestamp: new Date().toLocaleString()
+              }
+            );
+          } catch (error) {
+            errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`);
+          }
         }
+
+        if (errors.length > 0) {
+          throw new Error(errors.join('\n'));
+        }
+        
         console.log('SMS alerts sent successfully via email gateways');
       } catch (error) {
-        console.error('Failed to send SMS alert:', error);
+        console.error('SMS Alert Errors:', error);
+        // You might want to show these errors to the user in the UI
       }
     }
 

@@ -1053,8 +1053,16 @@ async function loadEmailSubscribers() {
  */
 function showEmailModal(targetId) {
     const modal = document.getElementById('emailModal');
+    if (!modal) return;
+    
     modal.classList.remove('hidden');
     modal.dataset.targetLog = targetId;
+    
+    // Clear any previous input
+    const emailInput = document.getElementById('emailInput');
+    if (emailInput) {
+        emailInput.value = '';
+    }
 }
 
 /**
@@ -1068,8 +1076,6 @@ function closeEmailModal() {
 
 /**
  * Sends the log content via email using EmailJS
- * Requires EmailJS to be initialized with your public key
- * Uses the template "template_vnrbr1d" from service "service_lsa1r4i"
  */
 async function sendLogEmail() {
     const modal = document.getElementById('emailModal');
@@ -1078,8 +1084,13 @@ async function sendLogEmail() {
     const terminal = document.getElementById(targetId);
     const submitButton = document.querySelector('[data-action="send-email"]');
     
-    if (!terminal || !emailInput.value || !emailInput.value.includes('@')) {
-        showMessage(t('invalidEmailOrContent'), 'error');
+    if (!terminal || !emailInput || !emailInput.value) {
+        showMessage('Please enter an email address', 'error');
+        return;
+    }
+
+    if (!emailInput.value.includes('@')) {
+        showMessage('Please enter a valid email address', 'error');
         return;
     }
 
@@ -1090,7 +1101,7 @@ async function sendLogEmail() {
             submitButton.textContent = t('sending');
         }
 
-        // Send email using EmailJS with improved template parameters
+        // Send email using EmailJS
         await emailjs.send(
             "service_lsa1r4i", 
             "template_vnrbr1d",
@@ -1104,11 +1115,11 @@ async function sendLogEmail() {
             }
         );
         
-        showMessage(t('emailSent'), 'success');
+        showMessage('Email sent successfully', 'success');
         closeEmailModal();
     } catch (error) {
         console.error('Email error:', error);
-        showMessage(t('emailError') + ': ' + error.message, 'error');
+        showMessage('Failed to send email: ' + error.message, 'error');
     } finally {
         // Re-enable submit button and restore text
         if (submitButton) {

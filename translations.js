@@ -82,7 +82,13 @@ export const translations = {
     errorAddingPhone: "Error adding phone number",
     errorRemovingPhone: "Error removing phone number",
     errorLoadingPhones: "Error loading phone numbers",
-    enterValidPhone: "Please enter a valid phone number"
+    enterValidPhone: "Please enter a valid phone number",
+
+    emailModalTitle: "Send Log via Email",
+    emailPlaceholder: "Enter email address",
+    sending: "Sending...",
+    invalidEmail: "Please enter a valid email address",
+    enterEmailAddress: "Please enter an email address"
   },
   de: {
     // Login
@@ -155,7 +161,13 @@ export const translations = {
     connected: "✅ Verbunden mit MQTT Broker",
     subscribed: "🔔 Abonniert Thema: ",
     mqttError: "❌ MQTT Fehler: ",
-    reconnecting: "🔁 Verbinde neu..."
+    reconnecting: "🔁 Verbinde neu...",
+
+    emailModalTitle: "Log per E-Mail senden",
+    emailPlaceholder: "E-Mail-Adresse eingeben",
+    sending: "Senden...",
+    invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+    enterEmailAddress: "Bitte geben Sie eine E-Mail-Adresse ein"
   },
   es: {
     // Login
@@ -239,7 +251,13 @@ export const translations = {
     errorAddingPhone: "Error al agregar número de teléfono",
     errorRemovingPhone: "Error al eliminar número de teléfono",
     errorLoadingPhones: "Error al cargar números de teléfono",
-    enterValidPhone: "Por favor ingrese un número de teléfono válido"
+    enterValidPhone: "Por favor ingrese un número de teléfono válido",
+
+    emailModalTitle: "Enviar Registro por Email",
+    emailPlaceholder: "Ingrese dirección de email",
+    sending: "Enviando...",
+    invalidEmail: "Por favor ingrese un email válido",
+    enterEmailAddress: "Por favor ingrese una dirección de email"
   },
   fr: {
     // Login
@@ -312,7 +330,13 @@ export const translations = {
     connected: "✅ Connecté au broker MQTT",
     subscribed: "🔔 Abonné au sujet: ",
     mqttError: "❌ Erreur MQTT: ",
-    reconnecting: "🔁 Reconnexion..."
+    reconnecting: "🔁 Reconnexion...",
+
+    emailModalTitle: "Envoyer le Journal par Email",
+    emailPlaceholder: "Entrez l'adresse email",
+    sending: "Envoi en cours...",
+    invalidEmail: "Veuillez entrer une adresse email valide",
+    enterEmailAddress: "Veuillez entrer une adresse email"
   }
 };
 

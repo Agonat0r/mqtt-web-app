@@ -121,6 +121,32 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAllText();
     initializeMQTTClient();
     loadPhoneSubscribers();
+
+    // Add control button event listeners
+    const controlButtons = document.querySelectorAll('.control-buttons button');
+    controlButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const action = button.textContent.toLowerCase();
+            switch(action) {
+                case 'up':
+                    startAction('up');
+                    break;
+                case 'down':
+                    startAction('down');
+                    break;
+                case 'stop':
+                    stopAction();
+                    break;
+                case 'apply brake':
+                    applyBrake();
+                    break;
+                case 'release brake':
+                    releaseBrake();
+                    break;
+            }
+        });
+    });
 });
 
 /**
@@ -142,6 +168,37 @@ function initializeEventHandlers() {
   if (testEmailButton) {
     testEmailButton.addEventListener('click', sendTestEmail);
   }
+
+  // Add event listeners for control buttons
+  document.querySelectorAll('.control-buttons .control-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        if (!client || !client.connected) {
+            showError('MQTT client is not connected. Please check your connection.');
+            return;
+        }
+
+        const action = button.textContent.trim().toLowerCase();
+        switch (action) {
+            case 'up':
+                startAction('up');
+                break;
+            case 'down':
+                startAction('down');
+                break;
+            case 'stop':
+                stopAction();
+                break;
+            case 'apply brake':
+                applyBrake();
+                break;
+            case 'release brake':
+                releaseBrake();
+                break;
+            default:
+                console.error('Unknown control action:', action);
+        }
+    });
+  });
 }
 
 /**
@@ -1541,64 +1598,68 @@ function logToControlTerminal(message, type = 'info') {
 
 // Update the control functions to use the new log types
 function startAction(direction) {
-    if (!client) {
-        logToControlTerminal('MQTT client not connected. Cannot send command.', 'error');
+    if (!client || !client.connected) {
+        showError('Cannot send command: MQTT client is not connected');
         return;
     }
-
-    const command = direction.toLowerCase();
-    client.publish('usf/logs/command', command, (err) => {
-        if (err) {
-            logToControlTerminal(`Failed to send ${command} command: ${err}`, 'error');
-        } else {
-            logToControlTerminal(`Sent ${command} command`, 'command');
-        }
-    });
+    
+    const topic = 'usf/logs/command';
+    const message = direction.toLowerCase();
+    client.publish(topic, message);
+    
+    // Log the action to the control terminal
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (controlTerminal) {
+        appendToTerminal(controlTerminal, `Movement command sent: ${direction.toUpperCase()}`, 'command');
+    }
 }
 
 function stopAction() {
-    if (!client) {
-        logToControlTerminal('MQTT client not connected. Cannot send stop command.', 'error');
+    if (!client || !client.connected) {
+        showError('Cannot send command: MQTT client is not connected');
         return;
     }
-
-    client.publish('usf/logs/command', 'stop', (err) => {
-        if (err) {
-            logToControlTerminal(`Failed to send stop command: ${err}`, 'error');
-        } else {
-            logToControlTerminal('Sent stop command', 'command');
-        }
-    });
+    
+    const topic = 'usf/logs/command';
+    client.publish(topic, 'stop');
+    
+    // Log the action to the control terminal
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (controlTerminal) {
+        appendToTerminal(controlTerminal, 'Movement STOPPED', 'command');
+    }
 }
 
 function applyBrake() {
-    if (!client) {
-        logToControlTerminal('MQTT client not connected. Cannot apply brake.', 'error');
+    if (!client || !client.connected) {
+        showError('Cannot send command: MQTT client is not connected');
         return;
     }
-
-    client.publish('usf/logs/command', 'brake', (err) => {
-        if (err) {
-            logToControlTerminal(`Failed to apply brake: ${err}`, 'error');
-        } else {
-            logToControlTerminal('Applied brake', 'command');
-        }
-    });
+    
+    const topic = 'usf/logs/command';
+    client.publish(topic, 'brake');
+    
+    // Log the action to the control terminal
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (controlTerminal) {
+        appendToTerminal(controlTerminal, 'Brake APPLIED', 'command');
+    }
 }
 
 function releaseBrake() {
-    if (!client) {
-        logToControlTerminal('MQTT client not connected. Cannot release brake.', 'error');
+    if (!client || !client.connected) {
+        showError('Cannot send command: MQTT client is not connected');
         return;
     }
-
-    client.publish('usf/logs/command', 'release', (err) => {
-        if (err) {
-            logToControlTerminal(`Failed to release brake: ${err}`, 'error');
-        } else {
-            logToControlTerminal('Released brake', 'command');
-        }
-    });
+    
+    const topic = 'usf/logs/command';
+    client.publish(topic, 'release');
+    
+    // Log the action to the control terminal
+    const controlTerminal = document.getElementById('controlTerminal');
+    if (controlTerminal) {
+        appendToTerminal(controlTerminal, 'Brake RELEASED', 'command');
+    }
 }
 
 // Add styles for control buttons

@@ -923,6 +923,24 @@ const unsigned long DEBOUNCE_DELAY = 50;  // 50ms debounce time
 bool upButtonPressed = false;
 bool downButtonPressed = false;
 
+// Add at the top with other globals
+const unsigned long BUTTON_COOLDOWN = 100; // 100ms minimum time between button actions
+const int STABLE_READINGS = 3;  // Number of stable readings required
+
+// Button state tracking
+struct ButtonState {
+    bool currentState;
+    bool lastState;
+    bool isPressed;
+    unsigned long lastDebounceTime;
+    unsigned long lastActionTime;
+    int stableCount;
+    bool waitingForStable;
+};
+
+ButtonState upButton = {HIGH, HIGH, false, 0, 0, 0, false};
+ButtonState downButton = {HIGH, HIGH, false, 0, 0, 0, false};
+
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
@@ -1136,113 +1154,31 @@ void setup() {
 void loop() {
     static unsigned long lastWiFiCheck = 0;
     static unsigned long lastMQTTCheck = 0;
-    static unsigned long lastWDTReset = 0;
     static unsigned long lastLoopDelay = 0;
-    const unsigned long CHECK_INTERVAL = 5000;
-    const unsigned long WDT_RESET_INTERVAL = 1000;
     unsigned long currentMillis = millis();
 
-    // No need to manually reset the watchdog unless you have a long-running operation
-    // If you add a long-running section, call esp_task_wdt_reset() there
-
-    if (currentMillis - lastWiFiCheck >= CHECK_INTERVAL) {
-        if (WiFi.status() != WL_CONNECTED) {
-            WiFi.disconnect();
-            WiFi.begin(ssid, password);
+    // Process button states
+    processButton(upButton, UP_BUTTON, "UP", []() {
+        if (!elevatorMode) {
+            handleMovement("up");
         }
-        lastWiFiCheck = currentMillis;
-    }
-    if (currentMillis - lastMQTTCheck >= CHECK_INTERVAL) {
-        if (!mqttClient.connected()) {
-            reconnectMQTT();
-        }
-        lastMQTTCheck = currentMillis;
-    }
-    if (mqttClient.connected()) {
-        mqttClient.loop();
-    }
-    readDeviceOutputs();
-    
-    // Read the current state of buttons with debug
-    int upReading = digitalRead(UP_BUTTON);
-    int downReading = digitalRead(DOWN_BUTTON);
-    
-    // Debug log if button state changes
-    static int lastUpReading = HIGH;
-    if (upReading != lastUpReading) {
-        Serial.print("UP_BUTTON changed state: ");
-        Serial.println(upReading == LOW ? "PRESSED" : "RELEASED");
-        lastUpReading = upReading;
-    }
-    
-    // Handle UP button with debounce
-    if (upReading != lastUpButtonState) {
-        lastUpDebounceTime = currentMillis;
-    }
-    
-    if ((currentMillis - lastUpDebounceTime) > DEBOUNCE_DELAY) {
-        if (upReading != upButtonState) {
-            upButtonState = upReading;
-            if (upButtonState == LOW && !upButtonPressed) {  // Button is newly pressed
-                Serial.println("UP button pressed - triggering movement");
-                upButtonPressed = true;
-                handleMovement("up");
-            } else if (upButtonState == HIGH && upButtonPressed) {  // Button is released
-                Serial.println("UP button released - stopping movement");
-                upButtonPressed = false;
-                if (!elevatorMode) {  // Only stop on release in lift mode
-                    stopMovement();
-                }
-            }
-        }
-    }
-    
-    // Handle DOWN button with debounce
-    if (downReading != lastDownButtonState) {
-        lastDownDebounceTime = currentMillis;
-    }
-    
-    if ((currentMillis - lastDownDebounceTime) > DEBOUNCE_DELAY) {
-        if (downReading != downButtonState) {
-            downButtonState = downReading;
-            if (downButtonState == LOW && !downButtonPressed) {  // Button is newly pressed
-                downButtonPressed = true;
-                handleMovement("down");
-            } else if (downButtonState == HIGH && downButtonPressed) {  // Button is released
-                downButtonPressed = false;
-                if (!elevatorMode) {  // Only stop on release in lift mode
-                    stopMovement();
-                }
-            }
-        }
-    }
-    
-    // Save the button readings for next loop
-    lastUpButtonState = upReading;
-    lastDownButtonState = downReading;
-    
-    if (elevatorMode) {
-        if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement();
-        if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement();
-        static bool lastUpLimit = false;
-        static bool lastDownLimit = false;
-        bool currentUpLimit = digitalRead(LIMIT_SWITCH_UP) == LOW;
-        bool currentDownLimit = digitalRead(LIMIT_SWITCH_DOWN) == LOW;
-        if (currentDirection == "up" && currentUpLimit && !lastUpLimit) {
+    }, []() {
+        if (!elevatorMode) {
             stopMovement();
         }
-        if (currentDirection == "down" && currentDownLimit && !lastDownLimit) {
+    });
+
+    processButton(downButton, DOWN_BUTTON, "DOWN", []() {
+        if (!elevatorMode) {
+            handleMovement("down");
+        }
+    }, []() {
+        if (!elevatorMode) {
             stopMovement();
         }
-        lastUpLimit = currentUpLimit;
-        lastDownLimit = currentDownLimit;
-    }
+    });
 
-    // Replace delay(10) with non-blocking delay
-    if (currentMillis - lastLoopDelay >= 5) {  // 5ms instead of 10ms
-        lastLoopDelay = currentMillis;
-        yield();  // Allow other tasks to run
-    }
+    // Rest of your existing loop code...
 }
 
 // Initialize alert system
@@ -1276,4 +1212,71 @@ bool shouldPublishAlert(AlertState &state, String newMessage, unsigned long curr
     }
     
     return false;
+}
+
+// Add this function before loop()
+bool processButton(ButtonState &button, int pin, const char* name, void (*pressCallback)(), void (*releaseCallback)()) {
+    bool changed = false;
+    unsigned long currentMillis = millis();
+    int reading = digitalRead(pin);
+    
+    // Debug state changes
+    static int lastReading = HIGH;
+    if (reading != lastReading) {
+        Serial.printf("[DEBUG] %s raw reading changed: %s\n", name, reading == LOW ? "PRESSED" : "RELEASED");
+        lastReading = reading;
+    }
+    
+    // If the reading has changed, reset the debounce timer and stable count
+    if (reading != button.currentState) {
+        button.lastDebounceTime = currentMillis;
+        button.stableCount = 0;
+        button.waitingForStable = true;
+    }
+    
+    // Check if enough time has passed since the last state change
+    if ((currentMillis - button.lastDebounceTime) > DEBOUNCE_DELAY) {
+        // If we're waiting for a stable reading
+        if (button.waitingForStable) {
+            if (reading == button.currentState) {
+                button.stableCount++;
+                if (button.stableCount >= STABLE_READINGS) {
+                    // We have a stable reading
+                    button.waitingForStable = false;
+                    if (reading != button.lastState) {
+                        button.lastState = reading;
+                        changed = true;
+                        
+                        // If button is pressed (LOW) and wasn't pressed before
+                        if (reading == LOW && !button.isPressed) {
+                            if ((currentMillis - button.lastActionTime) > BUTTON_COOLDOWN) {
+                                button.isPressed = true;
+                                button.lastActionTime = currentMillis;
+                                if (pressCallback) {
+                                    Serial.printf("[DEBUG] %s press action triggered\n", name);
+                                    pressCallback();
+                                }
+                            } else {
+                                Serial.printf("[DEBUG] %s press ignored - too soon after last action\n", name);
+                            }
+                        }
+                        // If button is released (HIGH) and was pressed before
+                        else if (reading == HIGH && button.isPressed) {
+                            button.isPressed = false;
+                            if (releaseCallback) {
+                                Serial.printf("[DEBUG] %s release action triggered\n", name);
+                                releaseCallback();
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Reading changed during stabilization, reset count
+                button.stableCount = 0;
+            }
+        }
+    }
+    
+    button.currentState = reading;
+    return changed;
 }  

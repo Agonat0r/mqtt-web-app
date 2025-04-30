@@ -574,15 +574,19 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (payload.type === 'command') {
                 logToCommandTerminal(payload.message || 'Command received', payload.type);
             } else if (payload.type === 'info') {
-                // Explicitly handle info messages
+                // Explicitly handle info messages in the general terminal
                 logToTerminal(payload.message, 'info');
+            } else if (topic === 'usf/logs/general') {
+                // Handle messages from the general log topic
+                logToTerminal(payload.message || message.toString(), payload.type || 'info');
             } else {
                 // Default to general terminal for other messages
                 logToTerminal(payload.message || message.toString(), 'info');
             }
         } catch (e) {
-            console.error('Error parsing message:', e);
-            logToTerminal('Error parsing message: ' + message.toString(), 'error');
+            // If message isn't JSON, display it as a plain message
+            console.log('Displaying plain message:', message.toString());
+            logToTerminal(message.toString(), 'info');
         }
     });
 });

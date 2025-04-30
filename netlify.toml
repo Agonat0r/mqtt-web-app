@@ -2,4 +2,12 @@
   functions = "functions"
 
 [[plugins]]
-  package = "@netlify/plugin-functions-install-core" 
+  package = "@netlify/plugin-functions-install-core"
+
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild" 

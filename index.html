@@ -785,45 +785,54 @@
 
           try {
             for (const phoneItem of phoneItems) {
-              const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
-              const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
-              const gateway = carrierGateways[carrier];
+              const phoneText = phoneItem.querySelector('.phone-text').textContent;
+              const carrierText = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
               
+              // Format phone number
+              const formattedPhone = formatPhoneForSMS(phoneText);
+              
+              // Get carrier gateway
+              const gateway = carrierGateways[carrierText];
               if (!gateway) {
-                throw new Error(`Unknown carrier gateway for ${carrier}`);
+                throw new Error(`Unsupported carrier: ${carrierText}`);
               }
 
-              const smsEmail = `${phone}@${gateway}`;
+              const smsEmail = `${formattedPhone}@${gateway}`;
+              console.log('Sending SMS via email gateway:', smsEmail); // Debug log
               
-              await emailjs.send(
-                'service_lsa1r4i',  // Your EmailJS service ID
-                'template_vnrbr1d', // Your EmailJS template ID
+              const response = await emailjs.send(
+                'service_lsa1r4i',
+                'template_vnrbr1d',
                 {
                   to_email: smsEmail,
                   alert_type: 'TEST',
-                  alert_message: 'This is a test SMS to verify your alert configuration.',
+                  alert_message: 'This is a test SMS alert from your VPL Monitoring system.',
                   timestamp: new Date().toLocaleString()
                 }
               );
+
+              if (response.status !== 200) {
+                throw new Error(`EmailJS API error: ${response.text}`);
+              }
             }
 
-            testAlertStatus2.textContent = 'Test SMS sent successfully!';
+            testAlertStatus2.textContent = 'Test SMS sent! Please wait a few minutes to receive it.';
             testAlertStatus2.style.color = '#4CAF50';
           } catch (error) {
             console.error('Failed to send test SMS:', error);
-            testAlertStatus2.textContent = 'Failed to send test SMS: ' + error.message;
+            testAlertStatus2.textContent = `Failed to send SMS: ${error.message}`;
             testAlertStatus2.style.color = '#ff4444';
           } finally {
             testSmsBtn2.disabled = false;
             setTimeout(() => {
               testAlertStatus2.textContent = '';
-            }, 5000);
+            }, 10000);
           }
         });
       }
     });
 
-    // Add carrier gateway mappings
+    // Add carrier gateway mappings with proper formatting
     const carrierGateways = {
       'verizon': 'vtext.com',
       'att': 'txt.att.net',
@@ -834,6 +843,20 @@
       'uscellular': 'email.uscc.net',
       'metro': 'mymetropcs.com'
     };
+
+    // Function to format phone number for SMS gateway
+    function formatPhoneForSMS(phone) {
+      // Remove all non-digits
+      const digits = phone.replace(/\D/g, '');
+      
+      // Ensure we have a proper US number (10 digits)
+      if (digits.length === 10) {
+        return digits;
+      } else if (digits.length === 11 && digits.startsWith('1')) {
+        return digits.substring(1); // Remove leading '1'
+      }
+      throw new Error('Invalid phone number format. Please use 10-digit US number.');
+    }
 
     // Function to send SMS alerts using email-to-SMS gateways
     async function sendSmsAlert(type, message) {
@@ -873,66 +896,6 @@
       } catch (error) {
         console.error('Failed to send SMS alert:', error);
       }
-    }
-
-    // Update test SMS button handlers
-    if (testSmsBtn2) {
-      testSmsBtn2.addEventListener('click', async () => {
-        if (!smsAlertEnabled2.checked) {
-          testAlertStatus2.textContent = 'Please enable SMS alerts first';
-          testAlertStatus2.style.color = '#ff4444';
-          return;
-        }
-
-        const phoneItems = Array.from(phoneList2.querySelectorAll('.phone-item'));
-        
-        if (phoneItems.length === 0) {
-          testAlertStatus2.textContent = 'Please add at least one phone number';
-          testAlertStatus2.style.color = '#ff4444';
-          return;
-        }
-
-        testSmsBtn2.disabled = true;
-        testAlertStatus2.textContent = 'Sending test SMS...';
-        testAlertStatus2.style.color = '#2196F3';
-
-        try {
-          for (const phoneItem of phoneItems) {
-            const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
-            const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
-            const gateway = carrierGateways[carrier];
-            
-            if (!gateway) {
-              throw new Error(`Unknown carrier gateway for ${carrier}`);
-            }
-
-            const smsEmail = `${phone}@${gateway}`;
-            
-            await emailjs.send(
-              'service_lsa1r4i',  // Your EmailJS service ID
-              'template_vnrbr1d', // Your EmailJS template ID
-              {
-                to_email: smsEmail,
-                alert_type: 'TEST',
-                alert_message: 'This is a test SMS to verify your alert configuration.',
-                timestamp: new Date().toLocaleString()
-              }
-            );
-          }
-
-          testAlertStatus2.textContent = 'Test SMS sent successfully!';
-          testAlertStatus2.style.color = '#4CAF50';
-        } catch (error) {
-          console.error('Failed to send test SMS:', error);
-          testAlertStatus2.textContent = 'Failed to send test SMS: ' + error.message;
-          testAlertStatus2.style.color = '#ff4444';
-        } finally {
-          testSmsBtn2.disabled = false;
-          setTimeout(() => {
-            testAlertStatus2.textContent = '';
-          }, 5000);
-        }
-      });
     }
 
     // Add handler for email alerts

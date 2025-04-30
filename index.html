@@ -25,7 +25,7 @@
       <h2 id="login-title" data-translate="loginTitle">🔐 USF Harmar MQTT Login</h2>
       <input type="text" id="login-username" placeholder="Username" required data-translate="username">
       <input type="password" id="login-password" placeholder="Password" required data-translate="password">
-      <button data-action="login" class="btn btn-primary" data-translate="loginButton">Login</button>
+      <button id="loginBtn" data-action="login" class="btn btn-primary" data-translate="loginButton">Login</button>
     </div>
   </div>
 
@@ -318,6 +318,8 @@
   <script src="static/js/sms-alerts.js"></script>
 
   <script>
+    // Move all the inline script to mqtt-dashboard.js
+    // Keep only the function declarations that are used as inline event handlers
     function startAction(dir) {
       const timestamp = new Date().toISOString();
       const command = `COMMAND:${dir.toUpperCase()}`;
@@ -332,12 +334,14 @@
       // Add to command terminal
       const terminalMsg = `[${timestamp}] ${command}\n`;
       const terminal = document.getElementById('serialMonitor');
-      terminal.textContent += terminalMsg;
-      terminal.scrollTop = terminal.scrollHeight;
+      if (terminal) {
+        terminal.textContent += terminalMsg;
+        terminal.scrollTop = terminal.scrollHeight;
+      }
 
       // Send via MQTT
-      if (mqtt_connected) {
-        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      if (window.mqtt_client && window.mqtt_client.connected) {
+        window.mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
       }
 
       fetch('/' + dir + '_start').catch(e => console.error(e));
@@ -357,12 +361,14 @@
       // Add to command terminal
       const terminalMsg = `[${timestamp}] ${command}\n`;
       const terminal = document.getElementById('serialMonitor');
-      terminal.textContent += terminalMsg;
-      terminal.scrollTop = terminal.scrollHeight;
+      if (terminal) {
+        terminal.textContent += terminalMsg;
+        terminal.scrollTop = terminal.scrollHeight;
+      }
 
       // Send via MQTT
-      if (mqtt_connected) {
-        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      if (window.mqtt_client && window.mqtt_client.connected) {
+        window.mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
       }
 
       fetch('/stop').catch(e => console.error(e));
@@ -382,12 +388,14 @@
       // Add to command terminal
       const terminalMsg = `[${timestamp}] ${command}\n`;
       const terminal = document.getElementById('serialMonitor');
-      terminal.textContent += terminalMsg;
-      terminal.scrollTop = terminal.scrollHeight;
+      if (terminal) {
+        terminal.textContent += terminalMsg;
+        terminal.scrollTop = terminal.scrollHeight;
+      }
 
       // Send via MQTT
-      if (mqtt_connected) {
-        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      if (window.mqtt_client && window.mqtt_client.connected) {
+        window.mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
       }
 
       fetch('/apply_brake').catch(e => console.error(e));
@@ -407,382 +415,17 @@
       // Add to command terminal
       const terminalMsg = `[${timestamp}] ${command}\n`;
       const terminal = document.getElementById('serialMonitor');
-      terminal.textContent += terminalMsg;
-      terminal.scrollTop = terminal.scrollHeight;
+      if (terminal) {
+        terminal.textContent += terminalMsg;
+        terminal.scrollTop = terminal.scrollHeight;
+      }
 
       // Send via MQTT
-      if (mqtt_connected) {
-        mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
+      if (window.mqtt_client && window.mqtt_client.connected) {
+        window.mqtt_client.publish("usf/logs/command", JSON.stringify(msg));
       }
 
       fetch('/release_brake').catch(e => console.error(e));
-    }
-
-    // Helper function to publish MQTT messages
-    function publishToMQTT(topic, message) {
-        // This function should be defined in your MQTT client setup
-        // It will use the MQTT.js client to publish the message
-        if (window.mqttClient && window.mqttClient.connected) {
-            window.mqttClient.publish(topic, message);
-        } else {
-            console.error('MQTT client not connected');
-        }
-    }
-
-    // Email Alert Management
-    const emailInput = document.getElementById('emailAlertInput');
-    const addEmailBtn = document.getElementById('addEmailAlertBtn');
-    const emailList = document.getElementById('emailList');
-    const emailValidationMsg = document.getElementById('emailValidationMsg');
-    const emailAlertEnabled = document.getElementById('emailAlertEnabled');
-    
-    // Load saved email settings
-    window.addEventListener('load', () => {
-      const savedEmails = JSON.parse(localStorage.getItem('emailAlerts') || '[]');
-      savedEmails.forEach(email => addEmailToList(email));
-      
-      const alertEnabled = localStorage.getItem('emailAlertEnabled') === 'true';
-      emailAlertEnabled.checked = alertEnabled;
-      
-      // Load alert preferences
-      document.getElementById('redAlertEnabled').checked = localStorage.getItem('redAlertEnabled') !== 'false';
-      document.getElementById('amberAlertEnabled').checked = localStorage.getItem('amberAlertEnabled') !== 'false';
-      document.getElementById('greenAlertEnabled').checked = localStorage.getItem('greenAlertEnabled') === 'true';
-    });
-
-    // Email validation function
-    function isValidEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    // Add email to the list
-    function addEmailToList(email) {
-      const emailItem = document.createElement('div');
-      emailItem.className = 'email-item';
-      emailItem.innerHTML = `
-        <span class="email-text">${email}</span>
-        <button class="delete-email-btn" onclick="removeEmail(this)">×</button>
-      `;
-      emailList.appendChild(emailItem);
-      saveEmails();
-    }
-
-    // Remove email from the list
-    function removeEmail(button) {
-      button.parentElement.remove();
-      saveEmails();
-    }
-
-    // Save emails to localStorage
-    function saveEmails() {
-      const emails = Array.from(emailList.querySelectorAll('.email-text'))
-        .map(span => span.textContent);
-      localStorage.setItem('emailAlerts', JSON.stringify(emails));
-    }
-
-    // Add email button click handler
-    addEmailBtn.addEventListener('click', () => {
-      const email = emailInput.value.trim();
-      if (!email) {
-        emailValidationMsg.textContent = 'Please enter an email address';
-        emailValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      if (!isValidEmail(email)) {
-        emailValidationMsg.textContent = 'Please enter a valid email address';
-        emailValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      
-      const existingEmails = Array.from(emailList.querySelectorAll('.email-text'))
-        .map(span => span.textContent);
-      if (existingEmails.includes(email)) {
-        emailValidationMsg.textContent = 'This email is already in the list';
-        emailValidationMsg.style.color = '#ff4444';
-        return;
-      }
-
-      addEmailToList(email);
-      emailInput.value = '';
-      emailValidationMsg.textContent = 'Email added successfully';
-      emailValidationMsg.style.color = '#4CAF50';
-      setTimeout(() => {
-        emailValidationMsg.textContent = '';
-      }, 3000);
-    });
-
-    // Save email alert enabled state
-    emailAlertEnabled.addEventListener('change', () => {
-      localStorage.setItem('emailAlertEnabled', emailAlertEnabled.checked);
-    });
-
-    // Save alert preferences
-    ['red', 'amber', 'green'].forEach(type => {
-      const checkbox = document.getElementById(`${type}AlertEnabled`);
-      checkbox.addEventListener('change', () => {
-        localStorage.setItem(`${type}AlertEnabled`, checkbox.checked);
-      });
-    });
-
-    // Function to send email alerts
-    async function sendEmailAlert(type, message) {
-      if (!emailAlertEnabled.checked) return;
-      
-      const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
-      if (!alertTypeEnabled) return;
-
-      const emails = Array.from(emailList.querySelectorAll('.email-text'))
-        .map(span => span.textContent);
-      
-      if (emails.length === 0) return;
-
-      try {
-        const response = await emailjs.send(
-          'service_lsa1r4i',  // Using existing service ID
-          'template_vnrbr1d', // Using existing template ID
-          {
-            to_email: emails.join(', '),
-            alert_type: type.toUpperCase(),
-            alert_message: message,
-            timestamp: new Date().toLocaleString()
-          }
-        );
-        console.log('Email alert sent successfully:', response);
-      } catch (error) {
-        console.error('Failed to send email alert:', error);
-      }
-    }
-
-    // SMS Alert Management
-    const phoneInput = document.getElementById('phoneInput-main');
-    const addPhoneBtn = document.getElementById('addPhoneBtn');
-    const phoneList = document.getElementById('phoneList');
-    const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-    const smsAlertEnabled = document.getElementById('smsAlertEnabled');
-    const testSmsBtn = document.getElementById('testSmsBtn');
-    const testAlertStatus = document.getElementById('testAlertStatus');
-
-    // Load saved SMS settings
-    window.addEventListener('load', () => {
-      const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
-      savedPhones.forEach(phone => addPhoneToList(phone));
-      
-      const smsEnabled = localStorage.getItem('smsAlertEnabled') === 'true';
-      smsAlertEnabled.checked = smsEnabled;
-    });
-
-    // Phone number validation function
-    function isValidPhone(phone) {
-      return /^\+[1-9]\d{1,14}$/.test(phone);
-    }
-
-    // Add phone to the list
-    function addPhoneToList(phone) {
-      const phoneItem = document.createElement('div');
-      phoneItem.className = 'phone-item';
-      phoneItem.innerHTML = `
-        <span class="phone-text">${phone}</span>
-        <button class="delete-phone-btn" onclick="removePhone(this)">×</button>
-      `;
-      phoneList.appendChild(phoneItem);
-      savePhones();
-    }
-
-    // Remove phone from the list
-    function removePhone(button) {
-      button.parentElement.remove();
-      savePhones();
-    }
-
-    // Save phones to localStorage
-    function savePhones() {
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      localStorage.setItem('smsAlerts', JSON.stringify(phones));
-    }
-
-    // Add phone subscriber function
-    function addPhoneSubscriber() {
-      const phoneInput = document.getElementById('phoneInput-main');
-      const phoneValidationMsg = document.getElementById('phoneValidationMsg');
-      const phone = phoneInput.value.trim();
-
-      if (!phone) {
-        phoneValidationMsg.textContent = 'Please enter a phone number';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      if (!isValidPhone(phone)) {
-        phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
-      }
-      
-      const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      if (existingPhones.includes(phone)) {
-        phoneValidationMsg.textContent = 'This phone number is already in the list';
-        phoneValidationMsg.style.color = '#ff4444';
-        return;
-      }
-
-      addPhoneToList(phone);
-      phoneInput.value = '';
-      phoneValidationMsg.textContent = 'Phone number added successfully';
-      phoneValidationMsg.style.color = '#4CAF50';
-      setTimeout(() => {
-        phoneValidationMsg.textContent = '';
-      }, 3000);
-    }
-
-    // Add phone button click handler
-    document.getElementById('addPhoneBtn').addEventListener('click', addPhoneSubscriber);
-
-    // Save SMS alert enabled state
-    smsAlertEnabled.addEventListener('change', () => {
-      localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
-    });
-
-    // Function to send SMS alerts using Twilio
-    async function sendSmsAlert(type, message) {
-      if (!smsAlertEnabled.checked) return;
-      
-      const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
-      if (!alertTypeEnabled) return;
-
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      
-      if (phones.length === 0) return;
-
-      try {
-        // You'll need to set up a server endpoint to handle Twilio SMS sending
-        const response = await fetch('/api/send-sms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            phones: phones,
-            message: `${type.toUpperCase()} Alert: ${message}`,
-            timestamp: new Date().toLocaleString()
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to send SMS');
-        }
-
-        console.log('SMS alert sent successfully');
-      } catch (error) {
-        console.error('Failed to send SMS alert:', error);
-      }
-    }
-
-    // Test SMS button click handler
-    testSmsBtn.addEventListener('click', async () => {
-      if (!smsAlertEnabled.checked) {
-        testAlertStatus.textContent = 'Please enable SMS alerts first';
-        testAlertStatus.style.color = '#ff4444';
-        return;
-      }
-
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      
-      if (phones.length === 0) {
-        testAlertStatus.textContent = 'Please add at least one phone number';
-        testAlertStatus.style.color = '#ff4444';
-        return;
-      }
-
-      testSmsBtn.disabled = true;
-      testAlertStatus.textContent = 'Sending test SMS...';
-      testAlertStatus.style.color = '#2196F3';
-
-      try {
-        const response = await fetch('/api/send-sms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            phones: phones,
-            message: 'This is a test SMS to verify your alert configuration.',
-            timestamp: new Date().toLocaleString()
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to send SMS');
-        }
-
-        testAlertStatus.textContent = 'Test SMS sent successfully!';
-        testAlertStatus.style.color = '#4CAF50';
-      } catch (error) {
-        console.error('Failed to send test SMS:', error);
-        testAlertStatus.textContent = 'Failed to send test SMS. Please try again.';
-        testAlertStatus.style.color = '#ff4444';
-      } finally {
-        testSmsBtn.disabled = false;
-        setTimeout(() => {
-          testAlertStatus.textContent = '';
-        }, 5000);
-      }
-    });
-
-    // Add handler for email alerts
-    mqtt_client.on('message', function(topic, message) {
-        try {
-            const msg = JSON.parse(message.toString());
-            if (topic === "usf/alerts/email") {
-                sendEmailAlert(msg.alert_type.toLowerCase(), msg.message);
-            }
-            // ... existing message handling code ...
-        } catch (error) {
-            console.error('Error processing MQTT message:', error);
-        }
-    });
-
-    // Function to clear terminal logs
-    function clearTerminal(elementId) {
-      const element = document.getElementById(elementId);
-      if (element) {
-        element.textContent = '';
-      }
-    }
-
-    // Function to export log
-    function exportLog(elementId) {
-      const terminal = document.getElementById(elementId);
-      if (terminal) {
-        const content = terminal.innerText;
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = elementId + '_export.txt';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    }
-
-    // Function to email log
-    function emailLog(elementId) {
-      const terminal = document.getElementById(elementId);
-      if (terminal) {
-        const content = terminal.innerText;
-        // Show email modal
-        const emailModal = document.getElementById('emailModal');
-        if (emailModal) {
-          emailModal.classList.remove('hidden');
-          // Store the log content and terminal ID for use when sending
-          emailModal.dataset.content = content;
-          emailModal.dataset.sourceId = elementId;
-        }
-      }
     }
   </script>
 

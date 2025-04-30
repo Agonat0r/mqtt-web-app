@@ -6,22 +6,121 @@ import { translations } from './translations.js';
     emailjs.init("7osg1XmfdRC2z68Xt"); // Replace with your actual EmailJS public key
 })();
 
-// Global state
+// Global state and MQTT client
 let loggedIn = false;
 let currentLang = 'en';
+let client = null;
+
+// MQTT Configuration
+const brokerConfig = {
+    host: 'lb88002c.ala.us-east-1.emqxsl.com',
+    port: 8084,
+    path: '/mqtt',
+    username: 'Carlos',
+    password: 'mqtt2025',
+    clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
+};
+
+/**
+ * Initializes the MQTT client and sets up connection handlers
+ */
+function initializeMQTTClient() {
+    // Connect to MQTT broker using MQTT.js
+    client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
+        username: brokerConfig.username,
+        password: brokerConfig.password,
+        clientId: brokerConfig.clientId,
+        clean: true,
+        rejectUnauthorized: false
+    });
+
+    // MQTT connection handling
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        logToTerminal('Connected to MQTT broker', 'success');
+        
+        // Update connection status indicator
+        const statusIndicator = document.getElementById('mqttStatus');
+        if (statusIndicator) {
+            statusIndicator.textContent = t('connected');
+            statusIndicator.className = 'status-indicator status-connected';
+        }
+
+        // Subscribe to all relevant topics
+        const topics = [
+            'usf/messages',
+            'usf/logs/alerts',
+            'usf/logs/general',
+            'usf/logs/command',
+            'usf/status',
+            'usf/telemetry'
+        ];
+        
+        topics.forEach(topic => {
+            client.subscribe(topic, (err) => {
+                if (err) {
+                    console.error('Subscription error for ' + topic + ':', err);
+                    logToTerminal('Failed to subscribe to ' + topic, 'error');
+                } else {
+                    console.log('Subscribed to ' + topic);
+                    logToTerminal('Subscribed to ' + topic, 'info');
+                }
+            });
+        });
+    });
+
+    client.on('error', (error) => {
+        console.error('MQTT Error:', error);
+        logToTerminal('MQTT Error: ' + error.message, 'error');
+    });
+
+    client.on('message', (topic, message) => {
+        console.log('Received message on topic:', topic, 'Message:', message.toString());
+        
+        try {
+            const payload = JSON.parse(message.toString());
+            
+            // Handle different message types
+            if (topic === 'usf/logs/general') {
+                // Handle messages from the general log topic
+                logToTerminal(payload.message, payload.type || 'info');
+            } else if (topic === 'usf/logs/command') {
+                // Handle command log messages
+                logToCommandTerminal(payload.message, payload.type || 'command');
+            } else if (topic === 'usf/logs/alerts') {
+                // Handle alert messages
+                handleAlarm(payload);
+            } else if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
+                // Handle alarms
+                handleAlarm(payload);
+            } else {
+                // Default handling for other messages
+                logToTerminal(payload.message || message.toString(), payload.type || 'info');
+            }
+        } catch (e) {
+            // If message isn't JSON, display it as a plain message
+            console.log('Received non-JSON message:', message.toString());
+            if (topic === 'usf/logs/command') {
+                logToCommandTerminal(message.toString(), 'command');
+            } else {
+                logToTerminal(message.toString(), 'info');
+            }
+        }
+    });
+}
 
 /**
  * Initializes the application when the DOM is fully loaded.
  * Sets up event handlers, loads settings, applies UI customizations,
- * updates text translations, but does NOT connect to MQTT until login.
+ * updates text translations, and initializes MQTT connection.
  */
 document.addEventListener('DOMContentLoaded', () => {
-  initializeEventHandlers();
-  loadSettings();
-  applySettings();
-  updateAllText();
-  // MQTT connection happens after login
-  loadPhoneSubscribers();
+    initializeEventHandlers();
+    loadSettings();
+    applySettings();
+    updateAllText();
+    initializeMQTTClient();
+    loadPhoneSubscribers();
 });
 
 /**
@@ -500,112 +599,6 @@ document.head.querySelector('style').textContent += `
     transition: opacity 0.5s ease;
   }
 `;
-
-// Wait for DOM to be fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // MQTT Configuration
-    const brokerConfig = {
-        host: 'lb88002c.ala.us-east-1.emqxsl.com',
-        port: 8084,
-        path: '/mqtt',
-        username: 'Carlos',
-        password: 'mqtt2025',
-        clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
-    };
-
-    // Terminal elements
-    const messageLog = document.getElementById('messageLog');
-    const commandLog = document.getElementById('command-log');
-    const terminalInput = document.getElementById('terminal-input');
-
-    if (!messageLog || !commandLog || !terminalInput) {
-        console.error('Required terminal elements not found');
-        return;
-    }
-
-    // Connect to MQTT broker using MQTT.js
-    const client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
-        username: brokerConfig.username,
-        password: brokerConfig.password,
-        clientId: brokerConfig.clientId,
-        clean: true,
-        rejectUnauthorized: false
-    });
-
-    // MQTT connection handling
-    client.on('connect', () => {
-        console.log('Connected to MQTT broker');
-        logToTerminal('Connected to MQTT broker', 'success');
-        
-        // Update connection status indicator
-        const statusIndicator = document.getElementById('mqttStatus');
-        if (statusIndicator) {
-            statusIndicator.textContent = t('connected');
-            statusIndicator.className = 'status-indicator status-connected';
-        }
-
-        // Subscribe to all relevant topics
-        const topics = [
-            'usf/messages',
-            'usf/logs/alerts',
-            'usf/logs/general',
-            'usf/logs/command',
-            'usf/status',
-            'usf/telemetry'
-        ];
-        
-        topics.forEach(topic => {
-            client.subscribe(topic, (err) => {
-                if (err) {
-                    console.error('Subscription error for ' + topic + ':', err);
-                    logToTerminal('Failed to subscribe to ' + topic, 'error');
-                } else {
-                    console.log('Subscribed to ' + topic);
-                    logToTerminal('Subscribed to ' + topic, 'info');
-                }
-            });
-        });
-    });
-
-    client.on('error', (error) => {
-        console.error('MQTT Error:', error);
-        logToTerminal('MQTT Error: ' + error.message, 'error');
-    });
-
-    client.on('message', (topic, message) => {
-        console.log('Received message on topic:', topic, 'Message:', message.toString());
-        
-        try {
-            const payload = JSON.parse(message.toString());
-            
-            // Handle different message types
-            if (topic === 'usf/logs/general') {
-                // Handle messages from the general log topic
-                logToTerminal(payload.message, payload.type || 'info');
-            } else if (topic === 'usf/logs/command') {
-                // Handle command log messages
-                logToCommandTerminal(payload.message, payload.type || 'command');
-            } else if (topic === 'usf/logs/alerts') {
-                // Handle alert messages
-                handleAlarm(payload);
-            } else if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
-                // Handle alarms
-                handleAlarm(payload);
-            } else {
-                // Default handling for other messages
-                logToTerminal(payload.message || message.toString(), payload.type || 'info');
-            }
-        } catch (e) {
-            // If message isn't JSON, display it as a plain message
-            console.log('Received non-JSON message:', message.toString());
-            if (topic === 'usf/logs/command') {
-                logToCommandTerminal(message.toString(), 'command');
-            } else {
-                logToTerminal(message.toString(), 'info');
-            }
-        }
-    });
-});
 
 // Terminal logging functions
 function logToTerminal(message, type = 'info') {

@@ -58,7 +58,7 @@
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
             <pre id="messageLog" class="terminal"></pre>
             <div class="terminal-controls">
-              <button onclick="clearTerminal('messageLog')" class="btn btn-danger">Clear Log</button>
+              <button onclick="clearLog('messageLog')" class="btn btn-danger">Clear Log</button>
               <button onclick="exportLog('messageLog')" class="btn btn-success">Export Log</button>
               <button onclick="emailLog('messageLog')" class="btn btn-success">Email Log</button>
             </div>
@@ -70,7 +70,7 @@
             <pre id="command-log" class="terminal"></pre>
             <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
             <div class="terminal-controls">
-              <button onclick="clearTerminal('command-log')" class="btn btn-danger">Clear Log</button>
+              <button onclick="clearLog('command-log')" class="btn btn-danger">Clear Log</button>
               <button onclick="exportLog('command-log')" class="btn btn-success">Export Log</button>
               <button onclick="emailLog('command-log')" class="btn btn-success">Email Log</button>
             </div>
@@ -703,16 +703,12 @@
     });
 
     // Function to clear terminal logs
-    function clearTerminal(elementId) {
+    function clearLog(elementId) {
       const terminal = document.getElementById(elementId);
       if (terminal) {
-        terminal.innerHTML = '';
-        // Add initial message based on terminal type
-        if (elementId === 'messageLog') {
-          terminal.innerHTML = 'Waiting for messages...\n';
-        } else if (elementId === 'command-log') {
-          terminal.innerHTML = 'Waiting for commands...\n';
-        }
+        terminal.innerHTML = elementId === 'messageLog' ? 
+          'Waiting for messages...\n' : 
+          'Waiting for commands...\n';
       }
     }
 

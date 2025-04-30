@@ -1421,80 +1421,125 @@ async function sendTestEmail() {
     }
 }
 
+// Carrier email-to-SMS gateway mappings
+const carrierGateways = {
+    'verizon': 'vtext.com',
+    'att': 'txt.att.net',
+    'tmobile': 'tmomail.net',
+    'sprint': 'messaging.sprintpcs.com',
+    'boost': 'sms.myboostmobile.com',
+    'cricket': 'sms.cricketwireless.net',
+    'uscellular': 'email.uscc.net',
+    'metro': 'mymetropcs.com',
+};
+
 /**
- * Sends an SMS alert using the Netlify Function
- * @param {string[]} phones - Array of phone numbers to send the SMS to
- * @param {string} message - The message to send
- * @returns {Promise<void>}
+ * Sends an SMS alert using email-to-SMS gateways
+ * @param {string} type - The type of alarm (red, amber, green)
+ * @param {string} message - The alarm message
  */
-async function sendSMS(phones, message) {
+async function sendSmsAlert(type, message) {
+    if (!smsAlertEnabled.checked) return;
+    
+    const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
+    if (!alertTypeEnabled) return;
+
+    const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+        .map(span => span.textContent);
+    
+    if (phones.length === 0) return;
+
     try {
-        const response = await fetch('/.netlify/functions/send-sms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                phones: phones,
-                message: message,
-                timestamp: new Date().toLocaleString()
-            })
-        });
+        // For each phone number, try to send via email-to-SMS gateway
+        for (const phone of phones) {
+            // Get carrier selection for this phone (default to first carrier if not set)
+            const carrierSelect = document.querySelector(`[data-phone="${phone}"]`);
+            const carrier = carrierSelect ? carrierSelect.value : Object.keys(carrierGateways)[0];
+            
+            if (!carrier || !carrierGateways[carrier]) {
+                console.warn(`No valid carrier selected for ${phone}`);
+                continue;
+            }
 
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Failed to send SMS');
+            // Format phone number (remove '+1' if present and any non-digit characters)
+            const formattedPhone = phone.replace(/^\+1/, '').replace(/\D/g, '');
+            
+            // Construct email-to-SMS address
+            const smsEmail = `${formattedPhone}@${carrierGateways[carrier]}`;
+
+            // Send via EmailJS
+            await emailjs.send(
+                'service_lsa1r4i',  // Your EmailJS service ID
+                'template_vnrbr1d', // Your EmailJS template ID
+                {
+                    to_email: smsEmail,
+                    alert_type: type.toUpperCase(),
+                    alert_message: message.substring(0, 160), // SMS length limit
+                    timestamp: new Date().toLocaleString()
+                }
+            );
         }
-
-        showMessage('SMS alert sent successfully', 'success');
-        return data;
+        console.log('SMS alerts sent successfully via email gateway');
     } catch (error) {
-        console.error('Error sending SMS:', error);
-        showMessage('Failed to send SMS: ' + error.message, 'error');
-        throw error;
+        console.error('Failed to send SMS alert:', error);
     }
 }
 
-/**
- * Sends a test SMS to verify SMS alert configuration
- */
-async function sendTestSMS() {
-    const phoneList = document.querySelectorAll('#phoneList .phone-item span');
-    if (phoneList.length === 0) {
-        showMessage('Please add at least one phone number first', 'error');
-        return;
+// Add carrier selection UI when adding a phone number
+function addPhoneToList(phone) {
+    const item = document.createElement('div');
+    item.className = 'phone-item';
+    
+    const phoneText = document.createElement('span');
+    phoneText.className = 'phone-text';
+    phoneText.textContent = phone;
+    
+    const carrierSelect = document.createElement('select');
+    carrierSelect.className = 'carrier-select';
+    carrierSelect.setAttribute('data-phone', phone);
+    
+    // Add carrier options
+    Object.entries(carrierGateways).forEach(([carrier, domain]) => {
+        const option = document.createElement('option');
+        option.value = carrier;
+        option.textContent = carrier.charAt(0).toUpperCase() + carrier.slice(1);
+        carrierSelect.appendChild(option);
+    });
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '&times;';
+    deleteBtn.onclick = () => {
+        item.remove();
+        const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
+            .map(span => span.textContent);
+        localStorage.setItem('phones', JSON.stringify(phones));
+        
+        // Also save carrier selection
+        const carrierSelections = {};
+        document.querySelectorAll('.carrier-select').forEach(select => {
+            carrierSelections[select.getAttribute('data-phone')] = select.value;
+        });
+        localStorage.setItem('carrierSelections', JSON.stringify(carrierSelections));
+    };
+    
+    item.appendChild(phoneText);
+    item.appendChild(carrierSelect);
+    item.appendChild(deleteBtn);
+    phoneList.appendChild(item);
+    
+    // Load saved carrier selection
+    const savedSelections = JSON.parse(localStorage.getItem('carrierSelections') || '{}');
+    if (savedSelections[phone]) {
+        carrierSelect.value = savedSelections[phone];
     }
-
-    try {
-        // Disable the test button while sending
-        const testButton = document.querySelector('#testSMSBtn');
-        if (testButton) {
-            testButton.disabled = true;
-            testButton.textContent = 'Sending...';
-        }
-
-        // Get all phone numbers
-        const phones = Array.from(phoneList).map(el => el.textContent);
-
-        // Send test SMS
-        await sendSMS(
-            phones,
-            "Test Alert: This is a test message from your VPL Monitoring System."
-        );
-
-        showMessage('Test SMS sent successfully!', 'success');
-    } catch (error) {
-        console.error('Failed to send test SMS:', error);
-        showMessage('Failed to send test SMS: ' + error.message, 'error');
-    } finally {
-        // Re-enable the test button
-        const testButton = document.querySelector('#testSMSBtn');
-        if (testButton) {
-            testButton.disabled = false;
-            testButton.textContent = 'Send Test SMS';
-        }
-    }
+    
+    // Save carrier selection when changed
+    carrierSelect.addEventListener('change', () => {
+        const selections = JSON.parse(localStorage.getItem('carrierSelections') || '{}');
+        selections[phone] = carrierSelect.value;
+        localStorage.setItem('carrierSelections', JSON.stringify(selections));
+    });
 }
 
 /**

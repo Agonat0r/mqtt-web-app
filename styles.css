@@ -408,6 +408,56 @@ button[data-action="clearTerminal"]:hover {
   cursor: pointer;
 }
 
+.phone-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.phone-text {
+  flex: 1;
+  font-size: 14px;
+}
+
+.carrier-select {
+  padding: 4px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  color: #495057;
+}
+
+.carrier-select:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.delete-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25);
+}
+
 /* Theme Variables */
 :root {
     /* Default theme */

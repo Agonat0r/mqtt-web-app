@@ -558,6 +558,9 @@ client.on('message', (topic, message) => {
             handleAlarm(payload);
         } else if (payload.type === 'command') {
             logToCommandTerminal(payload.message || 'Command received', payload.type);
+        } else if (payload.type === 'info') {
+            // Explicitly handle info messages
+            logToTerminal(payload.message, 'info');
         } else {
             // Default to general terminal for other messages
             logToTerminal(payload.message || message.toString(), 'info');
@@ -570,12 +573,21 @@ client.on('message', (topic, message) => {
 
 // Terminal logging functions
 function logToTerminal(message, type = 'info') {
+    const messageLog = document.getElementById('messageLog');
+    if (!messageLog) {
+        console.error('Message log element not found');
+        return;
+    }
+    
     const timestamp = new Date().toLocaleTimeString();
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     logEntry.innerHTML = `[${timestamp}] ${message}`;
     messageLog.appendChild(logEntry);
     messageLog.scrollTop = messageLog.scrollHeight;
+    
+    // Also log to console for debugging
+    console.log(`[${type}] ${message}`);
 }
 
 function logToCommandTerminal(message, type = 'command') {

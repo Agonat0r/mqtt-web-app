@@ -1400,50 +1400,6 @@ async function sendTestSMS() {
     }
 }
 
-// Add styles for phone items
-const style = document.createElement('style');
-style.textContent += `
-    .phone-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px;
-        margin: 4px 0;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-    }
-    .phone-item button {
-        background-color: #ff4444;
-        color: white;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .phone-input {
-        width: 200px;
-        padding: 8px;
-        margin-right: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    #smsDebugInfo {
-        margin-top: 20px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-    }
-    #smsDebugLog {
-        white-space: pre-wrap;
-        font-family: monospace;
-        font-size: 12px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-`;
-document.head.appendChild(style);
-
 /**
  * Loads phone subscribers from Firestore and updates the UI
  */

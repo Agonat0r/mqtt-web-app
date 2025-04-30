@@ -396,6 +396,99 @@
   <script src="static/js/sms-alerts.js"></script>
 
   <script>
+    // MQTT Configuration
+    const brokerConfig = {
+      host: 'lb88002c.ala.us-east-1.emqxsl.com',
+      port: 8084,
+      path: '/mqtt',
+      username: 'Carlos',
+      password: 'mqtt2025',
+      clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
+    };
+
+    // Initialize MQTT client
+    window.client = null;
+
+    // Initialize MQTT connection
+    function initializeMQTTClient() {
+      // Connect to MQTT broker using MQTT.js
+      window.client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
+        username: brokerConfig.username,
+        password: brokerConfig.password,
+        clientId: brokerConfig.clientId,
+        clean: true,
+        rejectUnauthorized: false
+      });
+
+      // Set up connection handling
+      window.client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        const statusIndicator = document.getElementById('connectionStatus');
+        if (statusIndicator) {
+          statusIndicator.textContent = 'Connected';
+          statusIndicator.className = 'status-indicator status-connected';
+        }
+
+        // Subscribe to topics
+        const topics = [
+          'usf/messages',
+          'usf/logs/alerts',
+          'usf/logs/general',
+          'usf/logs/command',
+          'usf/status',
+          'usf/telemetry'
+        ];
+        
+        topics.forEach(topic => {
+          window.client.subscribe(topic, (err) => {
+            if (err) {
+              console.error('Subscription error for ' + topic + ':', err);
+            } else {
+              console.log('Subscribed to ' + topic);
+            }
+          });
+        });
+      });
+
+      // Handle incoming messages
+      window.client.on('message', function(topic, message) {
+        try {
+          const msg = JSON.parse(message.toString());
+          if (topic === "usf/alerts/email") {
+            sendEmailAlert(msg.alert_type.toLowerCase(), msg.message);
+          }
+          // ... existing message handling code ...
+        } catch (error) {
+          console.error('Error processing MQTT message:', error);
+        }
+      });
+
+      // Handle connection loss
+      window.client.on('close', () => {
+        console.log('Disconnected from MQTT broker');
+        const statusIndicator = document.getElementById('connectionStatus');
+        if (statusIndicator) {
+          statusIndicator.textContent = 'Disconnected';
+          statusIndicator.className = 'status-indicator status-disconnected';
+        }
+      });
+
+      // Handle errors
+      window.client.on('error', (error) => {
+        console.error('MQTT Error:', error);
+        const statusIndicator = document.getElementById('connectionStatus');
+        if (statusIndicator) {
+          statusIndicator.textContent = 'Error';
+          statusIndicator.className = 'status-indicator status-error';
+        }
+      });
+    }
+
+    // Initialize MQTT when the document is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeMQTTClient();
+    });
+
     function startAction(dir) {
       const timestamp = new Date().toISOString();
       const command = `COMMAND:${dir.toUpperCase()}`;
@@ -897,19 +990,6 @@
         console.error('Failed to send SMS alert:', error);
       }
     }
-
-    // Add handler for email alerts
-    client.on('message', function(topic, message) {
-        try {
-            const msg = JSON.parse(message.toString());
-            if (topic === "usf/alerts/email") {
-                sendEmailAlert(msg.alert_type.toLowerCase(), msg.message);
-            }
-            // ... existing message handling code ...
-        } catch (error) {
-            console.error('Error processing MQTT message:', error);
-        }
-    });
 
     // Function to clear terminal logs
     function clearTerminal(elementId) {

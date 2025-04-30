@@ -66,7 +66,7 @@ function handleAction(event) {
       break;
     case 'clear-log':
       const targetId = target.getAttribute('data-target');
-      clearTerminal(targetId);
+      clearLog(targetId);
       break;
     case 'export-log':
       const exportId = target.getAttribute('data-target');

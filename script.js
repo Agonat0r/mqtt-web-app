@@ -64,7 +64,7 @@ function handleAction(event) {
     case 'switch-tab':
       handleTabSwitch(event);
       break;
-    case 'clear-log':
+    case 'clearTerminal':
       const targetId = target.getAttribute('data-target');
       clearTerminal(targetId);
       break;
@@ -218,7 +218,7 @@ function updateAllText() {
     updateElementText('#resetCustomizations', 'reset');
 
     // Update all buttons
-    document.querySelectorAll('[data-action="clear-log"]').forEach(btn => 
+    document.querySelectorAll('[data-action="clearTerminal"]').forEach(btn => 
         btn.textContent = translations[currentLang].clearTerminal);
     document.querySelectorAll('[data-action="export-log"]').forEach(btn => 
         btn.textContent = translations[currentLang].exportLog);
@@ -699,7 +699,7 @@ window.sendLiftCommand = function(command) {
 };
 
 // Clear log buttons
-document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
+document.querySelectorAll('[data-action="clearTerminal"]').forEach(button => {
     button.addEventListener('click', () => {
         const targetId = button.getAttribute('data-target');
         const terminal = document.getElementById(targetId);
@@ -707,7 +707,7 @@ document.querySelectorAll('[data-action="clear-log"]').forEach(button => {
             terminal.innerHTML = '';
         }
         // Also clear logs on the ESP32 backend
-        fetch('/clearLogs')
+        fetch('/clearTerminal')
             .then(res => res.text())
             .then(msg => {
                 showMessage(msg || 'Logs cleared', 'success');

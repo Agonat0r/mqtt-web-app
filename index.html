@@ -753,7 +753,7 @@
           testAlertStatus.style.color = '#2196F3';
 
           try {
-            const response = await fetch('/api/send-sms', {
+            const response = await fetch('/.netlify/functions/send-sms', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -765,15 +765,17 @@
               })
             });
 
+            const data = await response.json();
+            
             if (!response.ok) {
-              throw new Error('Failed to send SMS');
+              throw new Error(data.message || 'Failed to send SMS');
             }
 
             testAlertStatus.textContent = 'Test SMS sent successfully!';
             testAlertStatus.style.color = '#4CAF50';
           } catch (error) {
             console.error('Failed to send test SMS:', error);
-            testAlertStatus.textContent = 'Failed to send test SMS. Please try again.';
+            testAlertStatus.textContent = 'Failed to send test SMS: ' + error.message;
             testAlertStatus.style.color = '#ff4444';
           } finally {
             testSmsBtn.disabled = false;

@@ -538,20 +538,29 @@ document.addEventListener('DOMContentLoaded', () => {
         logToTerminal('Connected to MQTT broker', 'success');
         
         // Update connection status indicator
-        const statusIndicator = document.getElementById('connectionStatus');
+        const statusIndicator = document.getElementById('mqttStatus');
         if (statusIndicator) {
-            statusIndicator.textContent = 'Connected';
+            statusIndicator.textContent = t('connected');
             statusIndicator.className = 'status-indicator status-connected';
         }
-        
+
         // Subscribe to all relevant topics
-        const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];
+        const topics = [
+            'usf/messages',
+            'usf/logs/alerts',
+            'usf/logs/general',
+            'usf/logs/command',
+            'usf/status',
+            'usf/telemetry'
+        ];
+        
         topics.forEach(topic => {
             client.subscribe(topic, (err) => {
                 if (err) {
                     console.error('Subscription error for ' + topic + ':', err);
                     logToTerminal('Failed to subscribe to ' + topic, 'error');
                 } else {
+                    console.log('Subscribed to ' + topic);
                     logToTerminal('Subscribed to ' + topic, 'info');
                 }
             });
@@ -564,29 +573,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     client.on('message', (topic, message) => {
-        console.log('Received message:', topic, message.toString());
+        console.log('Received message on topic:', topic, 'Message:', message.toString());
+        
         try {
             const payload = JSON.parse(message.toString());
             
             // Handle different message types
-            if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
-                handleAlarm(payload);
-            } else if (payload.type === 'command') {
-                logToCommandTerminal(payload.message || 'Command received', payload.type);
-            } else if (payload.type === 'info') {
-                // Explicitly handle info messages in the general terminal
-                logToTerminal(payload.message, 'info');
-            } else if (topic === 'usf/logs/general') {
+            if (topic === 'usf/logs/general') {
                 // Handle messages from the general log topic
-                logToTerminal(payload.message || message.toString(), payload.type || 'info');
+                logToTerminal(payload.message, payload.type || 'info');
+            } else if (topic === 'usf/logs/command') {
+                // Handle command log messages
+                logToCommandTerminal(payload.message, payload.type || 'command');
+            } else if (topic === 'usf/logs/alerts') {
+                // Handle alert messages
+                handleAlarm(payload);
+            } else if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
+                // Handle alarms
+                handleAlarm(payload);
             } else {
-                // Default to general terminal for other messages
-                logToTerminal(payload.message || message.toString(), 'info');
+                // Default handling for other messages
+                logToTerminal(payload.message || message.toString(), payload.type || 'info');
             }
         } catch (e) {
             // If message isn't JSON, display it as a plain message
-            console.log('Displaying plain message:', message.toString());
-            logToTerminal(message.toString(), 'info');
+            console.log('Received non-JSON message:', message.toString());
+            if (topic === 'usf/logs/command') {
+                logToCommandTerminal(message.toString(), 'command');
+            } else {
+                logToTerminal(message.toString(), 'info');
+            }
         }
     });
 });

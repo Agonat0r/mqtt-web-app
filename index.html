@@ -259,6 +259,38 @@
           </div>
         </div>
       </div>
+
+      <!-- Settings Tab -->
+      <div id="settings" class="tab-content hidden">
+        <div class="settings-section">
+          <h2 data-translate="alertSettings">Alert Settings</h2>
+          
+          <!-- Email Alerts -->
+          <div class="email-alerts">
+            <h3 data-translate="emailAlerts">Email Alerts</h3>
+            <div id="emailList"></div>
+            <div class="add-email">
+              <input type="email" id="emailInput" data-translate="enterEmail" placeholder="Enter email address">
+              <button onclick="addEmailSubscriber()" data-translate="addEmail">Add Email</button>
+            </div>
+            <button id="testEmailBtn" data-translate="sendTestEmail">Send Test Email</button>
+          </div>
+
+          <!-- Phone Alerts -->
+          <div class="phone-alerts">
+            <h3 data-translate="phoneAlerts">Phone Alerts</h3>
+            <div id="phoneList"></div>
+            <div class="add-phone">
+              <input type="tel" id="phoneInput" data-translate="enterPhone" placeholder="Enter phone number">
+              <button onclick="addPhoneSubscriber()" data-translate="addPhone">Add Phone</button>
+            </div>
+            <button id="testSMSBtn" onclick="sendTestSMS()" data-translate="sendTestSMS">Send Test SMS</button>
+          </div>
+        </div>
+
+        <!-- Other settings sections -->
+        <!-- ... existing code ... -->
+      </div>
     </div>
 
     <!-- Email Modal -->

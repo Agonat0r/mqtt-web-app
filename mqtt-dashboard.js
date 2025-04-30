@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applySettings();
   updateAllText();
   // MQTT connection happens after login
+  loadPhoneSubscribers();
 });
 
 /**
@@ -117,6 +118,7 @@ const db = firebase.firestore();
 // Collections
 const emailCollection = db.collection('emailSubscribers');
 const alertsCollection = db.collection('alerts');
+const phoneCollection = db.collection('phoneSubscribers');
 
 // Function to save alert to Firebase
 async function saveAlertToFirebase(type, message) {
@@ -1076,7 +1078,7 @@ async function sendLogEmail() {
     const terminal = document.getElementById(targetId);
     const submitButton = document.querySelector('[data-action="send-email"]');
     
-    if (!terminal || !emailInput.value) {
+    if (!terminal || !emailInput.value || !emailInput.value.includes('@')) {
         showMessage(t('invalidEmailOrContent'), 'error');
         return;
     }
@@ -1088,15 +1090,17 @@ async function sendLogEmail() {
             submitButton.textContent = t('sending');
         }
 
-        // Send email using EmailJS
+        // Send email using EmailJS with improved template parameters
         await emailjs.send(
             "service_lsa1r4i", 
             "template_vnrbr1d",
             {
                 to_email: emailInput.value,
-                log_content: terminal.innerText,
-                log_type: targetId,
-                timestamp: new Date().toLocaleString()
+                from_name: "MQTT Dashboard",
+                subject: `Log Export - ${targetId}`,
+                message: terminal.innerText,
+                timestamp: new Date().toLocaleString(),
+                reply_to: emailInput.value
             }
         );
         
@@ -1211,5 +1215,159 @@ async function sendTestEmail() {
             testButton.disabled = false;
             testButton.textContent = 'Send Test Email';
         }
+    }
+}
+
+/**
+ * Sends an SMS alert using the Netlify Function
+ * @param {string[]} phones - Array of phone numbers to send the SMS to
+ * @param {string} message - The message to send
+ * @returns {Promise<void>}
+ */
+async function sendSMS(phones, message) {
+    try {
+        const response = await fetch('/.netlify/functions/send-sms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                phones: phones,
+                message: message,
+                timestamp: new Date().toLocaleString()
+            })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to send SMS');
+        }
+
+        showMessage('SMS alert sent successfully', 'success');
+        return data;
+    } catch (error) {
+        console.error('Error sending SMS:', error);
+        showMessage('Failed to send SMS: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+/**
+ * Sends a test SMS to verify SMS alert configuration
+ */
+async function sendTestSMS() {
+    const phoneList = document.querySelectorAll('#phoneList .phone-item span');
+    if (phoneList.length === 0) {
+        showMessage('Please add at least one phone number first', 'error');
+        return;
+    }
+
+    try {
+        // Disable the test button while sending
+        const testButton = document.querySelector('#testSMSBtn');
+        if (testButton) {
+            testButton.disabled = true;
+            testButton.textContent = 'Sending...';
+        }
+
+        // Get all phone numbers
+        const phones = Array.from(phoneList).map(el => el.textContent);
+
+        // Send test SMS
+        await sendSMS(
+            phones,
+            "Test Alert: This is a test message from your VPL Monitoring System."
+        );
+
+        showMessage('Test SMS sent successfully!', 'success');
+    } catch (error) {
+        console.error('Failed to send test SMS:', error);
+        showMessage('Failed to send test SMS: ' + error.message, 'error');
+    } finally {
+        // Re-enable the test button
+        const testButton = document.querySelector('#testSMSBtn');
+        if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Send Test SMS';
+        }
+    }
+}
+
+/**
+ * Loads phone subscribers from Firestore and updates the UI
+ */
+async function loadPhoneSubscribers() {
+    const phoneList = document.getElementById('phoneList');
+    if (!phoneList) return;
+
+    try {
+        const snapshot = await phoneCollection.get();
+        phoneList.innerHTML = '';
+        
+        snapshot.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = 'phone-item';
+            const docId = doc.id;
+            div.innerHTML = `
+                <span>${doc.data().phone}</span>
+                <button data-docid="${docId}" data-action="remove-phone">${t('remove')}</button>
+            `;
+            phoneList.appendChild(div);
+        });
+
+        // Add event listeners for remove buttons using event delegation
+        phoneList.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('[data-action="remove-phone"]');
+            if (removeBtn) {
+                const docId = removeBtn.dataset.docid;
+                removePhoneSubscriber(docId);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading phone numbers:', error);
+        showMessage(t('errorLoadingPhones'), 'error');
+    }
+}
+
+/**
+ * Adds a new phone subscriber to Firestore
+ */
+async function addPhoneSubscriber() {
+    const phoneInput = document.getElementById('phoneInput');
+    const phone = phoneInput.value.trim();
+    
+    if (!phone) {
+        showMessage(t('enterValidPhone'), 'error');
+        return;
+    }
+
+    try {
+        await phoneCollection.add({
+            phone: phone,
+            createdAt: new Date()
+        });
+        
+        phoneInput.value = '';
+        await loadPhoneSubscribers();
+        showMessage(t('phoneAdded'), 'success');
+    } catch (error) {
+        console.error('Error adding phone:', error);
+        showMessage(t('errorAddingPhone'), 'error');
+    }
+}
+
+/**
+ * Removes a phone subscriber from Firestore
+ * @param {string} docId - The Firestore document ID
+ */
+async function removePhoneSubscriber(docId) {
+    try {
+        await phoneCollection.doc(docId).delete();
+        await loadPhoneSubscribers();
+        showMessage(t('phoneRemoved'), 'success');
+    } catch (error) {
+        console.error('Error removing phone:', error);
+        showMessage(t('errorRemovingPhone'), 'error');
     }
 }

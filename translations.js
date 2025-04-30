@@ -71,7 +71,18 @@ export const translations = {
     connected: "✅ Connected to MQTT broker",
     subscribed: "🔔 Subscribed to topic: ",
     mqttError: "❌ MQTT Error: ",
-    reconnecting: "🔁 Reconnecting..."
+    reconnecting: "🔁 Reconnecting...",
+
+    phoneAlerts: "Phone Alerts",
+    enterPhone: "Enter phone number",
+    addPhone: "Add Phone",
+    sendTestSMS: "Send Test SMS",
+    phoneAdded: "Phone number added successfully",
+    phoneRemoved: "Phone number removed",
+    errorAddingPhone: "Error adding phone number",
+    errorRemovingPhone: "Error removing phone number",
+    errorLoadingPhones: "Error loading phone numbers",
+    enterValidPhone: "Please enter a valid phone number"
   },
   de: {
     // Login
@@ -217,7 +228,18 @@ export const translations = {
     connected: "✅ Conectado al broker MQTT",
     subscribed: "🔔 Suscrito al tema: ",
     mqttError: "❌ Error MQTT: ",
-    reconnecting: "🔁 Reconectando..."
+    reconnecting: "🔁 Reconectando...",
+
+    phoneAlerts: "Alertas por Teléfono",
+    enterPhone: "Ingrese número de teléfono",
+    addPhone: "Agregar Teléfono",
+    sendTestSMS: "Enviar SMS de Prueba",
+    phoneAdded: "Número de teléfono agregado exitosamente",
+    phoneRemoved: "Número de teléfono eliminado",
+    errorAddingPhone: "Error al agregar número de teléfono",
+    errorRemovingPhone: "Error al eliminar número de teléfono",
+    errorLoadingPhones: "Error al cargar números de teléfono",
+    enterValidPhone: "Por favor ingrese un número de teléfono válido"
   },
   fr: {
     // Login

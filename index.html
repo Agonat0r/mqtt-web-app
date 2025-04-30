@@ -223,19 +223,15 @@
               <span>Enable SMS Alerts</span>
             </div>
 
-            <!-- Phone Input Section -->
-            <div class="input-section">
-                <input type="tel" id="phoneInput-main" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
-                <button onclick="addPhoneSubscriber()">Add Phone</button>
+            <div class="phone-input-section">
+              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
             </div>
-            <div id="phoneList" class="phone-list"></div>
-            <button id="testSmsBtn" onclick="sendTestSMS()">Send Test SMS</button>
-          </div>
+            <div id="phoneValidationMsg" class="validation-msg"></div>
 
-          <!-- Debug Information -->
-          <div id="smsDebugInfo" class="debug-info" style="display: none;">
-              <h4>SMS Debug Information</h4>
-              <pre id="smsDebugLog"></pre>
+            <div id="phoneList" class="phone-list">
+              <!-- Phone numbers will be added here dynamically -->
+            </div>
           </div>
 
           <!-- Common Alert Preferences Section -->
@@ -273,9 +269,9 @@
           <div class="email-alerts">
             <h3 data-translate="emailAlerts">Email Alerts</h3>
             <div id="emailList"></div>
-            <div class="email-settings">
-                <input type="email" id="emailInput-settings" data-translate="enterEmail" placeholder="Enter email address">
-                <button onclick="addEmailSubscriber()" data-translate="addEmail">Add Email</button>
+            <div class="add-email">
+              <input type="email" id="emailInput" data-translate="enterEmail" placeholder="Enter email address">
+              <button onclick="addEmailSubscriber()" data-translate="addEmail">Add Email</button>
             </div>
             <button id="testEmailBtn" data-translate="sendTestEmail">Send Test Email</button>
           </div>
@@ -300,10 +296,10 @@
     <!-- Email Modal -->
     <div id="emailModal" class="modal hidden">
       <div class="modal-content">
-        <h3 data-translate="sendEmailLog">Send Log via Email</h3>
-        <input type="email" id="emailInput-modal" data-translate="enterEmail" placeholder="Enter email address">
-        <div class="button-group">
-          <button data-action="send-email" data-translate="send">Send</button>
+        <h3 data-translate="emailModalTitle">Send Log via Email</h3>
+        <input type="email" id="emailInput" placeholder="Enter email address" data-translate="emailPlaceholder">
+        <div class="modal-buttons">
+          <button data-action="send-email" data-translate="sendEmail">Send</button>
           <button data-action="close-modal" data-translate="cancel">Cancel</button>
         </div>
       </div>
@@ -554,7 +550,7 @@
     }
 
     // SMS Alert Management
-    const phoneInput = document.getElementById('phoneInput-main');
+    const phoneInput = document.getElementById('phoneInput');
     const addPhoneBtn = document.getElementById('addPhoneBtn');
     const phoneList = document.getElementById('phoneList');
     const phoneValidationMsg = document.getElementById('phoneValidationMsg');
@@ -890,25 +886,25 @@
       border-radius: 4px;
     }
 
-    .button-group {
+    .modal-buttons {
       display: flex;
       justify-content: flex-end;
       gap: 10px;
     }
 
-    .button-group button {
+    .modal-buttons button {
       padding: 8px 16px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
 
-    .button-group button[data-action="send-email"] {
+    .modal-buttons button[data-action="send-email"] {
       background-color: #4CAF50;
       color: white;
     }
 
-    .button-group button[data-action="close-modal"] {
+    .modal-buttons button[data-action="close-modal"] {
       background-color: #f44336;
       color: white;
     }

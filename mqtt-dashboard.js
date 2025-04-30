@@ -1229,32 +1229,15 @@ async function sendTestEmail() {
     }
 }
 
-// Debug logging function
-function logSMSDebug(message, data = null) {
-    const debugLog = document.getElementById('smsDebugLog');
-    const timestamp = new Date().toLocaleTimeString();
-    let logMessage = `[${timestamp}] ${message}`;
-    if (data) {
-        logMessage += '\n' + JSON.stringify(data, null, 2);
-    }
-    debugLog.textContent = logMessage + '\n\n' + debugLog.textContent;
-    document.getElementById('smsDebugInfo').style.display = 'block';
-}
-
+/**
+ * Sends an SMS alert using the Netlify Function
+ * @param {string[]} phones - Array of phone numbers to send the SMS to
+ * @param {string} message - The message to send
+ * @returns {Promise<void>}
+ */
 async function sendSMS(phones, message) {
-    logSMSDebug('Starting SMS send process', { phones, message });
-    
     try {
-        // Validate inputs
-        if (!phones || phones.length === 0) {
-            throw new Error('No phone numbers provided');
-        }
-        if (!message) {
-            throw new Error('No message provided');
-        }
-
-        logSMSDebug('Making API request to Netlify function');
-        const response = await fetch('/api/send-sms', {
+        const response = await fetch('/.netlify/functions/send-sms', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1266,183 +1249,61 @@ async function sendSMS(phones, message) {
             })
         });
 
-        logSMSDebug('Received response from API', {
-            status: response.status,
-            statusText: response.statusText
-        });
-
         const data = await response.json();
-        logSMSDebug('Parsed response data', data);
         
         if (!response.ok) {
-            throw new Error(data.message || `Failed to send SMS: ${response.status} ${response.statusText}`);
+            throw new Error(data.message || 'Failed to send SMS');
         }
 
         showMessage('SMS alert sent successfully', 'success');
-        logSMSDebug('SMS sent successfully');
         return data;
     } catch (error) {
         console.error('Error sending SMS:', error);
-        logSMSDebug('Error sending SMS', {
-            error: error.message,
-            stack: error.stack
-        });
         showMessage('Failed to send SMS: ' + error.message, 'error');
         throw error;
     }
 }
 
-function addPhoneSubscriber() {
-    const phoneInput = document.getElementById('phoneInput-main');
-    if (!phoneInput) {
-        logSMSDebug('Error: Phone input element not found');
-        return;
-    }
-
-    const phoneNumber = phoneInput.value.trim();
-    logSMSDebug('Adding phone subscriber', { phoneNumber });
-
-    if (!phoneNumber) {
-        showMessage('Please enter a phone number', 'error');
-        logSMSDebug('Error: Empty phone number');
-        return;
-    }
-
-    // E.164 format validation (e.g., +1234567890)
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-        showMessage('Please enter a valid phone number in E.164 format (e.g., +1234567890)', 'error');
-        logSMSDebug('Error: Invalid phone number format. Must be in E.164 format');
-        return;
-    }
-
-    const phoneList = document.getElementById('phoneList');
-    if (!phoneList) {
-        logSMSDebug('Error: Phone list element not found');
-        return;
-    }
-
-    const existingPhones = Array.from(phoneList.children).map(item => 
-        item.querySelector('span')?.textContent.trim()
-    );
-
-    if (existingPhones.includes(phoneNumber)) {
-        showMessage('This phone number is already in the list', 'error');
-        logSMSDebug('Error: Duplicate phone number');
-        return;
-    }
-
-    const phoneItem = document.createElement('div');
-    phoneItem.className = 'phone-item';
-    phoneItem.innerHTML = `
-        <span>${phoneNumber}</span>
-        <button onclick="removePhoneFromList(this)">Remove</button>
-    `;
-    phoneList.appendChild(phoneItem);
-    phoneInput.value = '';
-
-    logSMSDebug('Phone subscriber added successfully', { phoneNumber });
-    showMessage('Phone number added successfully', 'success');
-}
-
-function removePhoneFromList(button) {
-    const phoneItem = button.parentElement;
-    const phoneNumber = phoneItem.querySelector('span').textContent;
-    logSMSDebug('Removing phone from list', { phoneNumber });
-    phoneItem.remove();
-    showMessage('Phone number removed', 'success');
-}
-
+/**
+ * Sends a test SMS to verify SMS alert configuration
+ */
 async function sendTestSMS() {
-    logSMSDebug('Starting test SMS process');
-    
-    const phoneList = document.getElementById('phoneList');
-    if (!phoneList) {
-        logSMSDebug('Error: Phone list element not found');
+    const phoneList = document.querySelectorAll('#phoneList .phone-item span');
+    if (phoneList.length === 0) {
+        showMessage('Please add at least one phone number first', 'error');
         return;
     }
 
-    const phones = Array.from(phoneList.children)
-        .map(item => item.querySelector('span')?.textContent.trim())
-        .filter(phone => phone); // Remove any undefined/empty values
-
-    logSMSDebug('Collected phone numbers', { phones });
-
-    if (phones.length === 0) {
-        showMessage('Please add at least one phone number', 'error');
-        logSMSDebug('Error: No phone numbers in list');
-        return;
-    }
-
-    const testMessage = 'This is a test SMS from your MQTT Dashboard.';
-    
     try {
-        const testButton = document.getElementById('testSmsBtn');
+        // Disable the test button while sending
+        const testButton = document.querySelector('#testSMSBtn');
         if (testButton) {
             testButton.disabled = true;
             testButton.textContent = 'Sending...';
         }
 
-        logSMSDebug('Sending test SMS', { phones, message: testMessage });
-        await sendSMS(phones, testMessage);
-        logSMSDebug('Test SMS sent successfully');
-        
-        if (testButton) {
-            testButton.disabled = false;
-            testButton.textContent = 'Send Test SMS';
-        }
+        // Get all phone numbers
+        const phones = Array.from(phoneList).map(el => el.textContent);
+
+        // Send test SMS
+        await sendSMS(
+            phones,
+            "Test Alert: This is a test message from your VPL Monitoring System."
+        );
+
+        showMessage('Test SMS sent successfully!', 'success');
     } catch (error) {
-        logSMSDebug('Failed to send test SMS', { error: error.message });
+        console.error('Failed to send test SMS:', error);
+        showMessage('Failed to send test SMS: ' + error.message, 'error');
+    } finally {
+        // Re-enable the test button
+        const testButton = document.querySelector('#testSMSBtn');
         if (testButton) {
             testButton.disabled = false;
             testButton.textContent = 'Send Test SMS';
         }
     }
 }
-
-// Add styles for phone items
-const style = document.createElement('style');
-style.textContent += `
-    .phone-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px;
-        margin: 4px 0;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-    }
-    .phone-item button {
-        background-color: #ff4444;
-        color: white;
-        border: none;
-        padding: 4px 8px;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .phone-input {
-        width: 200px;
-        padding: 8px;
-        margin-right: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    #smsDebugInfo {
-        margin-top: 20px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-    }
-    #smsDebugLog {
-        white-space: pre-wrap;
-        font-family: monospace;
-        font-size: 12px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-`;
-document.head.appendChild(style);
 
 /**
  * Loads phone subscribers from Firestore and updates the UI
@@ -1477,6 +1338,33 @@ async function loadPhoneSubscribers() {
     } catch (error) {
         console.error('Error loading phone numbers:', error);
         showMessage(t('errorLoadingPhones'), 'error');
+    }
+}
+
+/**
+ * Adds a new phone subscriber to Firestore
+ */
+async function addPhoneSubscriber() {
+    const phoneInput = document.getElementById('phoneInput');
+    const phone = phoneInput.value.trim();
+    
+    if (!phone) {
+        showMessage(t('enterValidPhone'), 'error');
+        return;
+    }
+
+    try {
+        await phoneCollection.add({
+            phone: phone,
+            createdAt: new Date()
+        });
+        
+        phoneInput.value = '';
+        await loadPhoneSubscribers();
+        showMessage(t('phoneAdded'), 'success');
+    } catch (error) {
+        console.error('Error adding phone:', error);
+        showMessage(t('errorAddingPhone'), 'error');
     }
 }
 

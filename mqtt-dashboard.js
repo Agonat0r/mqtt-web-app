@@ -501,82 +501,90 @@ document.head.querySelector('style').textContent += `
   }
 `;
 
-// MQTT Configuration
-const brokerConfig = {
-    host: 'lb88002c.ala.us-east-1.emqxsl.com',
-    port: 8084,
-    path: '/mqtt',
-    username: 'Carlos',
-    password: 'mqtt2025',
-    clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
-};
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // MQTT Configuration
+    const brokerConfig = {
+        host: 'lb88002c.ala.us-east-1.emqxsl.com',
+        port: 8084,
+        path: '/mqtt',
+        username: 'Carlos',
+        password: 'mqtt2025',
+        clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
+    };
 
-// Terminal elements
-const messageLog = document.getElementById('messageLog');
-const commandLog = document.getElementById('command-log');
-const terminalInput = document.getElementById('terminal-input');
+    // Terminal elements
+    const messageLog = document.getElementById('messageLog');
+    const commandLog = document.getElementById('command-log');
+    const terminalInput = document.getElementById('terminal-input');
 
-// Connect to MQTT broker using MQTT.js
-const client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
-    username: brokerConfig.username,
-    password: brokerConfig.password,
-    clientId: brokerConfig.clientId,
-    clean: true,
-    rejectUnauthorized: false // Add this if you have SSL certificate issues
-});
-
-// MQTT connection handling
-client.on('connect', () => {
-    console.log('Connected to MQTT broker');
-    logToTerminal('Connected to MQTT broker', 'success');
-    
-    // Update connection status indicator
-    const statusIndicator = document.getElementById('connectionStatus');
-    if (statusIndicator) {
-        statusIndicator.textContent = 'Connected';
-        statusIndicator.className = 'status-indicator status-connected';
+    if (!messageLog || !commandLog || !terminalInput) {
+        console.error('Required terminal elements not found');
+        return;
     }
-    
-    // Subscribe to all relevant topics
-    const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];
-    topics.forEach(topic => {
-        client.subscribe(topic, (err) => {
-            if (err) {
-                console.error('Subscription error for ' + topic + ':', err);
-                logToTerminal('Failed to subscribe to ' + topic, 'error');
-            } else {
-                logToTerminal('Subscribed to ' + topic, 'info');
-            }
+
+    // Connect to MQTT broker using MQTT.js
+    const client = mqtt.connect(`wss://${brokerConfig.host}:${brokerConfig.port}${brokerConfig.path}`, {
+        username: brokerConfig.username,
+        password: brokerConfig.password,
+        clientId: brokerConfig.clientId,
+        clean: true,
+        rejectUnauthorized: false
+    });
+
+    // MQTT connection handling
+    client.on('connect', () => {
+        console.log('Connected to MQTT broker');
+        logToTerminal('Connected to MQTT broker', 'success');
+        
+        // Update connection status indicator
+        const statusIndicator = document.getElementById('connectionStatus');
+        if (statusIndicator) {
+            statusIndicator.textContent = 'Connected';
+            statusIndicator.className = 'status-indicator status-connected';
+        }
+        
+        // Subscribe to all relevant topics
+        const topics = ['usf/messages', 'usf/logs/alerts', 'usf/logs/general', 'usf/logs/command'];
+        topics.forEach(topic => {
+            client.subscribe(topic, (err) => {
+                if (err) {
+                    console.error('Subscription error for ' + topic + ':', err);
+                    logToTerminal('Failed to subscribe to ' + topic, 'error');
+                } else {
+                    logToTerminal('Subscribed to ' + topic, 'info');
+                }
+            });
         });
     });
-});
 
-client.on('error', (error) => {
-    console.error('MQTT Error:', error);
-    logToTerminal('MQTT Error: ' + error.message, 'error');
-});
+    client.on('error', (error) => {
+        console.error('MQTT Error:', error);
+        logToTerminal('MQTT Error: ' + error.message, 'error');
+    });
 
-client.on('message', (topic, message) => {
-    console.log('Received message:', topic, message.toString());
-    try {
-        const payload = JSON.parse(message.toString());
-        
-        // Handle different message types
-        if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
-            handleAlarm(payload);
-        } else if (payload.type === 'command') {
-            logToCommandTerminal(payload.message || 'Command received', payload.type);
-        } else if (payload.type === 'info') {
-            // Explicitly handle info messages
-            logToTerminal(payload.message, 'info');
-        } else {
-            // Default to general terminal for other messages
-            logToTerminal(payload.message || message.toString(), 'info');
+    client.on('message', (topic, message) => {
+        console.log('Received message:', topic, message.toString());
+        try {
+            const payload = JSON.parse(message.toString());
+            
+            // Handle different message types
+            if (payload.type === 'red' || payload.type === 'amber' || payload.type === 'green') {
+                handleAlarm(payload);
+            } else if (payload.type === 'command') {
+                logToCommandTerminal(payload.message || 'Command received', payload.type);
+            } else if (payload.type === 'info') {
+                // Explicitly handle info messages
+                logToTerminal(payload.message, 'info');
+            } else {
+                // Default to general terminal for other messages
+                logToTerminal(payload.message || message.toString(), 'info');
+            }
+        } catch (e) {
+            console.error('Error parsing message:', e);
+            logToTerminal('Error parsing message: ' + message.toString(), 'error');
         }
-    } catch (e) {
-        console.error('Error parsing message:', e);
-        logToTerminal('Error parsing message: ' + message.toString(), 'error');
-    }
+    });
 });
 
 // Terminal logging functions

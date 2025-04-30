@@ -90,18 +90,18 @@ const unsigned long LED_CHECK_DELAY = 50; // Reduced from 300ms to 50ms
 const unsigned long checkInterval = 500; // Reduced from 1500ms to 500ms
 
 // Pin Definitions
-#define UP_BUTTON 18 // 18
-#define DOWN_BUTTON 19 // 19
-#define UP_PIN 7 // 5
-#define DOWN_PIN 13 // 4
-#define LIMIT_SWITCH_UP 21 // 21
-#define LIMIT_SWITCH_DOWN 22 // 22
+#define UP_BUTTON 2 // 18
+#define DOWN_BUTTON 4 // 19
+#define UP_PIN 15 // 5
+#define DOWN_PIN 27 // 4
+#define LIMIT_SWITCH_UP 26 // 21
+#define LIMIT_SWITCH_DOWN 25 // 22
 #define BRAKE_PIN 14 
-#define UP_OUTPUT_PIN 15    // Using pin 15 for UP output
-#define DOWN_OUTPUT_PIN 16  // Using pin 16 for DOWN output
-#define ALWAYS_HIGH_PIN1 17 // Pin that will always be HIGH
-#define ALWAYS_HIGH_PIN2 20 // Pin that will always be HIGH
-#define ALWAYS_HIGH_PIN3 23 // Pin that will always be HIGH
+#define UP_OUTPUT_PIN 35    // Using pin 15 for UP output
+#define DOWN_OUTPUT_PIN 34  // Using pin 16 for DOWN output
+#define ALWAYS_HIGH_PIN1 12 // Pin that will always be HIGH
+#define ALWAYS_HIGH_PIN2 24 // Pin that will always be HIGH
+#define ALWAYS_HIGH_PIN3 13 // Pin that will always be HIGH
 // Email Configuration
 #define MAX_EMAILS 10
 String emailAddresses[MAX_EMAILS];
@@ -111,8 +111,8 @@ unsigned long lastEmailSent = 0;
 const unsigned long EMAIL_COOLDOWN = 300000; // 5 minutes between emails
 
 // Define Red and Green LED Input Pins
-const int redLEDs[] = {4, 8, 35, 2}; // Array of pin numbers for Red LEDs
-const int greenLEDs[] = {5, 3, 36, 1}; // Array of pin numbers for Green LEDs
+const int redLEDs[] = {5, 19, 22, 33}; // Array of pin numbers for Red LEDs
+const int greenLEDs[] = {18, 21, 23, 32}; // Array of pin numbers for Green LEDs
 const int numLEDs = 4; // Total LEDs per color
 
 // Timing variables for LED reading
@@ -373,21 +373,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
 // Function to reconnect to MQTT broker
 void reconnectMQTT() {
     if (WiFi.status() != WL_CONNECTED) {
-        // Do not print anything here
         return;
     }
     int attempts = 0;
     const int MAX_ATTEMPTS = 3;
     while (!mqttClient.connected() && attempts < MAX_ATTEMPTS) {
-        // Do not print anything here
         String clientId = "ESP32Client-" + String(random(0xffff), HEX);
         if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
             Serial.println("Connected to MQTT broker");
+            
+            // Subscribe to topics
             mqttClient.subscribe(commandLogTopic);
             mqttClient.subscribe(generalLogTopic);
             mqttClient.subscribe(alertLogTopic);
-            String connectMsg = "{\"type\":\"info\",\"message\":\"Device connected\",\"timestamp\":\"" + getTimestamp() + "\"}";
-            mqttClient.publish(mqttTopic, connectMsg.c_str());
+            
+            // Send subscription confirmation to both topics
+            String subscribeMsg = "Subscribed to topics: " + String(commandLogTopic) + ", " + String(generalLogTopic) + ", " + String(alertLogTopic);
+            publishGeneralLog(subscribeMsg, "info");
+            
+            // Send connection message
+            publishGeneralLog("Device connected and ready", "info");
             return;
         }
         attempts++;
@@ -395,7 +400,6 @@ void reconnectMQTT() {
             delay(5000);
         }
     }
-    // Only print failure once if all attempts fail
     if (!mqttClient.connected()) {
         Serial.println("Failed to connect to MQTT after maximum attempts");
     }

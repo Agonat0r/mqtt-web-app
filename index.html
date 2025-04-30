@@ -42,6 +42,7 @@
         <option value="alerts" data-translate="alerts">Alerts</option>
         <option value="customization" data-translate="customization">Customization</option>
         <option value="email-alerts" data-translate="emailAlerts">Email Alerts</option>
+        <option value="sms-alerts" data-translate="smsAlerts">SMS Alerts</option>
       </select>
       <div id="connectionStatus" class="status-indicator status-disconnected">
         Disconnected
@@ -275,6 +276,65 @@
           <!-- Test Alerts Section -->
           <div class="test-alerts-section">
             <button id="testEmailBtn" class="test-btn">Send Test Email</button>
+            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
+            <div id="testAlertStatus" class="test-alert-status"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMS Alerts Tab -->
+      <div id="sms-alerts-tab" class="tab-content hidden">
+        <div class="alerts-settings-container">
+          <div class="sms-section">
+            <h3>SMS Alerts</h3>
+            <div class="sms-toggle">
+              <label class="toggle-switch">
+                <input type="checkbox" id="smsAlertEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Enable SMS Alerts</span>
+            </div>
+
+            <div class="phone-input-section">
+              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+              <select id="carrierSelect" class="carrier-select">
+                <option value="verizon">Verizon</option>
+                <option value="att">AT&T</option>
+                <option value="tmobile">T-Mobile</option>
+                <option value="sprint">Sprint</option>
+                <option value="boost">Boost Mobile</option>
+                <option value="cricket">Cricket</option>
+                <option value="uscellular">US Cellular</option>
+                <option value="metro">Metro</option>
+              </select>
+              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+            </div>
+            <div id="phoneValidationMsg" class="validation-msg"></div>
+
+            <div id="phoneList" class="phone-list">
+              <!-- Phone numbers will be added here dynamically -->
+            </div>
+          </div>
+
+          <!-- Alert Preferences -->
+          <div class="alert-preferences">
+            <h3>Alert Preferences</h3>
+            <div class="alert-toggle">
+              <input type="checkbox" id="redAlertEnabled" checked>
+              <label for="redAlertEnabled">Red Alerts (Critical)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="amberAlertEnabled" checked>
+              <label for="amberAlertEnabled">Amber Alerts (Warning)</label>
+            </div>
+            <div class="alert-toggle">
+              <input type="checkbox" id="greenAlertEnabled">
+              <label for="greenAlertEnabled">Green Alerts (Info)</label>
+            </div>
+          </div>
+
+          <!-- Test SMS Section -->
+          <div class="test-alerts-section">
             <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
             <div id="testAlertStatus" class="test-alert-status"></div>
           </div>

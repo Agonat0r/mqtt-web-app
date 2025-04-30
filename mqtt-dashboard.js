@@ -587,6 +587,37 @@ function logToCommandTerminal(message, type = 'command') {
     commandLog.scrollTop = commandLog.scrollHeight;
 }
 
+/**
+ * Sends an email alert to all subscribed email addresses
+ * @param {string} type - The type of alarm
+ * @param {string} message - The alarm message
+ */
+async function sendAlarmEmail(type, message) {
+    const emailList = document.querySelectorAll('#emailList .email-item span');
+    if (emailList.length === 0) return; // No subscribers
+
+    try {
+        // Send email to all subscribed addresses
+        for (const emailElement of emailList) {
+            const email = emailElement.textContent;
+            await emailjs.send(
+                "service_lsa1r4i",
+                "template_vnrbr1d",
+                {
+                    to_email: email,
+                    subject: `[${type.toUpperCase()} ALARM] VPL Monitoring Alert`,
+                    message: message,
+                    timestamp: new Date().toLocaleString()
+                }
+            );
+        }
+        showMessage('Alarm email alerts sent successfully', 'success');
+    } catch (error) {
+        console.error('Failed to send alarm email:', error);
+        showMessage('Failed to send alarm email: ' + error.message, 'error');
+    }
+}
+
 function handleAlarm(alarm) {
     const timestamp = new Date().toLocaleTimeString();
     const alarmEntry = document.createElement('div');
@@ -600,6 +631,9 @@ function handleAlarm(alarm) {
         alarmContainer.scrollTop = alarmContainer.scrollHeight;
         // Also log to general terminal
         logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
+        
+        // Send email alerts
+        sendAlarmEmail(alarm.type, alarm.message);
     }
 }
 

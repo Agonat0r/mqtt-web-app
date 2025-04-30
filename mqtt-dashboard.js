@@ -662,14 +662,59 @@ async function sendAlarmEmail(type, message) {
 function handleAlarm(alarm) {
     const timestamp = new Date().toLocaleTimeString();
     const alarmEntry = document.createElement('div');
-    alarmEntry.className = `alarm-entry ${alarm.type}`; // Use the type directly from ESP32
-    alarmEntry.innerHTML = `[${timestamp}] ${alarm.message}`;
+    alarmEntry.className = `alarm-entry ${alarm.type}`;
+    
+    // Create message span
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = `[${timestamp}] ${alarm.message}`;
+    
+    // Create delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-alert';
+    deleteBtn.innerHTML = '×';
+    deleteBtn.title = 'Delete this alert';
+    deleteBtn.onclick = () => alarmEntry.remove();
+    
+    // Add elements to alarm entry
+    alarmEntry.appendChild(messageSpan);
+    alarmEntry.appendChild(deleteBtn);
     
     // Add to appropriate alarm section based on the type from ESP32
-    const alarmContainer = document.getElementById(`${alarm.type}Alarms`);
+    const alarmType = alarm.type.toLowerCase();
+    const sectionId = `${alarmType}Alarms`;
+    const alarmContainer = document.getElementById(sectionId);
+    
     if (alarmContainer) {
-        alarmContainer.appendChild(alarmEntry);
-        alarmContainer.scrollTop = alarmContainer.scrollHeight;
+        // Check if header already exists
+        let header = alarmContainer.querySelector('.alarm-header');
+        if (!header) {
+            header = document.createElement('div');
+            header.className = 'alarm-header';
+            
+            const title = document.createElement('h3');
+            title.textContent = `${alarm.type.charAt(0).toUpperCase() + alarm.type.slice(1)} Alarms`;
+            
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'clear-alerts-btn';
+            clearBtn.textContent = 'Clear All';
+            clearBtn.onclick = () => {
+                const entries = alarmContainer.querySelectorAll('.alarm-entry');
+                entries.forEach(entry => entry.remove());
+            };
+            
+            header.appendChild(title);
+            header.appendChild(clearBtn);
+            alarmContainer.insertBefore(header, alarmContainer.firstChild);
+        }
+        
+        // Add the new alarm entry after the header
+        const firstEntry = alarmContainer.querySelector('.alarm-entry');
+        if (firstEntry) {
+            alarmContainer.insertBefore(alarmEntry, firstEntry);
+        } else {
+            alarmContainer.appendChild(alarmEntry);
+        }
+        
         // Also log to general terminal
         logToTerminal(`[${alarm.type.toUpperCase()} ALARM] ${alarm.message}`, 'warning');
         
@@ -943,6 +988,9 @@ style.textContent = `
     padding: 8px;
     margin: 4px 0;
     border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   .alarm-entry.red {
     background-color: rgba(255, 0, 0, 0.1);
@@ -956,28 +1004,40 @@ style.textContent = `
     background-color: rgba(0, 255, 0, 0.1);
     border-left: 4px solid green;
   }
-  .email-form {
-    margin: 20px 0;
+  .alarm-entry .delete-alert {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 16px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
   }
-  .email-list {
-    margin-top: 20px;
+  .alarm-entry .delete-alert:hover {
+    opacity: 1;
   }
-  .email-item {
+  .alarm-section {
+    margin-bottom: 20px;
+  }
+  .alarm-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px;
-    margin: 4px 0;
-    background-color: #f5f5f5;
-    border-radius: 4px;
+    margin-bottom: 10px;
   }
-  .email-item button {
-    background-color: #ff4444;
+  .clear-alerts-btn {
+    background-color: #f44336;
     color: white;
     border: none;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-radius: 4px;
     cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+  }
+  .clear-alerts-btn:hover {
+    background-color: #d32f2f;
   }
 `;
 document.head.appendChild(style);

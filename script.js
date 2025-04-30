@@ -468,10 +468,36 @@ function resetCustomizations() {
  */
 function clearLog(id) {
   const el = document.getElementById(id);
-  if (el) {
+  if (!el) return;
+  
+  // Add fade-out animation
+  el.style.transition = 'opacity 0.5s ease';
+  el.style.opacity = '0';
+  
+  // After fade out, clear content and show feedback
+  setTimeout(() => {
     el.textContent = '';
-  }
+    
+    // Create and add feedback message
+    const feedback = document.createElement('div');
+    feedback.className = 'log-entry info';
+    feedback.innerHTML = `[${new Date().toLocaleTimeString()}] Terminal cleared`;
+    
+    // Reset opacity and add feedback
+    el.style.opacity = '1';
+    el.appendChild(feedback);
+    
+    // Scroll to show feedback
+    el.scrollTop = el.scrollHeight;
+  }, 500);
 }
+
+// Add styles for clear animation
+document.head.querySelector('style').textContent += `
+  .terminal {
+    transition: opacity 0.5s ease;
+  }
+`;
 
 // MQTT Configuration
 const brokerConfig = {

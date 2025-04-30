@@ -235,39 +235,36 @@ void stopMovement() {
 }
 
 void handleMovement(const char* direction) {
-  String dir = String(direction);
-  
-  // Add prominent Serial output for lift commands
-  Serial.println("\n=== LIFT COMMAND RECEIVED ===");
-  Serial.print("Direction: ");
-  Serial.println(dir);  // Print direction as is, Arduino String class handles uppercase automatically
-  Serial.println("===========================\n");
-  
-  if (dir == "up") {
-    if (digitalRead(LIMIT_SWITCH_UP) == LOW) {
-      addToLog("Cannot move up: Upper limit switch activated");
-      Serial.println("BLOCKED: Upper limit switch activated");
-      return;
+    Serial.print("\n=== Movement Command Received ===\n");
+    Serial.print("Direction: ");
+    Serial.println(direction);
+    Serial.print("Source Address: ");
+    Serial.println((unsigned long)__builtin_return_address(0), HEX);
+    Serial.print("UP Button State: ");
+    Serial.println(digitalRead(UP_BUTTON));
+    Serial.print("UP Pin State: ");
+    Serial.println(digitalRead(UP_PIN));
+    
+    if (strcmp(direction, "up") == 0) {
+        if (!digitalRead(LIMIT_SWITCH_UP)) {  // Check if not at upper limit
+            digitalWrite(UP_PIN, HIGH);
+            digitalWrite(DOWN_PIN, LOW);
+            digitalWrite(BRAKE_PIN, LOW);
+            Serial.println("Moving UP");
+        } else {
+            Serial.println("UP movement blocked - At upper limit");
+        }
+    } else if (strcmp(direction, "down") == 0) {
+        if (!digitalRead(LIMIT_SWITCH_DOWN)) {  // Check if not at lower limit
+            digitalWrite(UP_PIN, LOW);
+            digitalWrite(DOWN_PIN, HIGH);
+            digitalWrite(BRAKE_PIN, LOW);
+            Serial.println("Moving DOWN");
+        } else {
+            Serial.println("DOWN movement blocked - At lower limit");
+        }
     }
-    digitalWrite(DOWN_PIN, LOW);
-    digitalWrite(UP_PIN, HIGH);
-    currentDirection = "up";
-    addToLog("Moving up");
-    publishCommandLog("Command executed: UP");
-    publishGeneralLog("Moving up", "info");
-  } else if (dir == "down") {
-    if (digitalRead(LIMIT_SWITCH_DOWN) == LOW) {
-      addToLog("Cannot move down: Lower limit switch activated");
-      Serial.println("BLOCKED: Lower limit switch activated");
-      return;
-    }
-    digitalWrite(UP_PIN, LOW);
-    digitalWrite(DOWN_PIN, HIGH);
-    currentDirection = "down";
-    addToLog("Moving down");
-    publishCommandLog("Command executed: DOWN");
-    publishGeneralLog("Moving down", "info");
-  }
+    Serial.println("===========================\n");
 }
 
 void applyBrake() {
@@ -325,49 +322,44 @@ void publishAlert(const char* level, const String& msg) {
   mqttClient.publish(alertLogTopic, payload.c_str());  // Send only to alert topic
 }
 
-// MQTT callback function
-void callback(char* topic, byte* payload, unsigned int length) {
-    // Create a null-terminated string from payload
-    char message[length + 1];
-    memcpy(message, payload, length);
-    message[length] = '\0';
+// Add at the top with other globals
+unsigned long lastCommandTime = 0;
+String lastCommand = "";
+const unsigned long COMMAND_DEBOUNCE = 500; // 500ms minimum between same commands
 
-    // Parse JSON message
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, message);
-    if (error) {
+void callback(char* topic, byte* payload, unsigned int length) {
+    String message;
+    for (int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    
+    Serial.println("\n=== MQTT Command Received ===");
+    Serial.print("Topic: ");
+    Serial.println(topic);
+    Serial.print("Message: ");
+    Serial.println(message);
+    
+    // Check for duplicate commands
+    unsigned long currentTime = millis();
+    if (message == lastCommand && (currentTime - lastCommandTime) < COMMAND_DEBOUNCE) {
+        Serial.println("Duplicate command rejected");
         return;
     }
-
-    // Extract message components
-    const char* type = doc["type"];
-    const char* msg = doc["message"];
-    const char* timestamp = doc["timestamp"];
-
-    // Only print for command messages with UP, DOWN, or STOP
-    if (type && strcmp(type, "command") == 0 && msg && timestamp) {
-        if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
-            // Print as a single compressed line
-            Serial.print("[COMMAND] ");
-            if (strcmp(msg, "COMMAND:UP") == 0) Serial.print("UP");
-            else if (strcmp(msg, "COMMAND:DOWN") == 0) Serial.print("DOWN");
-            else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
-            Serial.print(" at ");
-            Serial.println(timestamp);
-
-            // Command Output Pin Control
-            if (strcmp(msg, "COMMAND:UP") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, HIGH);
-                digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, LOW);
-                digitalWrite(DOWN_OUTPUT_PIN, HIGH);
-            } else if (strcmp(msg, "COMMAND:STOP") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, LOW);
-                digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            }
-        }
+    
+    // Update command tracking
+    lastCommand = message;
+    lastCommandTime = currentTime;
+    
+    // Process command
+    if (message == "up") {
+        handleMovement("up");
+    } else if (message == "down") {
+        handleMovement("down");
+    } else if (message == "stop") {
+        stopMovement();
     }
+    
+    Serial.println("=========================\n");
 }
 
 // Function to reconnect to MQTT broker
@@ -927,6 +919,10 @@ bool upButtonState = HIGH;
 bool downButtonState = HIGH;
 const unsigned long DEBOUNCE_DELAY = 50;  // 50ms debounce time
 
+// Add at the top with other globals
+bool upButtonPressed = false;
+bool downButtonPressed = false;
+
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
@@ -1167,35 +1163,56 @@ void loop() {
     }
     readDeviceOutputs();
     
-    // Read the current state of buttons
+    // Read the current state of buttons with debug
     int upReading = digitalRead(UP_BUTTON);
     int downReading = digitalRead(DOWN_BUTTON);
     
-    // Check if UP button state changed
+    // Debug log if button state changes
+    static int lastUpReading = HIGH;
+    if (upReading != lastUpReading) {
+        Serial.print("UP_BUTTON changed state: ");
+        Serial.println(upReading == LOW ? "PRESSED" : "RELEASED");
+        lastUpReading = upReading;
+    }
+    
+    // Handle UP button with debounce
     if (upReading != lastUpButtonState) {
         lastUpDebounceTime = currentMillis;
     }
     
-    // Check if DOWN button state changed
-    if (downReading != lastDownButtonState) {
-        lastDownDebounceTime = currentMillis;
-    }
-    
-    // Only act on button state if it's been stable for the debounce delay
     if ((currentMillis - lastUpDebounceTime) > DEBOUNCE_DELAY) {
         if (upReading != upButtonState) {
             upButtonState = upReading;
-            if (upButtonState == LOW) {  // Button is pressed (LOW due to INPUT_PULLUP)
+            if (upButtonState == LOW && !upButtonPressed) {  // Button is newly pressed
+                Serial.println("UP button pressed - triggering movement");
+                upButtonPressed = true;
                 handleMovement("up");
+            } else if (upButtonState == HIGH && upButtonPressed) {  // Button is released
+                Serial.println("UP button released - stopping movement");
+                upButtonPressed = false;
+                if (!elevatorMode) {  // Only stop on release in lift mode
+                    stopMovement();
+                }
             }
         }
+    }
+    
+    // Handle DOWN button with debounce
+    if (downReading != lastDownButtonState) {
+        lastDownDebounceTime = currentMillis;
     }
     
     if ((currentMillis - lastDownDebounceTime) > DEBOUNCE_DELAY) {
         if (downReading != downButtonState) {
             downButtonState = downReading;
-            if (downButtonState == LOW) {  // Button is pressed (LOW due to INPUT_PULLUP)
+            if (downButtonState == LOW && !downButtonPressed) {  // Button is newly pressed
+                downButtonPressed = true;
                 handleMovement("down");
+            } else if (downButtonState == HIGH && downButtonPressed) {  // Button is released
+                downButtonPressed = false;
+                if (!elevatorMode) {  // Only stop on release in lift mode
+                    stopMovement();
+                }
             }
         }
     }

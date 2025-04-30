@@ -1517,3 +1517,144 @@ async function removePhoneSubscriber(docId) {
         showMessage(t('errorRemovingPhone'), 'error');
     }
 }
+
+// Control functions for VPL
+function startAction(direction) {
+    if (!client) {
+        showMessage('MQTT client not connected', 'error');
+        return;
+    }
+    
+    const command = direction.toUpperCase();
+    const payload = {
+        type: 'command',
+        message: `COMMAND:${command}`,
+        timestamp: new Date().toISOString()
+    };
+    
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send command:', err);
+            logToCommandTerminal('Failed to send command', 'error');
+        } else {
+            logToCommandTerminal(`> ${command}`, 'command');
+        }
+    });
+}
+
+function stopAction() {
+    if (!client) {
+        showMessage('MQTT client not connected', 'error');
+        return;
+    }
+    
+    const payload = {
+        type: 'command',
+        message: 'COMMAND:STOP',
+        timestamp: new Date().toISOString()
+    };
+    
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send stop command:', err);
+            logToCommandTerminal('Failed to send stop command', 'error');
+        } else {
+            logToCommandTerminal('> STOP', 'command');
+        }
+    });
+}
+
+function applyBrake() {
+    if (!client) {
+        showMessage('MQTT client not connected', 'error');
+        return;
+    }
+    
+    const payload = {
+        type: 'command',
+        message: 'COMMAND:BRAKE',
+        timestamp: new Date().toISOString()
+    };
+    
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send brake command:', err);
+            logToCommandTerminal('Failed to send brake command', 'error');
+        } else {
+            logToCommandTerminal('> BRAKE', 'command');
+        }
+    });
+}
+
+function releaseBrake() {
+    if (!client) {
+        showMessage('MQTT client not connected', 'error');
+        return;
+    }
+    
+    const payload = {
+        type: 'command',
+        message: 'COMMAND:RELEASE',
+        timestamp: new Date().toISOString()
+    };
+    
+    client.publish('usf/messages', JSON.stringify(payload), { qos: 1 }, (err) => {
+        if (err) {
+            console.error('Failed to send release command:', err);
+            logToCommandTerminal('Failed to send release command', 'error');
+        } else {
+            logToCommandTerminal('> RELEASE', 'command');
+        }
+    });
+}
+
+// Add styles for control buttons
+document.head.querySelector('style').textContent += `
+    .control-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 300px;
+        margin: 20px auto;
+    }
+    
+    .control-btn {
+        padding: 15px 30px;
+        font-size: 18px;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: #4CAF50;
+        color: white;
+        text-transform: uppercase;
+    }
+    
+    .control-btn:hover {
+        transform: scale(1.05);
+        background-color: #45a049;
+    }
+    
+    .control-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .control-btn:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+    
+    /* Specific button colors */
+    .control-btn:nth-child(1) { background-color: #2196F3; } /* UP */
+    .control-btn:nth-child(2) { background-color: #f44336; } /* STOP */
+    .control-btn:nth-child(3) { background-color: #2196F3; } /* DOWN */
+    .control-btn:nth-child(4) { background-color: #ff9800; } /* BRAKE */
+    .control-btn:nth-child(5) { background-color: #4CAF50; } /* RELEASE */
+    
+    .control-btn:nth-child(1):hover { background-color: #1976D2; }
+    .control-btn:nth-child(2):hover { background-color: #d32f2f; }
+    .control-btn:nth-child(3):hover { background-color: #1976D2; }
+    .control-btn:nth-child(4):hover { background-color: #f57c00; }
+    .control-btn:nth-child(5):hover { background-color: #388E3C; }
+`;

@@ -655,11 +655,13 @@
     }
 
     // Add phone to the list
-    function addPhoneToList(phone) {
+    function addPhoneToList(phone, carrier) {
+      const phoneList = document.getElementById('phoneList');
       const phoneItem = document.createElement('div');
       phoneItem.className = 'phone-item';
       phoneItem.innerHTML = `
         <span class="phone-text">${phone}</span>
+        <span class="carrier-text">(${carrier})</span>
         <button class="delete-phone-btn" onclick="removePhone(this)">×</button>
       `;
       phoneList.appendChild(phoneItem);
@@ -674,6 +676,7 @@
 
     // Save phones to localStorage
     function savePhones() {
+      const phoneList = document.getElementById('phoneList');
       const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
         .map(span => span.textContent);
       localStorage.setItem('smsAlerts', JSON.stringify(phones));
@@ -682,18 +685,21 @@
     // Add phone button click handler
     addPhoneBtn.addEventListener('click', () => {
       const phone = phoneInput.value.trim();
+      const carrier = document.getElementById('carrierSelect').value;
+      
       if (!phone) {
         phoneValidationMsg.textContent = 'Please enter a phone number';
         phoneValidationMsg.style.color = '#ff4444';
         return;
       }
+      
       if (!isValidPhone(phone)) {
         phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
         phoneValidationMsg.style.color = '#ff4444';
         return;
       }
       
-      const existingPhones = Array.from(phoneList.querySelectorAll('.phone-text'))
+      const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
         .map(span => span.textContent);
       if (existingPhones.includes(phone)) {
         phoneValidationMsg.textContent = 'This phone number is already in the list';
@@ -701,7 +707,7 @@
         return;
       }
 
-      addPhoneToList(phone);
+      addPhoneToList(phone, carrier);
       phoneInput.value = '';
       phoneValidationMsg.textContent = 'Phone number added successfully';
       phoneValidationMsg.style.color = '#4CAF50';

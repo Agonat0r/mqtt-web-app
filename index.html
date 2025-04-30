@@ -289,15 +289,15 @@
             <h3>SMS Alerts</h3>
             <div class="sms-toggle">
               <label class="toggle-switch">
-                <input type="checkbox" id="smsAlertEnabled">
+                <input type="checkbox" id="smsAlertEnabled2">
                 <span class="toggle-slider"></span>
               </label>
               <span>Enable SMS Alerts</span>
             </div>
 
             <div class="phone-input-section">
-              <input type="tel" id="phoneInput" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
-              <select id="carrierSelect" class="carrier-select">
+              <input type="tel" id="phoneInput2" class="phone-input" placeholder="Enter phone number (e.g., +1234567890)">
+              <select id="carrierSelect2" class="carrier-select">
                 <option value="verizon">Verizon</option>
                 <option value="att">AT&T</option>
                 <option value="tmobile">T-Mobile</option>
@@ -307,11 +307,11 @@
                 <option value="uscellular">US Cellular</option>
                 <option value="metro">Metro</option>
               </select>
-              <button id="addPhoneBtn" class="add-phone-btn">Add Phone</button>
+              <button id="addPhoneBtn2" class="add-phone-btn">Add Phone</button>
             </div>
-            <div id="phoneValidationMsg" class="validation-msg"></div>
+            <div id="phoneValidationMsg2" class="validation-msg"></div>
 
-            <div id="phoneList" class="phone-list">
+            <div id="phoneList2" class="phone-list">
               <!-- Phone numbers will be added here dynamically -->
             </div>
           </div>
@@ -320,23 +320,23 @@
           <div class="alert-preferences">
             <h3>Alert Preferences</h3>
             <div class="alert-toggle">
-              <input type="checkbox" id="redAlertEnabled" checked>
-              <label for="redAlertEnabled">Red Alerts (Critical)</label>
+              <input type="checkbox" id="redAlertEnabled2" checked>
+              <label for="redAlertEnabled2">Red Alerts (Critical)</label>
             </div>
             <div class="alert-toggle">
-              <input type="checkbox" id="amberAlertEnabled" checked>
-              <label for="amberAlertEnabled">Amber Alerts (Warning)</label>
+              <input type="checkbox" id="amberAlertEnabled2" checked>
+              <label for="amberAlertEnabled2">Amber Alerts (Warning)</label>
             </div>
             <div class="alert-toggle">
-              <input type="checkbox" id="greenAlertEnabled">
-              <label for="greenAlertEnabled">Green Alerts (Info)</label>
+              <input type="checkbox" id="greenAlertEnabled2">
+              <label for="greenAlertEnabled2">Green Alerts (Info)</label>
             </div>
           </div>
 
           <!-- Test SMS Section -->
           <div class="test-alerts-section">
-            <button id="testSmsBtn" class="test-btn">Send Test SMS</button>
-            <div id="testAlertStatus" class="test-alert-status"></div>
+            <button id="testSmsBtn2" class="test-btn">Send Test SMS</button>
+            <div id="testAlertStatus2" class="test-alert-status"></div>
           </div>
         </div>
       </div>
@@ -648,8 +648,8 @@
       localStorage.setItem('smsAlerts', JSON.stringify(phones));
     }
 
-    window.addPhoneToList = function(phone, carrier) {
-      const phoneList = document.getElementById('phoneList');
+    window.addPhoneToList = function(phone, carrier, targetPhoneList) {
+      if (!targetPhoneList) return;
       const phoneItem = document.createElement('div');
       phoneItem.className = 'phone-item';
       phoneItem.innerHTML = `
@@ -657,12 +657,13 @@
         <span class="carrier-text">(${carrier})</span>
         <button class="delete-phone-btn" onclick="removePhone(this)">×</button>
       `;
-      phoneList.appendChild(phoneItem);
+      targetPhoneList.appendChild(phoneItem);
       savePhones();
     }
 
-    // Add phone button click handler
+    // Add phone button click handler for SMS tab
     document.addEventListener('DOMContentLoaded', function() {
+      // Original SMS handlers (in email alerts tab)
       const phoneInput = document.getElementById('phoneInput');
       const carrierSelect = document.getElementById('carrierSelect');
       const addPhoneBtn = document.getElementById('addPhoneBtn');
@@ -672,155 +673,266 @@
       const testAlertStatus = document.getElementById('testAlertStatus');
       const phoneList = document.getElementById('phoneList');
 
-      // Load saved phone numbers
+      // SMS tab specific handlers
+      const phoneInput2 = document.getElementById('phoneInput2');
+      const carrierSelect2 = document.getElementById('carrierSelect2');
+      const addPhoneBtn2 = document.getElementById('addPhoneBtn2');
+      const phoneValidationMsg2 = document.getElementById('phoneValidationMsg2');
+      const smsAlertEnabled2 = document.getElementById('smsAlertEnabled2');
+      const testSmsBtn2 = document.getElementById('testSmsBtn2');
+      const testAlertStatus2 = document.getElementById('testAlertStatus2');
+      const phoneList2 = document.getElementById('phoneList2');
+
+      // Load saved phone numbers for SMS tab
       const savedPhones = JSON.parse(localStorage.getItem('smsAlerts') || '[]');
       savedPhones.forEach(phone => {
         const carrier = localStorage.getItem(`carrier_${phone}`) || 'Unknown';
-        addPhoneToList(phone, carrier);
+        // Add to both tabs
+        if (phoneList) addPhoneToList(phone, carrier, phoneList);
+        if (phoneList2) addPhoneToList(phone, carrier, phoneList2);
       });
 
       // Load SMS alert enabled state
       const smsEnabled = localStorage.getItem('smsAlertEnabled') === 'true';
-      if (smsAlertEnabled) {
-        smsAlertEnabled.checked = smsEnabled;
-      }
+      if (smsAlertEnabled) smsAlertEnabled.checked = smsEnabled;
+      if (smsAlertEnabled2) smsAlertEnabled2.checked = smsEnabled;
 
-      if (addPhoneBtn) {
-        addPhoneBtn.addEventListener('click', function() {
-          const phone = phoneInput.value.trim();
-          const carrier = carrierSelect.value;
+      // Update addPhoneToList function to accept phoneList parameter
+      window.addPhoneToList = function(phone, carrier, targetPhoneList) {
+        if (!targetPhoneList) return;
+        const phoneItem = document.createElement('div');
+        phoneItem.className = 'phone-item';
+        phoneItem.innerHTML = `
+          <span class="phone-text">${phone}</span>
+          <span class="carrier-text">(${carrier})</span>
+          <button class="delete-phone-btn" onclick="removePhone(this)">×</button>
+        `;
+        targetPhoneList.appendChild(phoneItem);
+        savePhones();
+      };
+
+      // Add phone button click handler for SMS tab
+      if (addPhoneBtn2) {
+        addPhoneBtn2.addEventListener('click', function() {
+          const phone = phoneInput2.value.trim();
+          const carrier = carrierSelect2.value;
           
           if (!phone) {
-            phoneValidationMsg.textContent = 'Please enter a phone number';
-            phoneValidationMsg.style.color = '#ff4444';
+            phoneValidationMsg2.textContent = 'Please enter a phone number';
+            phoneValidationMsg2.style.color = '#ff4444';
             return;
           }
           
           if (!isValidPhone(phone)) {
-            phoneValidationMsg.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
-            phoneValidationMsg.style.color = '#ff4444';
+            phoneValidationMsg2.textContent = 'Please enter a valid phone number (e.g., +1234567890)';
+            phoneValidationMsg2.style.color = '#ff4444';
             return;
           }
           
           const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
             .map(span => span.textContent);
           if (existingPhones.includes(phone)) {
-            phoneValidationMsg.textContent = 'This phone number is already in the list';
-            phoneValidationMsg.style.color = '#ff4444';
+            phoneValidationMsg2.textContent = 'This phone number is already in the list';
+            phoneValidationMsg2.style.color = '#ff4444';
             return;
           }
 
           // Save carrier preference
           localStorage.setItem(`carrier_${phone}`, carrier);
           
-          addPhoneToList(phone, carrier);
-          phoneInput.value = '';
-          phoneValidationMsg.textContent = 'Phone number added successfully';
-          phoneValidationMsg.style.color = '#4CAF50';
+          // Add to both tabs
+          addPhoneToList(phone, carrier, phoneList);
+          addPhoneToList(phone, carrier, phoneList2);
+          
+          phoneInput2.value = '';
+          phoneValidationMsg2.textContent = 'Phone number added successfully';
+          phoneValidationMsg2.style.color = '#4CAF50';
           setTimeout(() => {
-            phoneValidationMsg.textContent = '';
+            phoneValidationMsg2.textContent = '';
           }, 3000);
         });
       }
 
-      // Save SMS alert enabled state
-      if (smsAlertEnabled) {
-        smsAlertEnabled.addEventListener('change', function() {
-          localStorage.setItem('smsAlertEnabled', smsAlertEnabled.checked);
+      // Save SMS alert enabled state for SMS tab
+      if (smsAlertEnabled2) {
+        smsAlertEnabled2.addEventListener('change', function() {
+          const isEnabled = smsAlertEnabled2.checked;
+          localStorage.setItem('smsAlertEnabled', isEnabled);
+          if (smsAlertEnabled) smsAlertEnabled.checked = isEnabled;
         });
       }
 
-      // Test SMS button click handler
-      if (testSmsBtn) {
-        testSmsBtn.addEventListener('click', async () => {
-          if (!smsAlertEnabled.checked) {
-            testAlertStatus.textContent = 'Please enable SMS alerts first';
-            testAlertStatus.style.color = '#ff4444';
+      // Test SMS button click handler for SMS tab
+      if (testSmsBtn2) {
+        testSmsBtn2.addEventListener('click', async () => {
+          if (!smsAlertEnabled2.checked) {
+            testAlertStatus2.textContent = 'Please enable SMS alerts first';
+            testAlertStatus2.style.color = '#ff4444';
             return;
           }
 
-          const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-            .map(span => span.textContent);
+          const phoneItems = Array.from(phoneList2.querySelectorAll('.phone-item'));
           
-          if (phones.length === 0) {
-            testAlertStatus.textContent = 'Please add at least one phone number';
-            testAlertStatus.style.color = '#ff4444';
+          if (phoneItems.length === 0) {
+            testAlertStatus2.textContent = 'Please add at least one phone number';
+            testAlertStatus2.style.color = '#ff4444';
             return;
           }
 
-          testSmsBtn.disabled = true;
-          testAlertStatus.textContent = 'Sending test SMS...';
-          testAlertStatus.style.color = '#2196F3';
+          testSmsBtn2.disabled = true;
+          testAlertStatus2.textContent = 'Sending test SMS...';
+          testAlertStatus2.style.color = '#2196F3';
 
           try {
-            const response = await fetch('/.netlify/functions/send-sms', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                phones: phones,
-                message: 'This is a test SMS to verify your alert configuration.',
-                timestamp: new Date().toLocaleString()
-              })
-            });
+            for (const phoneItem of phoneItems) {
+              const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
+              const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+              const gateway = carrierGateways[carrier];
+              
+              if (!gateway) {
+                throw new Error(`Unknown carrier gateway for ${carrier}`);
+              }
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-              throw new Error(data.message || 'Failed to send SMS');
+              const smsEmail = `${phone}@${gateway}`;
+              
+              await emailjs.send(
+                'service_lsa1r4i',  // Your EmailJS service ID
+                'template_vnrbr1d', // Your EmailJS template ID
+                {
+                  to_email: smsEmail,
+                  alert_type: 'TEST',
+                  alert_message: 'This is a test SMS to verify your alert configuration.',
+                  timestamp: new Date().toLocaleString()
+                }
+              );
             }
 
-            testAlertStatus.textContent = 'Test SMS sent successfully!';
-            testAlertStatus.style.color = '#4CAF50';
+            testAlertStatus2.textContent = 'Test SMS sent successfully!';
+            testAlertStatus2.style.color = '#4CAF50';
           } catch (error) {
             console.error('Failed to send test SMS:', error);
-            testAlertStatus.textContent = 'Failed to send test SMS: ' + error.message;
-            testAlertStatus.style.color = '#ff4444';
+            testAlertStatus2.textContent = 'Failed to send test SMS: ' + error.message;
+            testAlertStatus2.style.color = '#ff4444';
           } finally {
-            testSmsBtn.disabled = false;
+            testSmsBtn2.disabled = false;
             setTimeout(() => {
-              testAlertStatus.textContent = '';
+              testAlertStatus2.textContent = '';
             }, 5000);
           }
         });
       }
     });
 
-    // Function to send SMS alerts using Twilio
+    // Add carrier gateway mappings
+    const carrierGateways = {
+      'verizon': 'vtext.com',
+      'att': 'txt.att.net',
+      'tmobile': 'tmomail.net',
+      'sprint': 'messaging.sprintpcs.com',
+      'boost': 'myboostmobile.com',
+      'cricket': 'sms.cricketwireless.net',
+      'uscellular': 'email.uscc.net',
+      'metro': 'mymetropcs.com'
+    };
+
+    // Function to send SMS alerts using email-to-SMS gateways
     async function sendSmsAlert(type, message) {
       if (!smsAlertEnabled.checked) return;
       
       const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
       if (!alertTypeEnabled) return;
 
-      const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-      
-      if (phones.length === 0) return;
+      const phoneItems = Array.from(phoneList.querySelectorAll('.phone-item'));
+      if (phoneItems.length === 0) return;
 
       try {
-        // You'll need to set up a server endpoint to handle Twilio SMS sending
-        const response = await fetch('/api/send-sms', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            phones: phones,
-            message: `${type.toUpperCase()} Alert: ${message}`,
-            timestamp: new Date().toLocaleString()
-          })
-        });
+        for (const phoneItem of phoneItems) {
+          const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
+          const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+          const gateway = carrierGateways[carrier];
+          
+          if (!gateway) {
+            console.error(`Unknown carrier gateway for ${carrier}`);
+            continue;
+          }
 
-        if (!response.ok) {
-          throw new Error('Failed to send SMS');
+          const smsEmail = `${phone}@${gateway}`;
+          
+          await emailjs.send(
+            'service_lsa1r4i',  // Your EmailJS service ID
+            'template_vnrbr1d', // Your EmailJS template ID
+            {
+              to_email: smsEmail,
+              alert_type: type.toUpperCase(),
+              alert_message: message,
+              timestamp: new Date().toLocaleString()
+            }
+          );
         }
-
-        console.log('SMS alert sent successfully');
+        console.log('SMS alerts sent successfully via email gateways');
       } catch (error) {
         console.error('Failed to send SMS alert:', error);
       }
+    }
+
+    // Update test SMS button handlers
+    if (testSmsBtn2) {
+      testSmsBtn2.addEventListener('click', async () => {
+        if (!smsAlertEnabled2.checked) {
+          testAlertStatus2.textContent = 'Please enable SMS alerts first';
+          testAlertStatus2.style.color = '#ff4444';
+          return;
+        }
+
+        const phoneItems = Array.from(phoneList2.querySelectorAll('.phone-item'));
+        
+        if (phoneItems.length === 0) {
+          testAlertStatus2.textContent = 'Please add at least one phone number';
+          testAlertStatus2.style.color = '#ff4444';
+          return;
+        }
+
+        testSmsBtn2.disabled = true;
+        testAlertStatus2.textContent = 'Sending test SMS...';
+        testAlertStatus2.style.color = '#2196F3';
+
+        try {
+          for (const phoneItem of phoneItems) {
+            const phone = phoneItem.querySelector('.phone-text').textContent.replace(/\D/g, '');
+            const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+            const gateway = carrierGateways[carrier];
+            
+            if (!gateway) {
+              throw new Error(`Unknown carrier gateway for ${carrier}`);
+            }
+
+            const smsEmail = `${phone}@${gateway}`;
+            
+            await emailjs.send(
+              'service_lsa1r4i',  // Your EmailJS service ID
+              'template_vnrbr1d', // Your EmailJS template ID
+              {
+                to_email: smsEmail,
+                alert_type: 'TEST',
+                alert_message: 'This is a test SMS to verify your alert configuration.',
+                timestamp: new Date().toLocaleString()
+              }
+            );
+          }
+
+          testAlertStatus2.textContent = 'Test SMS sent successfully!';
+          testAlertStatus2.style.color = '#4CAF50';
+        } catch (error) {
+          console.error('Failed to send test SMS:', error);
+          testAlertStatus2.textContent = 'Failed to send test SMS: ' + error.message;
+          testAlertStatus2.style.color = '#ff4444';
+        } finally {
+          testSmsBtn2.disabled = false;
+          setTimeout(() => {
+            testAlertStatus2.textContent = '';
+          }, 5000);
+        }
+      });
     }
 
     // Add handler for email alerts

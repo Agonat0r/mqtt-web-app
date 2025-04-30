@@ -941,6 +941,9 @@ function handleLogin(event) {
         
         // Show success message
         showMessage(t('loginSuccess'), 'success');
+        
+        // Initialize MQTT client after successful login
+        initializeMQTTClient();
     } else {
         loggedIn = false;
         showMessage(t('invalidCredentials'), 'error');

@@ -918,6 +918,15 @@ bool isAuthenticated() {
 
 TaskHandle_t arduinoTask = NULL;
 
+// Add debounce variables at the top with other globals
+unsigned long lastUpDebounceTime = 0;
+unsigned long lastDownDebounceTime = 0;
+bool lastUpButtonState = HIGH;
+bool lastDownButtonState = HIGH;
+bool upButtonState = HIGH;
+bool downButtonState = HIGH;
+const unsigned long DEBOUNCE_DELAY = 50;  // 50ms debounce time
+
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give serial time to initialize
@@ -966,14 +975,17 @@ void setup() {
   digitalWrite(UP_PIN, LOW);
   pinMode(DOWN_PIN, OUTPUT);
   digitalWrite(DOWN_PIN, LOW);
+  
+  // Use INPUT_PULLUP for buttons with stronger pull-up
   pinMode(UP_BUTTON, INPUT_PULLUP);
   pinMode(DOWN_BUTTON, INPUT_PULLUP);
+  
+  // Add debouncing capacitors in hardware and/or software debounce
   pinMode(LIMIT_SWITCH_UP, INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_DOWN, INPUT_PULLUP);
   pinMode(BRAKE_PIN, OUTPUT);
   digitalWrite(BRAKE_PIN, HIGH);
-  Serial.println("GPIO pins initialized");
-
+  
   // Initialize output pins
   pinMode(UP_OUTPUT_PIN, OUTPUT);
   pinMode(DOWN_OUTPUT_PIN, OUTPUT);
@@ -1154,18 +1166,44 @@ void loop() {
         mqttClient.loop();
     }
     readDeviceOutputs();
-    static unsigned long lastButtonTime = 0;
-    unsigned long currentDelay = elevatorMode ? ELEVATOR_MODE_DELAY : LIFT_MODE_DELAY;
     
-    if (currentMillis - lastButtonTime >= currentDelay) {
-        if (digitalRead(UP_BUTTON) == LOW) {
-            handleMovement("up");
-            lastButtonTime = currentMillis;
-        } else if (digitalRead(DOWN_BUTTON) == LOW) {
-            handleMovement("down");
-            lastButtonTime = currentMillis;
+    // Read the current state of buttons
+    int upReading = digitalRead(UP_BUTTON);
+    int downReading = digitalRead(DOWN_BUTTON);
+    
+    // Check if UP button state changed
+    if (upReading != lastUpButtonState) {
+        lastUpDebounceTime = currentMillis;
+    }
+    
+    // Check if DOWN button state changed
+    if (downReading != lastDownButtonState) {
+        lastDownDebounceTime = currentMillis;
+    }
+    
+    // Only act on button state if it's been stable for the debounce delay
+    if ((currentMillis - lastUpDebounceTime) > DEBOUNCE_DELAY) {
+        if (upReading != upButtonState) {
+            upButtonState = upReading;
+            if (upButtonState == LOW) {  // Button is pressed (LOW due to INPUT_PULLUP)
+                handleMovement("up");
+            }
         }
     }
+    
+    if ((currentMillis - lastDownDebounceTime) > DEBOUNCE_DELAY) {
+        if (downReading != downButtonState) {
+            downButtonState = downReading;
+            if (downButtonState == LOW) {  // Button is pressed (LOW due to INPUT_PULLUP)
+                handleMovement("down");
+            }
+        }
+    }
+    
+    // Save the button readings for next loop
+    lastUpButtonState = upReading;
+    lastDownButtonState = downReading;
+    
     if (elevatorMode) {
         if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement();
         if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement();

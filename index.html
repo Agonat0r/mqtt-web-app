@@ -114,7 +114,7 @@
         <h2>Command Console</h2>
         <pre id="command-history" class="terminal">Command history will appear here...</pre>
         <div class="terminal-controls">
-          <button data-action="clear-log" data-target="command-history" data-translate="clearTerminal">Clear History</button>
+          <button data-action="clearTerminal" data-target="command-history" data-translate="clearTerminal">Clear History</button>
           <button data-action="export-log" data-target="command-history" data-translate="exportLog">Export History</button>
           <button data-action="email-log" data-target="command-history" data-translate="emailLog">Email History</button>
         </div>
@@ -278,7 +278,8 @@
   <audio id="click-sound" src="sounds/click.mp3" preload="auto"></audio>
 
   <!-- App Script -->
-  <script type="module" src="script.js"></script>
+  <script type="module" src="mqtt-dashboard.js"></script>
+  <script src="static/js/sms-alerts.js"></script>
 
   <script>
     function startAction(dir) {

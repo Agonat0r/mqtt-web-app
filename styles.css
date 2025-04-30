@@ -157,12 +157,13 @@ button:hover {
   background-color: #45a049;
 }
 
-button[data-action="clear-log"] {
-  background-color: #f44336;
+button[data-action="clearTerminal"] {
+  background-color: #ff4444;
+  color: white;
 }
 
-button[data-action="clear-log"]:hover {
-  background-color: #da190b;
+button[data-action="clearTerminal"]:hover {
+  background-color: #cc0000;
 }
 
 /* Status and Telemetry Grids */

@@ -423,8 +423,23 @@ button[data-action="clearTerminal"]:hover {
   font-size: 14px;
 }
 
+.phone-input-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.phone-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
 .carrier-select {
-  padding: 4px 8px;
+  min-width: 120px;
+  padding: 8px;
   border: 1px solid #ced4da;
   border-radius: 4px;
   background-color: white;
@@ -438,6 +453,20 @@ button[data-action="clearTerminal"]:hover {
   box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
+.add-phone-btn {
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-phone-btn:hover {
+  background-color: #0056b3;
+}
+
 .delete-btn {
   background: none;
   border: none;
@@ -445,17 +474,11 @@ button[data-action="clearTerminal"]:hover {
   cursor: pointer;
   font-size: 18px;
   padding: 4px 8px;
-  border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 .delete-btn:hover {
   background-color: rgba(220, 53, 69, 0.1);
-}
-
-.delete-btn:focus {
-  outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(220,53,69,.25);
 }
 
 /* Theme Variables */

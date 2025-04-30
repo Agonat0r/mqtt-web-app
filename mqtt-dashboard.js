@@ -1487,60 +1487,95 @@ async function sendSmsAlert(type, message) {
 
 // Add carrier selection UI when adding a phone number
 function addPhoneToList(phone) {
-    const item = document.createElement('div');
-    item.className = 'phone-item';
-    
-    const phoneText = document.createElement('span');
-    phoneText.className = 'phone-text';
-    phoneText.textContent = phone;
-    
-    const carrierSelect = document.createElement('select');
-    carrierSelect.className = 'carrier-select';
-    carrierSelect.setAttribute('data-phone', phone);
-    
-    // Add carrier options
-    Object.entries(carrierGateways).forEach(([carrier, domain]) => {
-        const option = document.createElement('option');
-        option.value = carrier;
-        option.textContent = carrier.charAt(0).toUpperCase() + carrier.slice(1);
-        carrierSelect.appendChild(option);
-    });
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-btn';
-    deleteBtn.innerHTML = '&times;';
-    deleteBtn.onclick = () => {
-        item.remove();
-        const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-            .map(span => span.textContent);
-        localStorage.setItem('phones', JSON.stringify(phones));
-        
-        // Also save carrier selection
-        const carrierSelections = {};
-        document.querySelectorAll('.carrier-select').forEach(select => {
-            carrierSelections[select.getAttribute('data-phone')] = select.value;
-        });
-        localStorage.setItem('carrierSelections', JSON.stringify(carrierSelections));
-    };
-    
-    item.appendChild(phoneText);
-    item.appendChild(carrierSelect);
-    item.appendChild(deleteBtn);
-    phoneList.appendChild(item);
-    
-    // Load saved carrier selection
-    const savedSelections = JSON.parse(localStorage.getItem('carrierSelections') || '{}');
-    if (savedSelections[phone]) {
-        carrierSelect.value = savedSelections[phone];
-    }
-    
-    // Save carrier selection when changed
-    carrierSelect.addEventListener('change', () => {
-        const selections = JSON.parse(localStorage.getItem('carrierSelections') || '{}');
-        selections[phone] = carrierSelect.value;
-        localStorage.setItem('carrierSelections', JSON.stringify(selections));
-    });
+  const phoneItem = document.createElement('div');
+  phoneItem.className = 'phone-item';
+  
+  const phoneText = document.createElement('span');
+  phoneText.className = 'phone-text';
+  phoneText.textContent = phone;
+  
+  // Get the selected carrier from the dropdown
+  const carrierSelect = document.createElement('select');
+  carrierSelect.className = 'carrier-select';
+  carrierSelect.setAttribute('data-phone', phone);
+  
+  // Add carrier options
+  Object.entries(carrierGateways).forEach(([carrier, domain]) => {
+    const option = document.createElement('option');
+    option.value = carrier;
+    option.textContent = carrier.charAt(0).toUpperCase() + carrier.slice(1);
+    carrierSelect.appendChild(option);
+  });
+  
+  // Set initial carrier from the input dropdown
+  const initialCarrier = document.getElementById('carrierSelect').value;
+  carrierSelect.value = initialCarrier;
+  
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-btn';
+  deleteBtn.innerHTML = '&times;';
+  deleteBtn.onclick = () => {
+    phoneItem.remove();
+    savePhoneData();
+  };
+  
+  phoneItem.appendChild(phoneText);
+  phoneItem.appendChild(carrierSelect);
+  phoneItem.appendChild(deleteBtn);
+  phoneList.appendChild(phoneItem);
+  
+  // Save phone data including carrier
+  savePhoneData();
+  
+  // Save carrier selection when changed
+  carrierSelect.addEventListener('change', savePhoneData);
 }
+
+// Function to save both phone numbers and their carriers
+function savePhoneData() {
+  const phones = [];
+  const carrierSelections = {};
+  
+  document.querySelectorAll('.phone-item').forEach(item => {
+    const phone = item.querySelector('.phone-text').textContent;
+    const carrier = item.querySelector('.carrier-select').value;
+    phones.push(phone);
+    carrierSelections[phone] = carrier;
+  });
+  
+  localStorage.setItem('phones', JSON.stringify(phones));
+  localStorage.setItem('carrierSelections', JSON.stringify(carrierSelections));
+}
+
+// Add phone button click handler
+document.getElementById('addPhoneBtn').addEventListener('click', () => {
+  const phoneInput = document.getElementById('phoneInput');
+  const phone = phoneInput.value.trim();
+  const validationMsg = document.getElementById('phoneValidationMsg');
+  
+  if (!phone) {
+    validationMsg.textContent = 'Please enter a phone number';
+    validationMsg.style.color = '#ff4444';
+    return;
+  }
+  
+  // Check if phone number already exists
+  const existingPhones = Array.from(document.querySelectorAll('.phone-text'))
+    .map(span => span.textContent);
+  if (existingPhones.includes(phone)) {
+    validationMsg.textContent = 'This phone number is already in the list';
+    validationMsg.style.color = '#ff4444';
+    return;
+  }
+  
+  addPhoneToList(phone);
+  phoneInput.value = '';
+  validationMsg.textContent = 'Phone number added successfully';
+  validationMsg.style.color = '#4CAF50';
+  setTimeout(() => {
+    validationMsg.textContent = '';
+  }, 3000);
+});
 
 /**
  * Loads phone subscribers from Firestore and updates the UI

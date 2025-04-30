@@ -470,11 +470,6 @@ function clearLog(id) {
   const el = document.getElementById(id);
   if (el) {
     el.textContent = '';
-    el.style.opacity = '0';
-    setTimeout(() => {
-      el.textContent = t('logCleared');
-      el.style.opacity = '1';
-    }, 300);
   }
 }
 

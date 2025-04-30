@@ -56,23 +56,22 @@
           <!-- General Terminal -->
           <div class="terminal-section">
             <h2 id="general-title" data-translate="generalConsole">General Terminal</h2>
-            <pre id="messageLog" class="terminal"></pre>
-            <div class="terminal-controls">
-              <button onclick="clearLog('messageLog')" class="btn btn-danger">Clear Log</button>
-              <button onclick="exportLog('messageLog')" class="btn btn-success">Export Log</button>
-              <button onclick="emailLog('messageLog')" class="btn btn-success">Email Log</button>
+            <div class="terminal" id="messageLog">Waiting for messages...</div>
+            <div class="terminal-buttons">
+              <button onclick="clearLog('messageLog')" class="terminal-btn">Clear</button>
+              <button onclick="exportLog('messageLog')" class="terminal-btn">Export</button>
+              <button onclick="emailLog('messageLog')" class="terminal-btn">Email</button>
             </div>
           </div>
 
           <!-- Command Terminal -->
           <div class="terminal-section">
             <h2 id="commands-title" data-translate="commandConsole">Command Terminal</h2>
-            <pre id="command-log" class="terminal"></pre>
-            <input type="text" id="terminal-input" placeholder="Type command here..." class="terminal-input" data-translate="typeCommand">
-            <div class="terminal-controls">
-              <button onclick="clearLog('command-log')" class="btn btn-danger">Clear Log</button>
-              <button onclick="exportLog('command-log')" class="btn btn-success">Export Log</button>
-              <button onclick="emailLog('command-log')" class="btn btn-success">Email Log</button>
+            <div class="terminal" id="commandLog">Waiting for commands...</div>
+            <div class="terminal-buttons">
+              <button onclick="clearLog('commandLog')" class="terminal-btn">Clear</button>
+              <button onclick="exportLog('commandLog')" class="terminal-btn">Export</button>
+              <button onclick="emailLog('commandLog')" class="terminal-btn">Email</button>
             </div>
           </div>
         </div>

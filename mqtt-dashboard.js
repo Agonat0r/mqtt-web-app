@@ -6,6 +6,38 @@ import { translations } from './translations.js';
     emailjs.init("7osg1XmfdRC2z68Xt"); // Replace with your actual EmailJS public key
 })();
 
+// Rate limiting for EmailJS
+const EMAIL_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
+let lastEmailSentTime = 0;
+
+/**
+ * Checks if enough time has passed since the last email was sent
+ * @returns {boolean} True if enough time has passed, false otherwise
+ */
+function canSendEmail() {
+    const now = Date.now();
+    if (now - lastEmailSentTime >= EMAIL_COOLDOWN) {
+        lastEmailSentTime = now;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Wrapper for emailjs.send that implements rate limiting
+ * @param {string} serviceId - EmailJS service ID
+ * @param {string} templateId - EmailJS template ID
+ * @param {Object} templateParams - Template parameters
+ * @returns {Promise} Promise that resolves when email is sent
+ */
+async function sendRateLimitedEmail(serviceId, templateId, templateParams) {
+    if (!canSendEmail()) {
+        const minutesLeft = Math.ceil((EMAIL_COOLDOWN - (Date.now() - lastEmailSentTime)) / 60000);
+        throw new Error(`Please wait ${minutesLeft} minutes before sending another email`);
+    }
+    return emailjs.send(serviceId, templateId, templateParams);
+}
+
 // Global state and MQTT client
 let loggedIn = false;
 let currentLang = 'en';
@@ -20,10 +52,6 @@ const brokerConfig = {
     password: 'mqtt2025',
     clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
 };
-
-// Add at the top of the file with other constants
-const EMAIL_COOLDOWN = 300000; // 5 minutes in milliseconds
-let lastEmailSent = 0;
 
 /**
  * Initializes the MQTT client and sets up connection handlers
@@ -695,12 +723,6 @@ function logToCommandTerminal(message, type = 'command') {
  * @param {string} message - The alarm message
  */
 async function sendAlarmEmail(type, message) {
-    const currentTime = Date.now();
-    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
-        console.log('Email cooldown period active. Skipping email send.');
-        return;
-    }
-
     const emailList = document.querySelectorAll('#emailList .email-item span');
     if (emailList.length === 0) return; // No subscribers
 
@@ -708,7 +730,7 @@ async function sendAlarmEmail(type, message) {
         // Send email to all subscribed addresses
         for (const emailElement of emailList) {
             const email = emailElement.textContent;
-            await emailjs.send(
+            await sendRateLimitedEmail(
                 "service_lsa1r4i",
                 "template_vnrbr1d",
                 {
@@ -719,7 +741,6 @@ async function sendAlarmEmail(type, message) {
                 }
             );
         }
-        lastEmailSent = currentTime;
         showMessage('Alarm email alerts sent successfully', 'success');
     } catch (error) {
         console.error('Failed to send alarm email:', error);
@@ -1281,12 +1302,6 @@ function closeEmailModal() {
  * Sends the log content via email using EmailJS
  */
 async function sendLogEmail() {
-    const currentTime = Date.now();
-    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
-        showMessage('Please wait 5 minutes between sending emails', 'error');
-        return;
-    }
-
     const modal = document.getElementById('emailModal');
     const targetId = modal.dataset.targetLog;
     const emailInput = document.getElementById('emailInput');
@@ -1311,7 +1326,7 @@ async function sendLogEmail() {
         }
 
         // Send email using EmailJS
-        await emailjs.send(
+        await sendRateLimitedEmail(
             "service_lsa1r4i", 
             "template_vnrbr1d",
             {
@@ -1324,7 +1339,6 @@ async function sendLogEmail() {
             }
         );
         
-        lastEmailSent = currentTime;
         showMessage('Email sent successfully', 'success');
         closeEmailModal();
     } catch (error) {
@@ -1396,12 +1410,6 @@ document.addEventListener('DOMContentLoaded', function() {
  * Sends a test email to verify email alert configuration
  */
 async function sendTestEmail() {
-    const currentTime = Date.now();
-    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
-        showMessage('Please wait 5 minutes between sending emails', 'error');
-        return;
-    }
-
     const emailList = document.querySelectorAll('#emailList .email-item span');
     if (emailList.length === 0) {
         showMessage('Please add at least one email address first', 'error');
@@ -1419,7 +1427,7 @@ async function sendTestEmail() {
         // Send test email to all subscribed addresses
         for (const emailElement of emailList) {
             const email = emailElement.textContent;
-            await emailjs.send(
+            await sendRateLimitedEmail(
                 "service_lsa1r4i",
                 "template_vnrbr1d",
                 {
@@ -1431,7 +1439,6 @@ async function sendTestEmail() {
             );
         }
 
-        lastEmailSent = currentTime;
         showMessage('Test email sent successfully!', 'success');
     } catch (error) {
         console.error('Failed to send test email:', error);
@@ -1469,42 +1476,51 @@ async function sendSmsAlert(type, message) {
     const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
     if (!alertTypeEnabled) return;
 
-    const phones = Array.from(phoneList.querySelectorAll('.phone-text'))
-        .map(span => span.textContent);
-    
-    if (phones.length === 0) return;
+    const phoneItems = Array.from(phoneList.querySelectorAll('.phone-item'));
+    if (phoneItems.length === 0) return;
+
+    const errors = [];
 
     try {
-        // For each phone number, try to send via email-to-SMS gateway
-        for (const phone of phones) {
-            // Get carrier selection for this phone (default to first carrier if not set)
-            const carrierSelect = document.querySelector(`[data-phone="${phone}"]`);
-            const carrier = carrierSelect ? carrierSelect.value : Object.keys(carrierGateways)[0];
-            
-            if (!carrier || !carrierGateways[carrier]) {
-                console.warn(`No valid carrier selected for ${phone}`);
-                continue;
-            }
-
-            // Format phone number (remove '+1' if present and any non-digit characters)
-            const formattedPhone = phone.replace(/^\+1/, '').replace(/\D/g, '');
-            
-            // Construct email-to-SMS address
-            const smsEmail = `${formattedPhone}@${carrierGateways[carrier]}`;
-
-            // Send via EmailJS
-            await emailjs.send(
-                'service_lsa1r4i',  // Your EmailJS service ID
-                'template_vnrbr1d', // Your EmailJS template ID
-                {
-                    to_email: smsEmail,
-                    alert_type: type.toUpperCase(),
-                    alert_message: message.substring(0, 160), // SMS length limit
-                    timestamp: new Date().toLocaleString()
+        for (const phoneItem of phoneItems) {
+            try {
+                const phoneText = phoneItem.querySelector('.phone-text').textContent;
+                const carrier = phoneItem.querySelector('.carrier-text').textContent.replace(/[()]/g, '').toLowerCase();
+                
+                console.log('Processing phone:', { phoneText, carrier });
+                
+                // Format phone number
+                const formattedPhone = formatPhoneForSMS(phoneText);
+                
+                // Get carrier gateway
+                const gateway = carrierGateways[carrier];
+                if (!gateway) {
+                    throw new Error(`Unsupported carrier: ${carrier}`);
                 }
-            );
+
+                const smsEmail = `${formattedPhone}@${gateway}`;
+                console.log('Sending SMS via email gateway:', smsEmail);
+                
+                await sendRateLimitedEmail(
+                    'service_lsa1r4i',
+                    'template_vnrbr1d',
+                    {
+                        to_email: smsEmail,
+                        alert_type: type.toUpperCase(),
+                        alert_message: message,
+                        timestamp: new Date().toLocaleString()
+                    }
+                );
+                
+                console.log('SMS sent successfully to:', smsEmail);
+            } catch (error) {
+                errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`);
+            }
         }
-        console.log('SMS alerts sent successfully via email gateway');
+
+        if (errors.length > 0) {
+            throw new Error(errors.join('\n'));
+        }
     } catch (error) {
         console.error('Failed to send SMS alert:', error);
     }

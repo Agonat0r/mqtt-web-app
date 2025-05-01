@@ -663,94 +663,15 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     // === Mutual Exclusion Logic ===
     bool anyGreenOn = false;
     bool anyRedFlashing = false;
-    bool anyAmberOn = a0 || a1 || a2 || a3;
-    bool anyAmberFlashing = a0f || a1f || a2f || a3f;
-
     for (int i = 0; i < numLEDs; i++) {
         if (greenLEDStates[i].lastState) anyGreenOn = true;
         if (redLEDStates[i].changeCount >= 2) anyRedFlashing = true;
     }
+    bool anyAmberFlashing = a0f || a1f || a2f || a3f;
 
     // Build consolidated status message
     String statusMsg = ledStateMsg;
     bool hasAlerts = false;
-
-    // AMBER ALARMS - Check these before RED and GREEN
-    if (anyAmberOn || anyAmberFlashing) {
-        String alertName = "";
-        if (!a0 && !a1 && !a2 && !a3) {
-            alertName = "A01"; // ALL AMBER LEDs OFF
-        } else if (a0 && a1 && a2 && !a3) {
-            alertName = "A04"; // Power Failure
-        } else if (!a0 && a1 && a2 && a3) {
-            alertName = "A39"; // Power Failure
-        } else if (a0 && !a1 && !a2 && !a3) {
-            alertName = "A30"; // Service Required (Flood switch)
-        } else if (!a0 && a1 && !a2 && !a3) {
-            alertName = "A33"; // Service Required – travel time
-        } else if (a0 && a1 && !a2 && !a3) {
-            alertName = "A34"; // Service Required – maintenance
-        } else if (!a0 && !a1 && a2 && !a3) {
-            alertName = "A35"; // Service Required – hours
-        } else if (!a0 && !a1 && a2 && a3) {
-            alertName = "A36"; // Service Required – Battery
-        } else if (a0 && !a1 && !a2 && a3) {
-            alertName = "A37"; // Service Required - Inverter
-        }
-
-        // Flashing amber conditions
-        if (anyAmberFlashing) {
-            if (!a0f && !a1f && !a2f && !a3f) {
-                alertName = "A02"; // No FLASHING AMBER LEDs
-            } else if (a0f && a1f && a2f && !a3f) {
-                alertName = "A32"; // Power Failure - UP Locked
-                stopUpMovement();
-            } else if (!a0f && !a1f && a2f && !a3f) {
-                alertName = "A06"; // Motor Failure - UP Locked
-                stopUpMovement();
-            } else if (a0f && !a1f && !a2f && a3f) {
-                alertName = "A08"; // Anti-Rock binding - UP Locked
-                stopUpMovement();
-            } else if (a0f && a1f && !a2f && !a3f) {
-                alertName = "A14"; // Bottom Final Limit - DOWN Locked
-                stopDownMovement();
-            } else if (!a0f && a1f && !a2f && !a3f) {
-                alertName = "A16"; // Flood waters - DOWN Locked
-                stopDownMovement();
-            } else if (!a0f && a1f && a2f && !a3f) {
-                alertName = "A38"; // Motor Temperature monitoring lost
-            }
-        }
-
-        if (alertName != "") {
-            currentAmberAlarms = alertName;
-            statusMsg += (hasAlerts ? "/" : " - ") + alertName;
-            hasAlerts = true;
-            
-            // Send email for amber alarm if it's different from the last one sent
-            if (alertName != lastAmberEmailSent && (millis() - lastEmailSent >= EMAIL_COOLDOWN)) {
-                String alarmDescription = "";
-                if (alertName == "A01") alarmDescription = "ALL AMBER LEDs OFF";
-                else if (alertName == "A04") alarmDescription = "Power Failure";
-                else if (alertName == "A39") alarmDescription = "Power Failure";
-                else if (alertName == "A30") alarmDescription = "Service Required (Flood switch)";
-                else if (alertName == "A33") alarmDescription = "Service Required – travel time";
-                else if (alertName == "A34") alarmDescription = "Service Required – maintenance";
-                else if (alertName == "A35") alarmDescription = "Service Required – hours";
-                else if (alertName == "A36") alarmDescription = "Service Required – Battery";
-                else if (alertName == "A37") alarmDescription = "Service Required - Inverter";
-                else if (alertName == "A32") alarmDescription = "Power Failure - UP Locked";
-                else if (alertName == "A06") alarmDescription = "Motor Failure - UP Locked";
-                else if (alertName == "A08") alarmDescription = "Anti-Rock binding - UP Locked";
-                else if (alertName == "A14") alarmDescription = "Bottom Final Limit - DOWN Locked";
-                else if (alertName == "A16") alarmDescription = "Flood waters - DOWN Locked";
-                else if (alertName == "A38") alarmDescription = "Motor Temperature monitoring lost";
-                
-                sendAlarmEmail("AMBER", alertName + " - " + alarmDescription);
-                lastAmberEmailSent = alertName;
-            }
-        }
-    }
 
     // RED ALARMS - Only if NO green LED is ON and NO amber is flashing
     if (!anyGreenOn && !anyAmberFlashing) {
@@ -885,6 +806,56 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
             statusMsg += (hasAlerts ? "/" : " - ") + alertName;
             hasAlerts = true;
         }
+    }
+
+    // AMBER ALARMS (no mutual exclusion)
+    String alertName = "";
+    if (!a0 && !a1 && !a2 && !a3) {
+        alertName = "A01"; // ALL AMBER LEDs OFF
+    } else if (a0 && a1 && a2 && !a3) {
+        alertName = "A04"; // Power Failure
+    } else if (!a0 && a1 && a2 && a3) {
+        alertName = "A39"; // Power Failure
+    } else if (a0 && !a1 && !a2 && !a3) {
+        alertName = "A30"; // Service Required (Flood switch)
+    } else if (!a0 && a1 && !a2 && !a3) {
+        alertName = "A33"; // Service Required – travel time
+    } else if (a0 && a1 && !a2 && !a3) {
+        alertName = "A34"; // Service Required – maintenance
+    } else if (!a0 && !a1 && a2 && !a3) {
+        alertName = "A35"; // Service Required – hours
+    } else if (!a0 && !a1 && a2 && a3) {
+        alertName = "A36"; // Service Required – Battery
+    } else if (a0 && !a1 && !a2 && a3) {
+        alertName = "A37"; // Service Required - Inverter
+    }
+    // Flashing amber conditions
+    if (!a0f && !a1f && !a2f && !a3f) {
+        alertName = "A02"; // No FLASHING AMBER LEDs
+    } else if (a0f && a1f && a2f && !a3f) {
+        alertName = "A32"; // Power Failure - UP Locked
+        stopUpMovement();
+    } else if (!a0f && a1f && a2f && a3f) {
+        alertName = "A40"; // Power Failure
+    } else if (!a0f && !a1f && a2f && !a3f) {
+        alertName = "A06"; // Motor Failure - UP Locked
+        stopUpMovement();
+    } else if (a0f && !a1f && !a2f && a3f) {
+        alertName = "A08"; // Anti-Rock binding - UP Locked
+        stopUpMovement();
+    } else if (a0f && a1f && !a2f && !a3f) {
+        alertName = "A14"; // Bottom Final Limit - DOWN Locked
+        stopDownMovement();
+    } else if (!a0f && a1f && !a2f && !a3f) {
+        alertName = "A16"; // Flood waters - DOWN Locked
+        stopDownMovement();
+    } else if (!a0f && a1f && a2f && !a3f) {
+        alertName = "A38"; // Motor Temperature monitoring lost
+    }
+    if (alertName != "") {
+        currentAmberAlarms = alertName;
+        statusMsg += (hasAlerts ? "/" : " - ") + alertName;
+        hasAlerts = true;
     }
 
     // Only print the status message if there are alerts or LED states have changed

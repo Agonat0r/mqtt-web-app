@@ -856,6 +856,31 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
         currentAmberAlarms = alertName;
         statusMsg += (hasAlerts ? "/" : " - ") + alertName;
         hasAlerts = true;
+
+        // Send email for amber alarms if different from last one sent
+        if (alertName != lastAmberEmailSent) {
+            String alarmDescription = "";
+            if (alertName == "A01") alarmDescription = "ALL AMBER LEDs OFF";
+            else if (alertName == "A04") alarmDescription = "Power Failure";
+            else if (alertName == "A39") alarmDescription = "Power Failure";
+            else if (alertName == "A30") alarmDescription = "Service Required (Flood switch)";
+            else if (alertName == "A33") alarmDescription = "Service Required – travel time";
+            else if (alertName == "A34") alarmDescription = "Service Required – maintenance";
+            else if (alertName == "A35") alarmDescription = "Service Required – hours";
+            else if (alertName == "A36") alarmDescription = "Service Required – Battery";
+            else if (alertName == "A37") alarmDescription = "Service Required - Inverter";
+            else if (alertName == "A02") alarmDescription = "No FLASHING AMBER LEDs";
+            else if (alertName == "A32") alarmDescription = "Power Failure - UP Locked";
+            else if (alertName == "A40") alarmDescription = "Power Failure";
+            else if (alertName == "A06") alarmDescription = "Motor Failure - UP Locked";
+            else if (alertName == "A08") alarmDescription = "Anti-Rock binding - UP Locked";
+            else if (alertName == "A14") alarmDescription = "Bottom Final Limit - DOWN Locked";
+            else if (alertName == "A16") alarmDescription = "Flood waters - DOWN Locked";
+            else if (alertName == "A38") alarmDescription = "Motor Temperature monitoring lost";
+            
+            sendAlarmEmail("AMBER", alertName + " - " + alarmDescription);
+            lastAmberEmailSent = alertName;
+        }
     }
 
     // Only print the status message if there are alerts or LED states have changed
@@ -871,6 +896,10 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
 
     if (shouldPublishAlert(greenAlertState, currentGreenAlarms, currentMillis)) {
         publishAlert("green", currentGreenAlarms);
+    }
+
+    if (shouldPublishAlert(amberAlertState, currentAmberAlarms, currentMillis)) {
+        publishAlert("amber", currentAmberAlarms);
     }
 
     // Update global strings for web interface
@@ -993,6 +1022,31 @@ void setup() {
     greenLEDStates[i].lastChange = 0;
   }
   Serial.println("LED pins initialized");
+
+  // Initialize alert states
+  redAlertState = (AlertState){
+    .message = "",
+    .lastChangeTime = 0,
+    .lastPublishTime = 0,
+    .isActive = false,
+    .stableCount = 0
+  };
+  
+  greenAlertState = (AlertState){
+    .message = "",
+    .lastChangeTime = 0,
+    .lastPublishTime = 0,
+    .isActive = false,
+    .stableCount = 0
+  };
+
+  amberAlertState = (AlertState){
+    .message = "",
+    .lastChangeTime = 0,
+    .lastPublishTime = 0,
+    .isActive = false,
+    .stableCount = 0
+  };
 
   // Initialize GPIO with explicit states
   Serial.println("Initializing GPIO pins...");

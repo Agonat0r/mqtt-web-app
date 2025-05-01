@@ -373,33 +373,50 @@ void callback(char* topic, byte* payload, unsigned int length) {
 // Function to reconnect to MQTT broker
 void reconnectMQTT() {
     if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi not connected, skipping MQTT reconnect");
         return;
     }
+    
     int attempts = 0;
     const int MAX_ATTEMPTS = 3;
+    
     while (!mqttClient.connected() && attempts < MAX_ATTEMPTS) {
+        Serial.print("MQTT connection attempt ");
+        Serial.print(attempts + 1);
+        Serial.print(" of ");
+        Serial.println(MAX_ATTEMPTS);
+        
         String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+        
         if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
             Serial.println("Connected to MQTT broker");
             
-            // Subscribe to topics
-            mqttClient.subscribe(commandLogTopic);
-            mqttClient.subscribe(generalLogTopic);
-            mqttClient.subscribe(alertLogTopic);
+            // Subscribe to topics with error checking
+            bool subSuccess = true;
+            if (!mqttClient.subscribe(commandLogTopic)) subSuccess = false;
+            if (!mqttClient.subscribe(generalLogTopic)) subSuccess = false;
+            if (!mqttClient.subscribe(alertLogTopic)) subSuccess = false;
             
-            // Send subscription confirmation to both topics
-            String subscribeMsg = "Subscribed to topics: " + String(commandLogTopic) + ", " + String(generalLogTopic) + ", " + String(alertLogTopic);
-            publishGeneralLog(subscribeMsg, "info");
-            
-            // Send connection message
-            publishGeneralLog("Device connected and ready", "info");
+            if (subSuccess) {
+                String subscribeMsg = "Subscribed to MQTT topics successfully";
+                publishGeneralLog(subscribeMsg, "info");
+                publishGeneralLog("Device connected and ready", "info");
+            } else {
+                Serial.println("Failed to subscribe to some topics");
+            }
             return;
         }
+        
+        Serial.println("MQTT connection failed, retrying...");
         attempts++;
+        
         if (attempts < MAX_ATTEMPTS) {
-            delay(5000);
+            delay(2000);  // Shorter delay between attempts
+            yield();  // Allow watchdog to reset
+            esp_task_wdt_reset();  // Explicitly reset watchdog timer
         }
     }
+    
     if (!mqttClient.connected()) {
         Serial.println("Failed to connect to MQTT after maximum attempts");
     }
@@ -1008,47 +1025,55 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
+  Serial.print("Connecting to WiFi");
   int wifiAttempts = 0;
   const int MAX_WIFI_ATTEMPTS = 20;
   
-  // Only print dots, not needed for final output
   while (WiFi.status() != WL_CONNECTED && wifiAttempts < MAX_WIFI_ATTEMPTS) {
     delay(500);
+    Serial.print(".");
     wifiAttempts++;
+    yield();  // Allow watchdog to reset
+    esp_task_wdt_reset();  // Explicitly reset watchdog timer
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi connected successfully!");
+    Serial.println("\nWiFi connected successfully!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
   } else {
-    // Only print failure once
-    Serial.println("Failed to connect to WiFi!");
-    ESP.restart();
+    Serial.println("\nFailed to connect to WiFi!");
+    delay(1000);  // Give time for the message to be seen
+    ESP.restart();  // Clean restart if WiFi fails
     return;
   }
 
-  // Setup MQTT with SSL/TLS
+  // Setup MQTT with SSL/TLS with proper timeouts
   espClient.setCACert(root_ca);
+  espClient.setTimeout(5);  // 5 seconds timeout for SSL/TLS operations
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(callback);
   mqttClient.setKeepAlive(60);
   mqttClient.setSocketTimeout(10);
   
-  // Initial MQTT connection attempt
+  // Initial MQTT connection attempt with yield
+  Serial.println("Attempting MQTT connection...");
   reconnectMQTT();
+  yield();  // Allow watchdog to reset
   
   // Initialize NTP with local time cache
   Serial.println("Configuring time...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-  // Ensure time is synced before TLS handshake
+  // Ensure time is synced before TLS handshake with yields
   struct tm timeinfo;
   int timeoutCounter = 0;
   while (!getLocalTime(&timeinfo) && timeoutCounter < 10) {
-    Serial.println("Waiting for time to sync...");
+    Serial.println("Waiting for time sync...");
     delay(1000);
     timeoutCounter++;
+    yield();  // Allow watchdog to reset
+    esp_task_wdt_reset();  // Explicitly reset watchdog timer
   }
   if (timeoutCounter >= 10) {
     Serial.println("Failed to sync time!");
@@ -1062,6 +1087,11 @@ void setup() {
   server.on("/", HTTP_GET, []() {
     if (!isAuthenticated()) {
       server.send(401, "text/plain", "Unauthorized");
+      return;
+    }
+    if (!SPIFFS.exists("/index.html")) {
+      // Send a basic response if index.html is not found
+      server.send(200, "text/plain", "ESP32 Web Interface\nDevice is running but web interface is not available.");
       return;
     }
     File file = SPIFFS.open("/index.html", "r");

@@ -412,9 +412,9 @@ void ui_init() {
     terminal = lv_textarea_create(tabs[1]);
     lv_obj_set_size(terminal, LV_HOR_RES - 140, (LV_VER_RES - 40) / 2);
     lv_obj_align(terminal, LV_ALIGN_TOP_MID, 20, 10);
-   lv_textarea_set_cursor_click_pos(terminal, false);
-lv_textarea_set_password_mode(terminal, true);
-lv_textarea_set_text_selection(terminal, false);
+    lv_textarea_set_cursor_click_pos(terminal, false);
+    // Remove password mode and enable text display
+    lv_obj_clear_flag(terminal, LV_OBJ_FLAG_CLICKABLE);
     lv_textarea_set_text(terminal, "=== Command and Alert Terminal ===\n");
     lv_textarea_set_placeholder_text(terminal, "Waiting for messages...");
     

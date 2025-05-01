@@ -21,6 +21,10 @@ const brokerConfig = {
     clientId: 'webClient_' + Math.random().toString(16).substr(2, 8)
 };
 
+// Add at the top of the file with other constants
+const EMAIL_COOLDOWN = 300000; // 5 minutes in milliseconds
+let lastEmailSent = 0;
+
 /**
  * Initializes the MQTT client and sets up connection handlers
  */
@@ -115,10 +119,10 @@ function initializeMQTTClient() {
  * updates text translations, and initializes MQTT connection.
  */
 document.addEventListener('DOMContentLoaded', () => {
-    initializeEventHandlers();
-    loadSettings();
-    applySettings();
-    updateAllText();
+  initializeEventHandlers();
+  loadSettings();
+  applySettings();
+  updateAllText();
     initializeMQTTClient();
     loadPhoneSubscribers();
 
@@ -659,7 +663,7 @@ document.head.querySelector('style').textContent += `
 
 // Terminal logging functions
 function logToTerminal(message, type = 'info') {
-    const messageLog = document.getElementById('messageLog');
+const messageLog = document.getElementById('messageLog');
     if (!messageLog) {
         console.error('Message log element not found');
         return;
@@ -691,6 +695,12 @@ function logToCommandTerminal(message, type = 'command') {
  * @param {string} message - The alarm message
  */
 async function sendAlarmEmail(type, message) {
+    const currentTime = Date.now();
+    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
+        console.log('Email cooldown period active. Skipping email send.');
+        return;
+    }
+
     const emailList = document.querySelectorAll('#emailList .email-item span');
     if (emailList.length === 0) return; // No subscribers
 
@@ -709,6 +719,7 @@ async function sendAlarmEmail(type, message) {
                 }
             );
         }
+        lastEmailSent = currentTime;
         showMessage('Alarm email alerts sent successfully', 'success');
     } catch (error) {
         console.error('Failed to send alarm email:', error);
@@ -769,7 +780,7 @@ function handleAlarm(alarm) {
         if (firstEntry) {
             alarmContainer.insertBefore(alarmEntry, firstEntry);
         } else {
-            alarmContainer.appendChild(alarmEntry);
+        alarmContainer.appendChild(alarmEntry);
         }
         
         // Also log to general terminal
@@ -1270,6 +1281,12 @@ function closeEmailModal() {
  * Sends the log content via email using EmailJS
  */
 async function sendLogEmail() {
+    const currentTime = Date.now();
+    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
+        showMessage('Please wait 5 minutes between sending emails', 'error');
+        return;
+    }
+
     const modal = document.getElementById('emailModal');
     const targetId = modal.dataset.targetLog;
     const emailInput = document.getElementById('emailInput');
@@ -1307,6 +1324,7 @@ async function sendLogEmail() {
             }
         );
         
+        lastEmailSent = currentTime;
         showMessage('Email sent successfully', 'success');
         closeEmailModal();
     } catch (error) {
@@ -1378,6 +1396,12 @@ document.addEventListener('DOMContentLoaded', function() {
  * Sends a test email to verify email alert configuration
  */
 async function sendTestEmail() {
+    const currentTime = Date.now();
+    if (currentTime - lastEmailSent < EMAIL_COOLDOWN) {
+        showMessage('Please wait 5 minutes between sending emails', 'error');
+        return;
+    }
+
     const emailList = document.querySelectorAll('#emailList .email-item span');
     if (emailList.length === 0) {
         showMessage('Please add at least one email address first', 'error');
@@ -1407,6 +1431,7 @@ async function sendTestEmail() {
             );
         }
 
+        lastEmailSent = currentTime;
         showMessage('Test email sent successfully!', 'success');
     } catch (error) {
         console.error('Failed to send test email:', error);

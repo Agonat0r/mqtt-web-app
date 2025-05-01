@@ -94,14 +94,12 @@ const unsigned long checkInterval = 500; // Reduced from 1500ms to 500ms
 #define DOWN_BUTTON 15 // 19
 #define UP_PIN 4 // 5
 #define DOWN_PIN 27 // 4
-#define LIMIT_SWITCH_UP 26 // 21
-#define LIMIT_SWITCH_DOWN 25 // 22
-#define BRAKE_PIN 14 
-#define UP_OUTPUT_PIN 35    // Using pin 15 for UP output
-#define DOWN_OUTPUT_PIN 34  // Using pin 16 for DOWN output
-#define ALWAYS_HIGH_PIN1 12 // Pin that will always be HIGH
-#define ALWAYS_HIGH_PIN2 24 // Pin that will always be HIGH
-#define ALWAYS_HIGH_PIN3 13 // Pin that will always be HIGH
+#define BRAKE_PIN 35 
+#define UP_OUTPUT_PIN 14    // Using pin 15 for UP output
+#define DOWN_OUTPUT_PIN 26  // Using pin 16 for DOWN output
+//#define ALWAYS_HIGH_PIN1 12 // Pin that will always be HIGH
+//#define ALWAYS_HIGH_PIN2 24 // Pin that will always be HIGH
+//#define ALWAYS_HIGH_PIN3 13 // Pin that will always be HIGH
 // Email Configuration
 #define MAX_EMAILS 10
 String emailAddresses[MAX_EMAILS];
@@ -244,11 +242,6 @@ void handleMovement(const char* direction) {
   Serial.println("===========================\n");
   
   if (dir == "up") {
-    if (digitalRead(LIMIT_SWITCH_UP) == LOW) {
-      addToLog("Cannot move up: Upper limit switch activated");
-      Serial.println("BLOCKED: Upper limit switch activated");
-      return;
-    }
     digitalWrite(DOWN_PIN, LOW);
     digitalWrite(UP_PIN, HIGH);
     currentDirection = "up";
@@ -256,11 +249,6 @@ void handleMovement(const char* direction) {
     publishCommandLog("Command executed: UP");
     publishGeneralLog("Moving up", "info");
   } else if (dir == "down") {
-    if (digitalRead(LIMIT_SWITCH_DOWN) == LOW) {
-      addToLog("Cannot move down: Lower limit switch activated");
-      Serial.println("BLOCKED: Lower limit switch activated");
-      return;
-    }
     digitalWrite(UP_PIN, LOW);
     digitalWrite(DOWN_PIN, HIGH);
     currentDirection = "down";
@@ -336,6 +324,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, message);
     if (error) {
+        Serial.println("Failed to parse JSON message");
         return;
     }
 
@@ -344,79 +333,94 @@ void callback(char* topic, byte* payload, unsigned int length) {
     const char* msg = doc["message"];
     const char* timestamp = doc["timestamp"];
 
-    // Only print for command messages with UP, DOWN, or STOP
+    // Only process command messages
     if (type && strcmp(type, "command") == 0 && msg && timestamp) {
-        if (strcmp(msg, "COMMAND:UP") == 0 || strcmp(msg, "COMMAND:DOWN") == 0 || strcmp(msg, "COMMAND:STOP") == 0) {
-            // Print as a single compressed line
-            Serial.print("[COMMAND] ");
-            if (strcmp(msg, "COMMAND:UP") == 0) Serial.print("UP");
-            else if (strcmp(msg, "COMMAND:DOWN") == 0) Serial.print("DOWN");
-            else if (strcmp(msg, "COMMAND:STOP") == 0) Serial.print("STOP");
-            Serial.print(" at ");
+        Serial.print("\n=== MQTT Command Received ===\n");
+        Serial.print("Command: ");
+        Serial.println(msg);
+        Serial.print("Time: ");
             Serial.println(timestamp);
 
-            // Command Output Pin Control
+        // Command Output Pin Control with debug info
             if (strcmp(msg, "COMMAND:UP") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, HIGH);
-                digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            } else if (strcmp(msg, "COMMAND:DOWN") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, LOW);
-                digitalWrite(DOWN_OUTPUT_PIN, HIGH);
-            } else if (strcmp(msg, "COMMAND:STOP") == 0) {
-                digitalWrite(UP_OUTPUT_PIN, LOW);
-                digitalWrite(DOWN_OUTPUT_PIN, LOW);
-            }
+            digitalWrite(DOWN_OUTPUT_PIN, LOW);  // First ensure DOWN is off
+            Serial.println("Setting DOWN_OUTPUT_PIN LOW (0V)");
+            Serial.print("DOWN_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(DOWN_OUTPUT_PIN));
+            
+            delay(10);  // Small delay for safety
+            
+            digitalWrite(UP_OUTPUT_PIN, HIGH);   // Then set UP high
+            Serial.println("Setting UP_OUTPUT_PIN HIGH (3.3V)");
+            Serial.print("UP_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(UP_OUTPUT_PIN));
+        } 
+        else if (strcmp(msg, "COMMAND:DOWN") == 0) {
+            digitalWrite(UP_OUTPUT_PIN, LOW);    // First ensure UP is off
+            Serial.println("Setting UP_OUTPUT_PIN LOW (0V)");
+            Serial.print("UP_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(UP_OUTPUT_PIN));
+            
+            delay(10);  // Small delay for safety
+            
+            digitalWrite(DOWN_OUTPUT_PIN, HIGH); // Then set DOWN high
+            Serial.println("Setting DOWN_OUTPUT_PIN HIGH (3.3V)");
+            Serial.print("DOWN_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(DOWN_OUTPUT_PIN));
         }
+        else if (strcmp(msg, "COMMAND:STOP") == 0) {
+            // First print current states before change
+            Serial.println("Current states before STOP:");
+            Serial.print("UP_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(UP_OUTPUT_PIN));
+            Serial.print("DOWN_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(DOWN_OUTPUT_PIN));
+            
+            // Set both pins LOW
+                digitalWrite(UP_OUTPUT_PIN, LOW);
+                digitalWrite(DOWN_OUTPUT_PIN, LOW);
+            
+            Serial.println("\nSetting both output pins LOW (0V)");
+            Serial.println("Final states after STOP:");
+            Serial.print("UP_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(UP_OUTPUT_PIN));
+            Serial.print("DOWN_OUTPUT_PIN state: ");
+            Serial.println(digitalRead(DOWN_OUTPUT_PIN));
+        }
+        Serial.println("===========================\n");
     }
 }
 
 // Function to reconnect to MQTT broker
 void reconnectMQTT() {
     if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi not connected, skipping MQTT reconnect");
         return;
     }
-    
     int attempts = 0;
     const int MAX_ATTEMPTS = 3;
-    
     while (!mqttClient.connected() && attempts < MAX_ATTEMPTS) {
-        Serial.print("MQTT connection attempt ");
-        Serial.print(attempts + 1);
-        Serial.print(" of ");
-        Serial.println(MAX_ATTEMPTS);
-        
         String clientId = "ESP32Client-" + String(random(0xffff), HEX);
-        
         if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
             Serial.println("Connected to MQTT broker");
             
-            // Subscribe to topics with error checking
-            bool subSuccess = true;
-            if (!mqttClient.subscribe(commandLogTopic)) subSuccess = false;
-            if (!mqttClient.subscribe(generalLogTopic)) subSuccess = false;
-            if (!mqttClient.subscribe(alertLogTopic)) subSuccess = false;
+            // Subscribe to topics
+            mqttClient.subscribe(commandLogTopic);
+            mqttClient.subscribe(generalLogTopic);
+            mqttClient.subscribe(alertLogTopic);
             
-            if (subSuccess) {
-                String subscribeMsg = "Subscribed to MQTT topics successfully";
-                publishGeneralLog(subscribeMsg, "info");
-                publishGeneralLog("Device connected and ready", "info");
-            } else {
-                Serial.println("Failed to subscribe to some topics");
-            }
+            // Send subscription confirmation to both topics
+            String subscribeMsg = "Subscribed to topics: " + String(commandLogTopic) + ", " + String(generalLogTopic) + ", " + String(alertLogTopic);
+            publishGeneralLog(subscribeMsg, "info");
+            
+            // Send connection message
+            publishGeneralLog("Device connected and ready", "info");
             return;
         }
-        
-        Serial.println("MQTT connection failed, retrying...");
         attempts++;
-        
         if (attempts < MAX_ATTEMPTS) {
-            delay(2000);  // Shorter delay between attempts
-            yield();  // Allow watchdog to reset
-            esp_task_wdt_reset();  // Explicitly reset watchdog timer
+            delay(5000);
         }
     }
-    
     if (!mqttClient.connected()) {
         Serial.println("Failed to connect to MQTT after maximum attempts");
     }
@@ -425,9 +429,9 @@ void reconnectMQTT() {
 bool sendAlarmEmail(String alarmType, String alarmMessage) {
     if (!emailNotificationsEnabled || millis() - lastEmailSent < EMAIL_COOLDOWN) {
         Serial.println("Email not sent: notifications disabled or cooldown active");
-        return false;
-    }
-    
+    return false;
+  }
+  
     // Instead of sending email directly, publish to MQTT for web interface to handle
     if (mqttClient.connected()) {
         String payload = "{\"type\":\"email_alert\",\"alert_type\":\"" + alarmType + 
@@ -659,97 +663,176 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     // === Mutual Exclusion Logic ===
     bool anyGreenOn = false;
     bool anyRedFlashing = false;
+    bool anyAmberOn = a0 || a1 || a2 || a3;
+    bool anyAmberFlashing = a0f || a1f || a2f || a3f;
+
     for (int i = 0; i < numLEDs; i++) {
         if (greenLEDStates[i].lastState) anyGreenOn = true;
         if (redLEDStates[i].changeCount >= 2) anyRedFlashing = true;
     }
-    bool anyAmberFlashing = a0f || a1f || a2f || a3f;
 
     // Build consolidated status message
     String statusMsg = ledStateMsg;
     bool hasAlerts = false;
 
+    // AMBER ALARMS - Check these before RED and GREEN
+    if (anyAmberOn || anyAmberFlashing) {
+        String alertName = "";
+        if (!a0 && !a1 && !a2 && !a3) {
+            alertName = "A01"; // ALL AMBER LEDs OFF
+        } else if (a0 && a1 && a2 && !a3) {
+            alertName = "A04"; // Power Failure
+        } else if (!a0 && a1 && a2 && a3) {
+            alertName = "A39"; // Power Failure
+        } else if (a0 && !a1 && !a2 && !a3) {
+            alertName = "A30"; // Service Required (Flood switch)
+        } else if (!a0 && a1 && !a2 && !a3) {
+            alertName = "A33"; // Service Required – travel time
+        } else if (a0 && a1 && !a2 && !a3) {
+            alertName = "A34"; // Service Required – maintenance
+        } else if (!a0 && !a1 && a2 && !a3) {
+            alertName = "A35"; // Service Required – hours
+        } else if (!a0 && !a1 && a2 && a3) {
+            alertName = "A36"; // Service Required – Battery
+        } else if (a0 && !a1 && !a2 && a3) {
+            alertName = "A37"; // Service Required - Inverter
+        }
+
+        // Flashing amber conditions
+        if (anyAmberFlashing) {
+            if (!a0f && !a1f && !a2f && !a3f) {
+                alertName = "A02"; // No FLASHING AMBER LEDs
+            } else if (a0f && a1f && a2f && !a3f) {
+                alertName = "A32"; // Power Failure - UP Locked
+                stopUpMovement();
+            } else if (!a0f && !a1f && a2f && !a3f) {
+                alertName = "A06"; // Motor Failure - UP Locked
+                stopUpMovement();
+            } else if (a0f && !a1f && !a2f && a3f) {
+                alertName = "A08"; // Anti-Rock binding - UP Locked
+                stopUpMovement();
+            } else if (a0f && a1f && !a2f && !a3f) {
+                alertName = "A14"; // Bottom Final Limit - DOWN Locked
+                stopDownMovement();
+            } else if (!a0f && a1f && !a2f && !a3f) {
+                alertName = "A16"; // Flood waters - DOWN Locked
+                stopDownMovement();
+            } else if (!a0f && a1f && a2f && !a3f) {
+                alertName = "A38"; // Motor Temperature monitoring lost
+            }
+        }
+
+        if (alertName != "") {
+            currentAmberAlarms = alertName;
+            statusMsg += (hasAlerts ? "/" : " - ") + alertName;
+            hasAlerts = true;
+            
+            // Send email for amber alarm if it's different from the last one sent
+            if (alertName != lastAmberEmailSent && (millis() - lastEmailSent >= EMAIL_COOLDOWN)) {
+                String alarmDescription = "";
+                if (alertName == "A01") alarmDescription = "ALL AMBER LEDs OFF";
+                else if (alertName == "A04") alarmDescription = "Power Failure";
+                else if (alertName == "A39") alarmDescription = "Power Failure";
+                else if (alertName == "A30") alarmDescription = "Service Required (Flood switch)";
+                else if (alertName == "A33") alarmDescription = "Service Required – travel time";
+                else if (alertName == "A34") alarmDescription = "Service Required – maintenance";
+                else if (alertName == "A35") alarmDescription = "Service Required – hours";
+                else if (alertName == "A36") alarmDescription = "Service Required – Battery";
+                else if (alertName == "A37") alarmDescription = "Service Required - Inverter";
+                else if (alertName == "A32") alarmDescription = "Power Failure - UP Locked";
+                else if (alertName == "A06") alarmDescription = "Motor Failure - UP Locked";
+                else if (alertName == "A08") alarmDescription = "Anti-Rock binding - UP Locked";
+                else if (alertName == "A14") alarmDescription = "Bottom Final Limit - DOWN Locked";
+                else if (alertName == "A16") alarmDescription = "Flood waters - DOWN Locked";
+                else if (alertName == "A38") alarmDescription = "Motor Temperature monitoring lost";
+                
+                sendAlarmEmail("AMBER", alertName + " - " + alarmDescription);
+                lastAmberEmailSent = alertName;
+            }
+        }
+    }
+
     // RED ALARMS - Only if NO green LED is ON and NO amber is flashing
     if (!anyGreenOn && !anyAmberFlashing) {
         String alertName = "";
-        if (!r0 && !r1 && !r2 && !r3) {
+    if (!r0 && !r1 && !r2 && !r3) {
             alertName = "R01"; // All RED LEDs are OFF
-        } else if (r0 && r1 && r2 && r3) {
+    } else if (r0 && r1 && r2 && r3) {
             alertName = "R02"; // E-Stop is OFF
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0 && r1 && r2 && !r3) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0 && r1 && r2 && !r3) {
             alertName = "R15"; // OSG/Pit Switch
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0 && r1 && !r2 && !r3) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0 && r1 && !r2 && !r3) {
             alertName = "R23"; // Door Lock Failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0 && !r1 && r2 && r3) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0 && !r1 && r2 && r3) {
             alertName = "R22"; // Door Open
-            stopUpMovement();
-            stopDownMovement();
-        }
+        stopUpMovement();
+        stopDownMovement();
+    }
         // Flashing LED conditions
-        if (!r0f && !r1f && !r2f && !r3f) {
+    if (!r0f && !r1f && !r2f && !r3f) {
             alertName = "R00"; // No FLASHING RED LEDs
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && r1f && !r2f && !r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && r1f && !r2f && !r3f) {
             alertName = "R31"; // Out of Service (flood switch)
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && r1f && r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && r1f && r2f && r3f) {
             alertName = "R36"; // Out of Service – periodic maintenance
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0f && !r1f && !r2f && !r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0f && !r1f && !r2f && !r3f) {
             alertName = "R37"; // Out of Service (travel time)
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && r1f && !r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && r1f && !r2f && r3f) {
             alertName = "R07"; // Drive Train, Belt Failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0f && r1f && r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0f && r1f && r2f && r3f) {
             alertName = "R03"; // Drive Nut Friction block fails
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0f && !r1f && !r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0f && !r1f && !r2f && r3f) {
             alertName = "R27"; // Drive Train Alignment
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0f && r1f && r2f && !r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0f && r1f && r2f && !r3f) {
             alertName = "R10"; // Final Limit
-            stopUpMovement();
-            stopDownMovement();
+        stopUpMovement();
+        stopDownMovement();
             // Send email for R10 alarm
             if (alertName != lastRedEmailSent) {
                 sendAlarmEmail("RED", "Final Limit (R10) - Lift has reached final limit switch");
                 lastRedEmailSent = alertName;
             }
-        } else if (!r0f && !r1f && r2f && !r3f) {
+    } else if (!r0f && !r1f && r2f && !r3f) {
             alertName = "R11"; // Landing Switch (Top) failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && r1f && r2f && !r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && r1f && r2f && !r3f) {
             alertName = "R12"; // Landing Switch (Mid) failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (r0f && !r1f && r2f && !r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (r0f && !r1f && r2f && !r3f) {
             alertName = "R13"; // Landing Switch (Bottom) failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && !r1f && r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && !r1f && r2f && r3f) {
             alertName = "R24"; // Drive Train Motor Failure
-            stopUpMovement();
-            stopDownMovement();
-        } else if (!r0f && !r1f && !r2f && r3f) {
+        stopUpMovement();
+        stopDownMovement();
+    } else if (!r0f && !r1f && !r2f && r3f) {
             alertName = "R05"; // Motor temperature failure
-            stopUpMovement();
-            stopDownMovement();
-        }
+        stopUpMovement();
+        stopDownMovement();
+    }
         if (alertName != "") {
             currentRedAlarms = alertName;
             statusMsg += " - " + alertName;
@@ -786,15 +869,15 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
     // GREEN ALARMS - Only if NO red LED is flashing
     if (!anyRedFlashing) {
         String alertName = "";
-        if (!g0 && !g1 && !g2 && !g3) {
+    if (!g0 && !g1 && !g2 && !g3) {
             alertName = "G01"; // All GREEN LEDs are OFF
-        } else if (g0 && g1 && g2 && g3) {
+    } else if (g0 && g1 && g2 && g3) {
             alertName = "G00"; // No exceptions
-        } else if (!g0f && !g1f && !g2f && !g3f) {
+    } else if (!g0f && !g1f && !g2f && !g3f) {
             alertName = "G02"; // No FLASHING GREEN LEDs
-        } else if (g0f && g1f && g2f && !g3f) {
+    } else if (g0f && g1f && g2f && !g3f) {
             alertName = "G03"; // On Battery Power
-        } else if (g0f && g1f && g2f && g3f) {
+    } else if (g0f && g1f && g2f && g3f) {
             alertName = "G04"; // Bypass Jumpers/Service Switch
         }
         if (alertName != "") {
@@ -802,56 +885,6 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
             statusMsg += (hasAlerts ? "/" : " - ") + alertName;
             hasAlerts = true;
         }
-    }
-
-    // AMBER ALARMS (no mutual exclusion)
-    String alertName = "";
-    if (!a0 && !a1 && !a2 && !a3) {
-        alertName = "A01"; // ALL AMBER LEDs OFF
-    } else if (a0 && a1 && a2 && !a3) {
-        alertName = "A04"; // Power Failure
-    } else if (!a0 && a1 && a2 && a3) {
-        alertName = "A39"; // Power Failure
-    } else if (a0 && !a1 && !a2 && !a3) {
-        alertName = "A30"; // Service Required (Flood switch)
-    } else if (!a0 && a1 && !a2 && !a3) {
-        alertName = "A33"; // Service Required – travel time
-    } else if (a0 && a1 && !a2 && !a3) {
-        alertName = "A34"; // Service Required – maintenance
-    } else if (!a0 && !a1 && a2 && !a3) {
-        alertName = "A35"; // Service Required – hours
-    } else if (!a0 && !a1 && a2 && a3) {
-        alertName = "A36"; // Service Required – Battery
-    } else if (a0 && !a1 && !a2 && a3) {
-        alertName = "A37"; // Service Required - Inverter
-    }
-    // Flashing amber conditions
-    if (!a0f && !a1f && !a2f && !a3f) {
-        alertName = "A02"; // No FLASHING AMBER LEDs
-    } else if (a0f && a1f && a2f && !a3f) {
-        alertName = "A32"; // Power Failure - UP Locked
-        stopUpMovement();
-    } else if (!a0f && a1f && a2f && a3f) {
-        alertName = "A40"; // Power Failure
-    } else if (!a0f && !a1f && a2f && !a3f) {
-        alertName = "A06"; // Motor Failure - UP Locked
-        stopUpMovement();
-    } else if (a0f && !a1f && !a2f && a3f) {
-        alertName = "A08"; // Anti-Rock binding - UP Locked
-        stopUpMovement();
-    } else if (a0f && a1f && !a2f && !a3f) {
-        alertName = "A14"; // Bottom Final Limit - DOWN Locked
-        stopDownMovement();
-    } else if (!a0f && a1f && !a2f && !a3f) {
-        alertName = "A16"; // Flood waters - DOWN Locked
-        stopDownMovement();
-    } else if (!a0f && a1f && a2f && !a3f) {
-        alertName = "A38"; // Motor Temperature monitoring lost
-    }
-    if (alertName != "") {
-        currentAmberAlarms = alertName;
-        statusMsg += (hasAlerts ? "/" : " - ") + alertName;
-        hasAlerts = true;
     }
 
     // Only print the status message if there are alerts or LED states have changed
@@ -923,7 +956,7 @@ bool isAuthenticated() {
     String cookie = server.header("Cookie");
     return cookie.indexOf("SESSIONID=") != -1;
   }
-  return false;
+    return false;
 }
 
 // Remove the previous watchdog definitions and add proper configuration
@@ -1001,79 +1034,68 @@ void setup() {
   pinMode(UP_BUTTON, INPUT_PULLUP);
   pinMode(DOWN_BUTTON, INPUT_PULLUP);
   
-  // Add debouncing capacitors in hardware and/or software debounce
-  pinMode(LIMIT_SWITCH_UP, INPUT_PULLUP);
-  pinMode(LIMIT_SWITCH_DOWN, INPUT_PULLUP);
   pinMode(BRAKE_PIN, OUTPUT);
-  digitalWrite(BRAKE_PIN, HIGH);
-  
-  // Initialize output pins
+  digitalWrite(BRAKE_PIN, LOW);
+
+  // Initialize output pins with explicit states
   pinMode(UP_OUTPUT_PIN, OUTPUT);
+  digitalWrite(UP_OUTPUT_PIN, LOW);    // Start with output OFF
   pinMode(DOWN_OUTPUT_PIN, OUTPUT);
-  digitalWrite(UP_OUTPUT_PIN, LOW);    // Start with outputs OFF
-  digitalWrite(DOWN_OUTPUT_PIN, LOW);
+  digitalWrite(DOWN_OUTPUT_PIN, LOW);   // Start with output OFF
 
   // Initialize always-HIGH output pins
-  pinMode(ALWAYS_HIGH_PIN1, OUTPUT);
-  pinMode(ALWAYS_HIGH_PIN2, OUTPUT);
-  pinMode(ALWAYS_HIGH_PIN3, OUTPUT);
-  digitalWrite(ALWAYS_HIGH_PIN1, HIGH);  // Set to always HIGH
-  digitalWrite(ALWAYS_HIGH_PIN2, HIGH);  // Set to always HIGH
-  digitalWrite(ALWAYS_HIGH_PIN3, HIGH);  // Set to always HIGH
+  //pinMode(ALWAYS_HIGH_PIN1, OUTPUT);
+  //pinMode(ALWAYS_HIGH_PIN2, OUTPUT);
+  //pinMode(ALWAYS_HIGH_PIN3, OUTPUT);
+  //digitalWrite(ALWAYS_HIGH_PIN1, HIGH);  // Set to always HIGH
+  //digitalWrite(ALWAYS_HIGH_PIN2, HIGH);  // Set to always HIGH
+  //digitalWrite(ALWAYS_HIGH_PIN3, HIGH);  // Set to always HIGH
 
   // Connect to WiFi with status check and timeout
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
-  Serial.print("Connecting to WiFi");
   int wifiAttempts = 0;
   const int MAX_WIFI_ATTEMPTS = 20;
   
+  // Only print dots, not needed for final output
   while (WiFi.status() != WL_CONNECTED && wifiAttempts < MAX_WIFI_ATTEMPTS) {
     delay(500);
-    Serial.print(".");
     wifiAttempts++;
-    yield();  // Allow watchdog to reset
-    esp_task_wdt_reset();  // Explicitly reset watchdog timer
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected successfully!");
+    Serial.println("WiFi connected successfully!");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("\nFailed to connect to WiFi!");
-    delay(1000);  // Give time for the message to be seen
-    ESP.restart();  // Clean restart if WiFi fails
+    // Only print failure once
+    Serial.println("Failed to connect to WiFi!");
+    ESP.restart();
     return;
   }
 
-  // Setup MQTT with SSL/TLS with proper timeouts
+  // Setup MQTT with SSL/TLS
   espClient.setCACert(root_ca);
-  espClient.setTimeout(5);  // 5 seconds timeout for SSL/TLS operations
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setCallback(callback);
   mqttClient.setKeepAlive(60);
   mqttClient.setSocketTimeout(10);
   
-  // Initial MQTT connection attempt with yield
-  Serial.println("Attempting MQTT connection...");
+  // Initial MQTT connection attempt
   reconnectMQTT();
-  yield();  // Allow watchdog to reset
   
   // Initialize NTP with local time cache
   Serial.println("Configuring time...");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
-  // Ensure time is synced before TLS handshake with yields
+  // Ensure time is synced before TLS handshake
   struct tm timeinfo;
   int timeoutCounter = 0;
   while (!getLocalTime(&timeinfo) && timeoutCounter < 10) {
-    Serial.println("Waiting for time sync...");
+    Serial.println("Waiting for time to sync...");
     delay(1000);
     timeoutCounter++;
-    yield();  // Allow watchdog to reset
-    esp_task_wdt_reset();  // Explicitly reset watchdog timer
   }
   if (timeoutCounter >= 10) {
     Serial.println("Failed to sync time!");
@@ -1087,11 +1109,6 @@ void setup() {
   server.on("/", HTTP_GET, []() {
     if (!isAuthenticated()) {
       server.send(401, "text/plain", "Unauthorized");
-      return;
-    }
-    if (!SPIFFS.exists("/index.html")) {
-      // Send a basic response if index.html is not found
-      server.send(200, "text/plain", "ESP32 Web Interface\nDevice is running but web interface is not available.");
       return;
     }
     File file = SPIFFS.open("/index.html", "r");
@@ -1208,7 +1225,7 @@ void loop() {
     // Handle UP button with debounce
     if (upReading != lastUpButtonState) {
         lastUpDebounceTime = currentMillis;
-    }
+        }
     
     if ((currentMillis - lastUpDebounceTime) > DEBOUNCE_DELAY) {
         if (upReading != upButtonState) {
@@ -1219,8 +1236,8 @@ void loop() {
             } else if (upButtonState == HIGH && upButtonPressed) {  // Button is released
                 upButtonPressed = false;
                 if (!elevatorMode) {  // Only stop on release in lift mode
-                    stopMovement();
-                }
+            stopMovement();
+        }
             }
         }
     }
@@ -1228,7 +1245,7 @@ void loop() {
     // Handle DOWN button with debounce
     if (downReading != lastDownButtonState) {
         lastDownDebounceTime = currentMillis;
-    }
+        }
     
     if ((currentMillis - lastDownDebounceTime) > DEBOUNCE_DELAY) {
         if (downReading != downButtonState) {
@@ -1250,20 +1267,14 @@ void loop() {
     lastDownButtonState = downReading;
     
     if (elevatorMode) {
-        if (digitalRead(UP_PIN) && digitalRead(LIMIT_SWITCH_UP)) stopMovement();
-        if (digitalRead(DOWN_PIN) && digitalRead(LIMIT_SWITCH_DOWN)) stopMovement();
         static bool lastUpLimit = false;
         static bool lastDownLimit = false;
-        bool currentUpLimit = digitalRead(LIMIT_SWITCH_UP) == LOW;
-        bool currentDownLimit = digitalRead(LIMIT_SWITCH_DOWN) == LOW;
-        if (currentDirection == "up" && currentUpLimit && !lastUpLimit) {
-            stopMovement();
+        if (currentDirection == "up") {
+            // Movement continues without limit switch check
         }
-        if (currentDirection == "down" && currentDownLimit && !lastDownLimit) {
-            stopMovement();
+        if (currentDirection == "down") {
+            // Movement continues without limit switch check
         }
-        lastUpLimit = currentUpLimit;
-        lastDownLimit = currentDownLimit;
     }
 
     // Replace delay(10) with non-blocking delay
@@ -1288,8 +1299,8 @@ bool shouldPublishAlert(AlertState &state, String newMessage, unsigned long curr
         state.lastChangeTime = currentMillis;
         state.stableCount = 0;
         return false;
-    }
-    
+}
+
     // Check if state has been stable for debounce period
     if (currentMillis - state.lastChangeTime >= ALERT_DEBOUNCE_TIME) {
         state.stableCount++;

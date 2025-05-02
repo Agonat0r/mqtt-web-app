@@ -215,4 +215,4 @@ This ensures that all visible UI elements with data-translate attributes are now
 
 2024-05-30: Fixed language dropdown so that all language selections (not just English) work and persist. Added an event listener to the languageSelector dropdown that calls switchLanguage, ensuring the UI and settings update correctly when a new language is selected.
 
-2024-05-30: Removed all SMS/phone-related UI and logic from the email alerts tab, as requested. This does not affect SMS/phone logic in other tabs or sections. 
+2024-05-30: Removed all SMS-related UI elements from the email alerts tab in index.html. Only email alert controls remain in that tab. The separate SMS alerts tab and its controls are unaffected. 

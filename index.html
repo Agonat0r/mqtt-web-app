@@ -1096,6 +1096,30 @@
         }
       }
     }
+
+    function sendEmailAlert(type, message) {
+      const emails = Array.from(document.querySelectorAll('.email-text')).map(span => span.textContent);
+      if (!emails.length) {
+        showMessage('No email recipients found for alert.', 'error');
+        return;
+      }
+      emails.forEach(email => {
+        emailjs.send(
+          EMAILJS_SERVICE_ID,
+          EMAILJS_TEMPLATE_ID,
+          {
+            to_email: email,
+            alert_type: type.toUpperCase(),
+            alert_message: message,
+            timestamp: new Date().toLocaleString()
+          }
+        ).then(() => {
+          showMessage('Email alert sent to ' + email, 'success');
+        }).catch(error => {
+          showMessage('Failed to send email alert: ' + error.text, 'error');
+        });
+      });
+    }
   </script>
 
   <style>

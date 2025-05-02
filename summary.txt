@@ -211,4 +211,6 @@ Last Change: Fixed login functionality and terminal console visibility
 - sendTestSMS
 - smsAlerts
 
-This ensures that all visible UI elements with data-translate attributes are now fully covered in every language, supporting seamless language switching and consistent user experience. No existing translations were changed or removed. 
+This ensures that all visible UI elements with data-translate attributes are now fully covered in every language, supporting seamless language switching and consistent user experience. No existing translations were changed or removed.
+
+2024-05-30: Fixed language dropdown bug where selecting a language always reverted to English. Removed a redundant event listener on the languageSelector element so that only the main switchLanguage handler is used. Language selection now works as expected and persists across sessions. 

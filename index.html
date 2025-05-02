@@ -921,7 +921,8 @@
                   throw new Error(`EmailJS API error: ${response.text}`);
                 }
               } catch (error) {
-                errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`);
+                let errorMsg = error && (error.text || error.message || error.toString());
+                errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${errorMsg}`);
               }
             }
 
@@ -1034,9 +1035,8 @@
             
             console.log('SMS sent successfully to:', smsEmail, response);
           } catch (error) {
-            const errorMsg = `Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${error.message}`;
-            console.error(errorMsg);
-            errors.push(errorMsg);
+            let errorMsg = error && (error.text || error.message || error.toString());
+            errors.push(`Failed to send to ${phoneItem.querySelector('.phone-text').textContent}: ${errorMsg}`);
           }
         }
 

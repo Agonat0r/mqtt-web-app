@@ -1361,11 +1361,7 @@ function exportLog(targetId) {
 }
 
 // Add event listener for language changes
-// document.getElementById('languageSelector').addEventListener('change', function(e) {
-//     const selectedLang = e.target.value;
-//     localStorage.setItem('language', selectedLang);
-//     updateAllText();
-// });
+document.getElementById('languageSelector').addEventListener('change', switchLanguage);
 
 // Call updateAllText on page load
 document.addEventListener('DOMContentLoaded', function() {

@@ -108,7 +108,18 @@ export const translations = {
     emailModalTitle: "Send Log via Email",
     emailPlaceholder: "Enter email address",
     sending: "Sending...",
-    enterEmailAddress: "Please enter an email address"
+    enterEmailAddress: "Please enter an email address",
+
+    // --- NEW KEYS FOR FULL TRANSLATION COVERAGE ---
+    // These keys ensure all data-translate attributes in index.html are covered in every language
+    commandConsole: "Command Terminal",
+    enterEmail: "Enter email address",
+    enterPhone: "Enter phone number (e.g., +1234567890)",
+    addEmail: "Add Email",
+    addPhone: "Add Phone",
+    sendTestEmail: "Send Test Email",
+    sendTestSMS: "Send Test SMS",
+    smsAlerts: "SMS Alerts"
   },
   de: {
     // Login
@@ -187,7 +198,17 @@ export const translations = {
     emailPlaceholder: "E-Mail-Adresse eingeben",
     sending: "Senden...",
     invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
-    enterEmailAddress: "Bitte geben Sie eine E-Mail-Adresse ein"
+    enterEmailAddress: "Bitte geben Sie eine E-Mail-Adresse ein",
+
+    // --- NEUE SCHLÜSSEL FÜR VOLLE ÜBERSETZUNGSABDECKUNG ---
+    commandConsole: "Befehlsterminal",
+    enterEmail: "E-Mail-Adresse eingeben",
+    enterPhone: "Telefonnummer eingeben (z.B. +491234567890)",
+    addEmail: "E-Mail hinzufügen",
+    addPhone: "Telefonnummer hinzufügen",
+    sendTestEmail: "Test-E-Mail senden",
+    sendTestSMS: "Test-SMS senden",
+    smsAlerts: "SMS-Benachrichtigungen"
   },
   es: {
     // Login
@@ -277,7 +298,17 @@ export const translations = {
     emailPlaceholder: "Ingrese dirección de email",
     sending: "Enviando...",
     invalidEmail: "Por favor ingrese un email válido",
-    enterEmailAddress: "Por favor ingrese una dirección de email"
+    enterEmailAddress: "Por favor ingrese una dirección de email",
+
+    // --- NUEVAS CLAVES PARA COBERTURA COMPLETA DE TRADUCCIÓN ---
+    commandConsole: "Terminal de Comandos",
+    enterEmail: "Ingrese dirección de email",
+    enterPhone: "Ingrese número de teléfono (ej. +1234567890)",
+    addEmail: "Agregar correo",
+    addPhone: "Agregar teléfono",
+    sendTestEmail: "Enviar correo de prueba",
+    sendTestSMS: "Enviar SMS de prueba",
+    smsAlerts: "Alertas SMS"
   },
   fr: {
     // Login
@@ -356,7 +387,17 @@ export const translations = {
     emailPlaceholder: "Entrez l'adresse email",
     sending: "Envoi en cours...",
     invalidEmail: "Veuillez entrer une adresse email valide",
-    enterEmailAddress: "Veuillez entrer une adresse email"
+    enterEmailAddress: "Veuillez entrer une adresse email",
+
+    // --- NOUVELLES CLÉS POUR UNE COUVERTURE DE TRADUCTION COMPLÈTE ---
+    commandConsole: "Terminal de Commandes",
+    enterEmail: "Entrez l'adresse e-mail",
+    enterPhone: "Entrez le numéro de téléphone (ex. +1234567890)",
+    addEmail: "Ajouter un e-mail",
+    addPhone: "Ajouter un téléphone",
+    sendTestEmail: "Envoyer un e-mail de test",
+    sendTestSMS: "Envoyer un SMS de test",
+    smsAlerts: "Alertes SMS"
   }
 };
 

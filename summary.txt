@@ -198,4 +198,17 @@ These changes ensure:
 - Improved code maintainability
 
 Last Updated: 2024-03-20
-Last Change: Fixed login functionality and terminal console visibility 
+Last Change: Fixed login functionality and terminal console visibility
+
+---
+2024-05-30: Updated translations.js to add missing translation keys for new data-translate attributes in index.html. The following keys were added to all supported languages (en, de, es, fr):
+- commandConsole
+- enterEmail
+- enterPhone
+- addEmail
+- addPhone
+- sendTestEmail
+- sendTestSMS
+- smsAlerts
+
+This ensures that all visible UI elements with data-translate attributes are now fully covered in every language, supporting seamless language switching and consistent user experience. No existing translations were changed or removed. 

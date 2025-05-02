@@ -297,20 +297,38 @@ void publishCommandLog(const String& msg) {
 
 // Alert console log (red, amber, green)
 void publishAlert(const char* level, const String& msg) {
-  if (!mqttClient.connected()) return;
+    if (!mqttClient.connected()) return;
 
-  // Create LED status code string
-  String ledCode = "";
-  for (int i = 0; i < numLEDs; i++) {
-    ledCode += String(redLEDStates[i].lastState ? "1" : "0");
-  }
-  ledCode += "-";
-  for (int i = 0; i < numLEDs; i++) {
-    ledCode += String(greenLEDStates[i].lastState ? "1" : "0");
-  }
+    // Create LED status code string
+    String ledCode = "";
+    for (int i = 0; i < numLEDs; i++) {
+        ledCode += String(redLEDStates[i].lastState ? "1" : "0");
+    }
+    ledCode += "-";
+    for (int i = 0; i < numLEDs; i++) {
+        ledCode += String(greenLEDStates[i].lastState ? "1" : "0");
+    }
 
-  String payload = "{\"type\":\"" + String(level) + "\",\"message\":\"" + msg + "\",\"led_code\":\"" + ledCode + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
-  mqttClient.publish(alertLogTopic, payload.c_str());  // Send only to alert topic
+    // Create alert message
+    String alertMsg = String(level) + " Alert: " + msg;
+    
+    // Create JSON payload for alert topic
+    String alertPayload = "{\"type\":\"" + String(level) + "\",\"message\":\"" + msg + "\",\"led_code\":\"" + ledCode + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+    
+    // Create JSON payload for general topic with alert type
+    String generalPayload = "{\"type\":\"alert\",\"alert_type\":\"" + String(level) + "\",\"message\":\"" + msg + "\",\"led_code\":\"" + ledCode + "\",\"timestamp\":\"" + getTimestamp() + "\"}";
+
+    // Publish to alert topic
+    mqttClient.publish(alertLogTopic, alertPayload.c_str());
+    
+    // Also publish to general topic for the general tab
+    mqttClient.publish(generalLogTopic, generalPayload.c_str());
+    
+    // Log to serial for debugging
+    Serial.print("Publishing ");
+    Serial.print(level);
+    Serial.print(" alert: ");
+    Serial.println(msg);
 }
 
 // MQTT callback function
@@ -758,27 +776,8 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
             
             // Send email for any red alarm if it's different from the last one sent
             if (alertName != lastRedEmailSent) {
-                String alarmDescription = "";
-                if (alertName == "R01") alarmDescription = "All RED LEDs are OFF";
-                else if (alertName == "R02") alarmDescription = "E-Stop is OFF";
-                else if (alertName == "R15") alarmDescription = "OSG/Pit Switch activated";
-                else if (alertName == "R23") alarmDescription = "Door Lock Failure";
-                else if (alertName == "R22") alarmDescription = "Door Open";
-                else if (alertName == "R00") alarmDescription = "No FLASHING RED LEDs";
-                else if (alertName == "R31") alarmDescription = "Out of Service (flood switch)";
-                else if (alertName == "R36") alarmDescription = "Out of Service – periodic maintenance";
-                else if (alertName == "R37") alarmDescription = "Out of Service (travel time)";
-                else if (alertName == "R07") alarmDescription = "Drive Train, Belt Failure";
-                else if (alertName == "R03") alarmDescription = "Drive Nut Friction block fails";
-                else if (alertName == "R27") alarmDescription = "Drive Train Alignment";
-                else if (alertName == "R10") alarmDescription = "Final Limit";
-                else if (alertName == "R11") alarmDescription = "Landing Switch (Top) failure";
-                else if (alertName == "R12") alarmDescription = "Landing Switch (Mid) failure";
-                else if (alertName == "R13") alarmDescription = "Landing Switch (Bottom) failure";
-                else if (alertName == "R24") alarmDescription = "Drive Train Motor Failure";
-                else if (alertName == "R05") alarmDescription = "Motor temperature failure";
-                
-                sendAlarmEmail("RED", alertName + " - " + alarmDescription);
+                String alertDescription = getAlertDescription(alertName);
+                sendAlarmEmail("RED", alertName + " - " + alertDescription);
                 lastRedEmailSent = alertName;
             }
         }
@@ -863,11 +862,18 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
 
     // Process alerts with state management
     if (shouldPublishAlert(redAlertState, currentRedAlarms, currentMillis)) {
-        publishAlert("red", currentRedAlarms);
+        String alertDescription = getAlertDescription(currentRedAlarms);
+        publishAlert("red", currentRedAlarms + " - " + alertDescription);
     }
 
     if (shouldPublishAlert(greenAlertState, currentGreenAlarms, currentMillis)) {
-        publishAlert("green", currentGreenAlarms);
+        String alertDescription = getAlertDescription(currentGreenAlarms);
+        publishAlert("green", currentGreenAlarms + " - " + alertDescription);
+    }
+
+    if (shouldPublishAlert(amberAlertState, currentAmberAlarms, currentMillis)) {
+        String alertDescription = getAlertDescription(currentAmberAlarms);
+        publishAlert("amber", currentAmberAlarms + " - " + alertDescription);
     }
 
     // Update global strings for web interface
@@ -885,6 +891,56 @@ void processLEDStatus(const String& tempStatus, unsigned long currentMillis) {
             ledStatusHistory = ledStatusHistory.substring(0, 3000);
         }
     }
+}
+
+// Add a helper function to get alert descriptions
+String getAlertDescription(const String& alertCode) {
+    if (alertCode == "R01") return "All RED LEDs are OFF";
+    else if (alertCode == "R02") return "E-Stop is OFF";
+    else if (alertCode == "R15") return "OSG/Pit Switch activated";
+    else if (alertCode == "R23") return "Door Lock Failure";
+    else if (alertCode == "R22") return "Door Open";
+    else if (alertCode == "R00") return "No FLASHING RED LEDs";
+    else if (alertCode == "R31") return "Out of Service (flood switch)";
+    else if (alertCode == "R36") return "Out of Service – periodic maintenance";
+    else if (alertCode == "R37") return "Out of Service (travel time)";
+    else if (alertCode == "R07") return "Drive Train, Belt Failure";
+    else if (alertCode == "R03") return "Drive Nut Friction block fails";
+    else if (alertCode == "R27") return "Drive Train Alignment";
+    else if (alertCode == "R10") return "Final Limit";
+    else if (alertCode == "R11") return "Landing Switch (Top) failure";
+    else if (alertCode == "R12") return "Landing Switch (Mid) failure";
+    else if (alertCode == "R13") return "Landing Switch (Bottom) failure";
+    else if (alertCode == "R24") return "Drive Train Motor Failure";
+    else if (alertCode == "R05") return "Motor temperature failure";
+    
+    // Green alerts
+    else if (alertCode == "G01") return "All GREEN LEDs are OFF";
+    else if (alertCode == "G00") return "No exceptions";
+    else if (alertCode == "G02") return "No FLASHING GREEN LEDs";
+    else if (alertCode == "G03") return "On Battery Power";
+    else if (alertCode == "G04") return "Bypass Jumpers/Service Switch";
+    
+    // Amber alerts
+    else if (alertCode == "A01") return "ALL AMBER LEDs OFF";
+    else if (alertCode == "A04") return "Power Failure";
+    else if (alertCode == "A39") return "Power Failure";
+    else if (alertCode == "A30") return "Service Required (Flood switch)";
+    else if (alertCode == "A33") return "Service Required – travel time";
+    else if (alertCode == "A34") return "Service Required – maintenance";
+    else if (alertCode == "A35") return "Service Required – hours";
+    else if (alertCode == "A36") return "Service Required – Battery";
+    else if (alertCode == "A37") return "Service Required - Inverter";
+    else if (alertCode == "A02") return "No FLASHING AMBER LEDs";
+    else if (alertCode == "A32") return "Power Failure - UP Locked";
+    else if (alertCode == "A40") return "Power Failure";
+    else if (alertCode == "A06") return "Motor Failure - UP Locked";
+    else if (alertCode == "A08") return "Anti-Rock binding - UP Locked";
+    else if (alertCode == "A14") return "Bottom Final Limit - DOWN Locked";
+    else if (alertCode == "A16") return "Flood waters - DOWN Locked";
+    else if (alertCode == "A38") return "Motor Temperature monitoring lost";
+    
+    return "Unknown Alert Code";
 }
 
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {

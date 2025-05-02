@@ -213,4 +213,6 @@ Last Change: Fixed login functionality and terminal console visibility
 
 This ensures that all visible UI elements with data-translate attributes are now fully covered in every language, supporting seamless language switching and consistent user experience. No existing translations were changed or removed.
 
-2024-05-30: Fixed language dropdown so that all language selections (not just English) work and persist. Added an event listener to the languageSelector dropdown that calls switchLanguage, ensuring the UI and settings update correctly when a new language is selected. 
+2024-05-30: Fixed language dropdown so that all language selections (not just English) work and persist. Added an event listener to the languageSelector dropdown that calls switchLanguage, ensuring the UI and settings update correctly when a new language is selected.
+
+2024-05-30: Removed all SMS/phone-related UI and logic from the email alerts tab, as requested. This does not affect SMS/phone logic in other tabs or sections. 

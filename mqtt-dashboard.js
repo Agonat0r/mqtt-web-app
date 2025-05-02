@@ -3,7 +3,7 @@ import { translations } from './translations.js';
 
 // Initialize EmailJS
 (function() {
-    emailjs.init("7osg1XmfdRC2z68Xt"); // Replace with your actual EmailJS public key
+    emailjs.init("elTkW2rygb9ah9aiU"); // Replace with your actual EmailJS public key
 })();
 
 // Global state and MQTT client
@@ -700,7 +700,7 @@ async function sendAlarmEmail(type, message) {
             const email = emailElement.textContent;
             await emailjs.send(
                 "service_lsa1r4i",
-                "template_vnrbr1d",
+                "template_5usevip",
                 {
                     to_email: email,
                     subject: `[${type.toUpperCase()} ALARM] VPL Monitoring Alert`,
@@ -1296,7 +1296,7 @@ async function sendLogEmail() {
         // Send email using EmailJS
         await emailjs.send(
             "service_lsa1r4i", 
-            "template_vnrbr1d",
+            "template_5usevip",
             {
                 to_email: emailInput.value,
                 from_name: "MQTT Dashboard",
@@ -1397,7 +1397,7 @@ async function sendTestEmail() {
             const email = emailElement.textContent;
             await emailjs.send(
                 "service_lsa1r4i",
-                "template_vnrbr1d",
+                "template_5usevip",
                 {
                     to_email: email,
                     subject: "Test Alert from VPL Monitoring System",
@@ -1470,7 +1470,7 @@ async function sendSmsAlert(type, message) {
             // Send via EmailJS
             await emailjs.send(
                 'service_lsa1r4i',  // Your EmailJS service ID
-                'template_vnrbr1d', // Your EmailJS template ID
+                'template_5usevip', // Your EmailJS template ID
                 {
                     to_email: smsEmail,
                     alert_type: type.toUpperCase(),

@@ -208,6 +208,16 @@
             <h3 data-translate="showBorders">Show Borders</h3>
             <input type="checkbox" id="borderToggle" data-action="apply-borders">
           </div>
+          <div class="customization-card">
+            <h3>Email Alert Rate</h3>
+            <label for="emailRateLimit">Minimum minutes between emails:</label>
+            <input type="number" id="emailRateLimit" min="1" max="60" step="1" value="5">
+          </div>
+          <div class="customization-card">
+            <h3>SMS Alert Rate</h3>
+            <label for="smsRateLimit">Minimum minutes between SMS:</label>
+            <input type="number" id="smsRateLimit" min="1" max="60" step="1" value="5">
+          </div>
         </div>
         <button id="resetCustomizations" data-action="reset-customizations" data-translate="reset">Reset to Default</button>
       </div>
@@ -708,53 +718,49 @@
       });
     });
 
-    // Function to send email alerts
-    async function sendEmailAlert(type, message) {
-      console.log('Attempting to send email alert:', { type, message });
-      
-      if (!emailAlertEnabled.checked) {
-        console.log('Email alerts are disabled');
-        return;
-      }
-      
-      const alertTypeEnabled = document.getElementById(`${type}AlertEnabled`).checked;
-      if (!alertTypeEnabled) {
-        console.log(`${type} alerts are disabled`);
-        return;
-      }
-
-      const emails = Array.from(emailList.querySelectorAll('.email-text'))
-        .map(span => span.textContent);
-      
-      if (emails.length === 0) {
-        console.log('No email addresses found in the list');
-        return;
-      }
-
-      console.log('Sending email alert to:', emails);
-
-      try {
-        const response = await emailjs.send(
-          'service_lsa1r4i',
-          'template_vnrbr1d',
-          {
-            to_email: emails.join(', '),
-            alert_type: type.toUpperCase(),
-            alert_message: message,
-            timestamp: new Date().toLocaleString()
-          }
-        );
-        console.log('Email alert sent successfully:', response);
-      } catch (error) {
-        console.error('Failed to send email alert:', error);
-        // Show error in UI
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-message';
-        errorDiv.textContent = `Failed to send email: ${error.message}`;
-        document.body.appendChild(errorDiv);
-        setTimeout(() => errorDiv.remove(), 5000);
-      }
+    // --- Email and SMS Alert Rate Limiting ---
+    function getLastEmailSent() {
+      return parseInt(localStorage.getItem('lastEmailSent') || '0');
     }
+    function setLastEmailSent(ts) {
+      localStorage.setItem('lastEmailSent', ts.toString());
+    }
+    function getLastSmsSent() {
+      return parseInt(localStorage.getItem('lastSmsSent') || '0');
+    }
+    function setLastSmsSent(ts) {
+      localStorage.setItem('lastSmsSent', ts.toString());
+    }
+
+    // Patch sendEmailAlert to enforce rate limit
+    const originalSendEmailAlert = window.sendEmailAlert || sendEmailAlert;
+    window.sendEmailAlert = async function(type, message) {
+      const now = Date.now();
+      const minIntervalMin = parseInt(localStorage.getItem('emailRateLimit')) || 5;
+      const minIntervalMs = minIntervalMin * 60 * 1000;
+      const lastSent = getLastEmailSent();
+      if (now - lastSent < minIntervalMs) {
+        showMessage('Email rate limit reached. Please wait before sending another email.', 'error');
+        return;
+      }
+      setLastEmailSent(now);
+      return originalSendEmailAlert(type, message);
+    };
+
+    // Patch sendSmsAlert to enforce rate limit
+    const originalSendSmsAlert = window.sendSmsAlert || sendSmsAlert;
+    window.sendSmsAlert = async function(type, message) {
+      const now = Date.now();
+      const minIntervalMin = parseInt(localStorage.getItem('smsRateLimit')) || 5;
+      const minIntervalMs = minIntervalMin * 60 * 1000;
+      const lastSent = getLastSmsSent();
+      if (now - lastSent < minIntervalMs) {
+        showMessage('SMS rate limit reached. Please wait before sending another SMS.', 'error');
+        return;
+      }
+      setLastSmsSent(now);
+      return originalSendSmsAlert(type, message);
+    };
 
     // Move these functions to the global scope
     window.isValidPhone = function(phone) {
